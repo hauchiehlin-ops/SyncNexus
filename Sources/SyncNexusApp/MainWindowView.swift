@@ -472,8 +472,8 @@ struct SettingsSection: View {
                 HStack {
                     Image(systemName: fullDisk ? "checkmark.circle.fill" : "exclamationmark.circle.fill").foregroundStyle(fullDisk ? Theme.ok : Theme.warn)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("完整磁碟取用權限").font(.system(size: 14, weight: .semibold))
-                        Text(fullDisk ? "已授權" : "未授權：iCloud 雲碟裡的刪除會失敗。授權後需要重新啟動 App。").font(.system(size: 12)).foregroundStyle(.secondary)
+                        Text(Permissions.isSandboxed ? "檔案系統安全存取權限" : "完整磁碟取用權限").font(.system(size: 14, weight: .semibold))
+                        Text(Permissions.isSandboxed ? "已授權：透過 macOS 原生安全書籤（Security-Scoped Bookmarks）持久讀寫同步資料夾。" : (fullDisk ? "已授權" : "未授權：iCloud 雲碟裡的刪除會失敗。授權後需要重新啟動 App。")).font(.system(size: 12)).foregroundStyle(.secondary)
                     }
                     Spacer()
                     if !fullDisk {

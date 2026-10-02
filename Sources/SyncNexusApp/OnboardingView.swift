@@ -5,8 +5,18 @@ import SyncCore
 import UserNotifications
 
 enum Permissions {
-    /// Full Disk Access cannot be queried directly; reading a folder only it can open is the usual probe.
+    /// Whether the app is currently running inside Apple App Sandbox.
+    static var isSandboxed: Bool {
+        ProcessInfo.processInfo.environment["APP_SANDBOX_CONTAINER_ID"] != nil
+    }
+
+    /// Full Disk Access status. In an App Store Sandbox environment, standard FDA is replaced
+    /// by user-selected Security-Scoped Bookmarks, which are always active and authorized.
     static func hasFullDiskAccess() -> Bool {
+        if isSandboxed {
+            // App Store sandboxed builds rely on security-scoped bookmarks granted via OpenPanel.
+            return true
+        }
         let home = NSHomeDirectory()
         for dir in ["/Library/Safari", "/Library/Mail", "/Library/Messages"] {
             var isDir: ObjCBool = false
@@ -105,10 +115,16 @@ struct OnboardingView: View {
             Text("需要的授權").font(.title2.bold())
             Text("為了能讀寫 iCloud 雲碟、外接磁碟並把檔案移到垃圾桶，需要你在系統設定裡授權。")
                 .font(.callout).foregroundStyle(.secondary)
-            permissionRow(ok: fullDisk, title: "完整磁碟取用權限", detail: "必要。沒有它就無法處理 iCloud 雲碟裡的刪除。授權後需要重新啟動 App。") {
-                HStack {
-                    Button("開啟系統設定") { Permissions.openFullDiskAccessSettings() }
-                    if !fullDisk { Button("已授權，重新啟動") { Permissions.relaunch() } }
+            permissionRow(
+                ok: fullDisk,
+                title: Permissions.isSandboxed ? "檔案系統存取權限" : "完整磁碟取用權限",
+                detail: Permissions.isSandboxed ? "已具備安全沙盒書籤存取權限，可持久讀寫你挑選的同步資料夾。" : "必要。沒有它就無法處理 iCloud 雲碟裡的刪除。授權後需要重新啟動 App。"
+            ) {
+                if !Permissions.isSandboxed {
+                    HStack {
+                        Button("開啟系統設定") { Permissions.openFullDiskAccessSettings() }
+                        if !fullDisk { Button("已授權，重新啟動") { Permissions.relaunch() } }
+                    }
                 }
             }
             permissionRow(ok: notifications == .authorized, title: "通知", detail: "建議。有衝突或需要你確認時會提醒你。") {
@@ -117,8 +133,10 @@ struct OnboardingView: View {
             permissionRow(ok: model.launchAtLogin, title: "開機自動啟動", detail: "建議。同步要一直在背景執行才有用。") {
                 Toggle("", isOn: Binding(get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) })).labelsHidden()
             }
-            Text("打開「完整磁碟取用權限」時，清單裡找不到 Sync-Nexus 的話，按「+」選擇 ~/Applications/SyncNexus.app。")
-                .font(.caption).foregroundStyle(.secondary)
+            if !Permissions.isSandboxed {
+                Text("打開「完整磁碟取用權限」時，清單裡找不到 Sync-Nexus 的話，按「+」選擇 ~/Applications/SyncNexus.app。")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
         }
     }
 
