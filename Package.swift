@@ -1,4 +1,4 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 5.10
 import PackageDescription
 
 let package = Package(
@@ -10,8 +10,8 @@ let package = Package(
     ],
     targets: [
         .target(name: "SyncCore"),
-        .executableTarget(name: "syncnexus", dependencies: ["SyncCore"], swiftSettings: [.swiftLanguageMode(.v5)]),
-        .executableTarget(name: "SyncNexusApp", dependencies: ["SyncCore"], swiftSettings: [.swiftLanguageMode(.v5)]),
+        .executableTarget(name: "syncnexus", dependencies: ["SyncCore"]),
+        .executableTarget(name: "SyncNexusApp", dependencies: ["SyncCore"]),
         .testTarget(name: "SyncCoreTests", dependencies: ["SyncCore"]),
     ]
 )
