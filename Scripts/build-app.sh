@@ -27,10 +27,14 @@ if [[ -n "$APP_SIGN_IDENTITY" ]]; then
   codesign --force --deep --sign "$APP_SIGN_IDENTITY" "${SANDBOX_ARGS[@]}" --options runtime --identifier com.syncnexus.app "$APP"
 else
   KC=~/.syncnexus-signing/signing.keychain-db
-  if [[ -f "$KC" ]]; then
-    security unlock-keychain -p "$(cat ~/.syncnexus-signing/keychain-password)" "$KC"
-    HASH=$(security find-identity -p codesigning "$KC" | awk '/SyncNexus Local Signing/ {print $2; exit}')
-    codesign --force --deep --sign "$HASH" "${SANDBOX_ARGS[@]}" --keychain "$KC" --identifier com.syncnexus.app "$APP"
+  if [[ -f "$KC" && -z "${CI:-}" ]]; then
+    security unlock-keychain -p "$(cat ~/.syncnexus-signing/keychain-password)" "$KC" 2>/dev/null || true
+    HASH=$(security find-identity -p codesigning "$KC" 2>/dev/null | awk '/SyncNexus Local Signing/ {print $2; exit}' || true)
+    if [[ -n "$HASH" ]]; then
+      codesign --force --deep --sign "$HASH" "${SANDBOX_ARGS[@]}" --keychain "$KC" --identifier com.syncnexus.app "$APP"
+    else
+      codesign --force --deep --sign - "${SANDBOX_ARGS[@]}" --identifier com.syncnexus.app "$APP"
+    fi
   else
     codesign --force --deep --sign - "${SANDBOX_ARGS[@]}" --identifier com.syncnexus.app "$APP"
   fi
