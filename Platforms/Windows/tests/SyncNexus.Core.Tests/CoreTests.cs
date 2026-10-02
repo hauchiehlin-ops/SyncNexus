@@ -115,4 +115,43 @@ public class CoreTests
         var obsConflict = new Model.PathObservation(stateA, stateC, 1);
         Assert.Equal(Model.Decision.Conflict, Reconciler.Decide(obsConflict, cons2));
     }
+
+    [Fact]
+    public void SqliteStore_RoundTrip()
+    {
+        var tempDb = Path.Combine(Path.GetTempPath(), $"syncnexus_test_{Guid.NewGuid():N}.db");
+        try
+        {
+            using var store = new Storage.SqliteStore(tempDb);
+
+            var ep = new Model.EndpointConfig("test-local", @"C:\Test", removable: false, portableNames: true);
+            store.SaveEndpoint(ep);
+
+            var loaded = store.GetEndpoints();
+            Assert.Single(loaded);
+            Assert.Equal("test-local", loaded[0].Id);
+            Assert.True(loaded[0].PortableNames);
+
+            store.SetConsensus("doc.txt", Model.FileState.MakeFile("hash1", 50), 1);
+            var cons = store.GetConsensus("doc.txt");
+            Assert.NotNull(cons);
+            Assert.Equal(1, cons.Rev);
+            Assert.Equal("hash1", cons.State?.Hash);
+        }
+        finally
+        {
+            if (File.Exists(tempDb))
+            {
+                try { File.Delete(tempDb); } catch { }
+            }
+        }
+    }
+
+    [Fact]
+    public void CloudProviderProbe_ExecutesWithoutExceptions()
+    {
+        var discovered = IO.CloudProviderProbe.ProbeAll();
+        Assert.NotNull(discovered);
+    }
 }
+

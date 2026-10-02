@@ -34,9 +34,10 @@ Platforms/Windows/
 │   │   ├── Model/                      # EndpointConfig, FileState, Consensus, Report
 │   │   ├── Engine/                     # Reconciler, PortableName, IgnoreRules, ConflictNaming, SyncEngine
 │   │   ├── Storage/                    # SqliteStore (與 macOS state.db 完全相容)
-│   │   └── IO/                         # FileOps, WindowsCloudPlaceholderDetector, WindowsVolumeHelper
+│   │   └── IO/                         # FileOps, WindowsFileWatcher, WindowsCloudPlaceholderDetector, WindowsVolumeHelper, CloudProviderProbe
 │   └── SyncNexus.Desktop/              # Windows 桌面應用程式 (WPF / Fluent Design)
 │       ├── ViewModels/                 # MainViewModel, EndpointItemViewModel
+│       ├── Services/                   # WindowsDeviceWatcher, LocalPeerDiscovery, BackgroundSyncService
 │       └── app.manifest                # 啟用長路徑與 PerMonitorV2 高解析度感知
 └── tests/
     └── SyncNexus.Core.Tests/           # 核心規格與演算法單元測試 (xUnit)
