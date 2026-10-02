@@ -1,0 +1,34 @@
+#!/bin/sh
+# Automatically raises the version (patch by default) before every commit that changes the app.
+#   BUMP=minor git commit ...   choose minor / major yourself   (BUMP=none or SKIP_BUMP=1 skips the bump)
+#   Scripts/bump-version.sh minor && git add -A && git commit    does the same in two steps
+# Use `git add` + `git commit` (or `commit -a`); `git commit <paths>` bypasses the index this hook edits.
+root=$(git rev-parse --show-toplevel) || exit 0
+cd "$root" || exit 0
+[ -x Scripts/bump-version.sh ] || exit 0
+[ -n "$SKIP_BUMP" ] && exit 0
+
+# amend / merge / rebase / cherry-pick: the version was already handled by the original commit
+case "$(ps -o args= -p $PPID 2>/dev/null)" in *--amend*) exit 0 ;; esac
+for ref in MERGE_HEAD CHERRY_PICK_HEAD REVERT_HEAD; do git rev-parse -q --verify "$ref" >/dev/null 2>&1 && exit 0; done
+[ -d "$(git rev-parse --git-path rebase-merge)" ] || [ -d "$(git rev-parse --git-path rebase-apply)" ] && exit 0
+
+FILES="VERSION BUILD_NUMBER Scripts/Info.plist packaging/homebrew/syncnexus.rb"
+kind=${BUMP:-patch}
+[ "$kind" = none ] && exit 0
+
+# you already changed VERSION yourself (e.g. ran bump-version.sh minor): respect it, just keep the other files in step
+if ! git diff --cached --quiet -- VERSION; then
+  Scripts/bump-version.sh --sync >/dev/null && git add $FILES 2>/dev/null
+  echo "版本：沿用你已提升的 $(Scripts/bump-version.sh --show)"
+  exit 0
+fi
+
+# commits that touch only docs / tests do not change the app: no bump (unless BUMP is set explicitly)
+if [ -z "$BUMP" ]; then
+  git diff --cached --name-only | grep -Eq '^(Sources/|Scripts/|Package\.swift|Resources/|packaging/)' || exit 0
+fi
+
+out=$(Scripts/bump-version.sh "$kind") || { echo "自動提升版本失敗：$out" >&2; exit 1; }
+git add $FILES 2>/dev/null
+echo "版本已自動提升（$kind）：$out"
