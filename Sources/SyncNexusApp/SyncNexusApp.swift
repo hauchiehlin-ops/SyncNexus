@@ -66,6 +66,12 @@ struct MenuContent: View {
     var body: some View {
         Text(model.headline)
         if model.snap.trackedFiles > 0 { Text("追蹤中 \(model.snap.trackedFiles) 個檔案") }
+        if let t = model.snap.lastCleanSync {
+            Text("最近一次完全無誤：\(t.formatted(.relative(presentation: .named)))")
+        }
+        if !model.snap.integrityIssues.isEmpty {
+            Text("‼︎ \(model.snap.integrityIssues.count) 個檔案內容與紀錄不符（疑似損壞，已隔離不傳播）")
+        }
         if !model.snap.conflicts.isEmpty {
             Button("⚠︎ \(model.snap.conflicts.count) 個衝突待處理…") { openWindow(id: "settings"); NSApp.activate(ignoringOtherApps: true) }
         }
@@ -92,6 +98,7 @@ struct MenuContent: View {
 
         Button("設定端點…") { openWindow(id: "settings"); NSApp.activate(ignoringOtherApps: true) }.keyboardShortcut(",")
         Button("立即同步") { model.syncNow() }.keyboardShortcut("r")
+        Button("立即完整驗證（重新讀取每個檔案）") { model.verifyNow() }
         Button(model.snap.phase == .paused ? "繼續同步" : "暫停同步") { model.togglePause() }
         Divider()
 

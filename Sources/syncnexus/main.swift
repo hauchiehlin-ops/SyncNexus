@@ -42,6 +42,7 @@ func printReport(_ r: SyncReport, dryRun: Bool) {
         r.preview.forEach { print("  \($0)") }
     }
     for s in Set(r.skipped).sorted() { print("↷ 略過  \(s)") }
+    for i in r.integrity { print("‼︎ 內容與紀錄不符（疑似損壞）：\(i)") }
     if let c = r.needsConfirmation { print("✋ \(c)"); return }
     if !dryRun { print("完成：\(r.work) 個動作，\(r.passes) 輪") }
 }
@@ -114,8 +115,9 @@ do {
         print("已處理衝突 #\(id)；執行 sync 讓選定的版本傳到其他端點")
 
     case "sync":
-        let dry = flag("--dry-run"), yes = flag("--yes")
+        let dry = flag("--dry-run"), yes = flag("--yes"), deep = flag("--deep")
         let engine = try openEngine()
+        engine.options.deepVerify = deep
         printReport(try engine.sync(dryRun: dry, confirmed: yes), dryRun: dry)
 
     case "status":
@@ -193,7 +195,7 @@ do {
           policy [keep-both|newer-wins]
           conflicts
           resolve <編號> main|copy
-          sync  [--dry-run] [--yes] [--db file]
+          sync  [--dry-run] [--yes] [--deep] [--db file]    (--deep: 重新讀取每個檔案驗證內容)
           status [--db file]
           watch [--db file]
           check-name <relative-path>...

@@ -34,8 +34,10 @@ public struct JournalEntry: Sendable {
 
 public final class Store {
     public let db: Database
+    public let path: String
 
     public init(path: String) throws {
+        self.path = path
         db = try Database(path: path)
         try db.exec("""
         CREATE TABLE IF NOT EXISTS endpoints(
@@ -64,6 +66,21 @@ public final class Store {
         if !cols.contains(column) { try db.exec("ALTER TABLE \(table) ADD COLUMN \(column) \(ddl)") }
     }
 
+    // MARK: integrity and backup of the state database itself
+
+    /// SQLite's own consistency check; "ok" means the file is sound.
+    public func quickCheck() -> Bool {
+        (try? db.query("PRAGMA quick_check").first?[0].textValue) == "ok"
+    }
+
+    /// A consistent, compacted copy of the database (safe while the app is running).
+    public func backup(to url: URL) throws {
+        try? FileManager.default.removeItem(at: url)
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let quoted = url.path.replacingOccurrences(of: "'", with: "''")
+        try db.exec("VACUUM INTO '\(quoted)'")
+    }
+
     // MARK: batching (one commit per ~500 writes instead of one fsync per write)
 
     private var inBatch = false
@@ -78,6 +95,13 @@ public final class Store {
         guard inBatch else { return }
         inBatch = false
         try db.exec("COMMIT")
+    }
+
+    /// Drops everything written since the last commit (used by tests to emulate a crash).
+    public func rollbackBatch() {
+        guard inBatch else { return }
+        inBatch = false
+        _ = try? db.exec("ROLLBACK")
     }
 
     private func wrote() throws {

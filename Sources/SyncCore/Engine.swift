@@ -8,6 +8,9 @@ public enum ConflictPolicy: String, Sendable, CaseIterable {
     case newerWins
 }
 
+/// Thrown by test failpoints to emulate the process dying mid-sync (never thrown in production).
+public struct SimulatedCrash: Error {}
+
 public enum ConflictChoice: Sendable, Equatable { case main, conflict }
 
 public struct EngineOptions {
@@ -29,6 +32,13 @@ public struct EngineOptions {
     public var requestDownload: ((URL) -> Void)?
     /// Test hook: pretend a placeholder's content has already been read.
     public var placeholderHash: ((URL) -> String?)?
+    /// Test hooks: called at every file-system operation boundary / right after each scan.
+    public var failpoint: ((String) throws -> Void)?
+    public var afterScan: (() -> Void)?
+    /// Re-hash everything instead of trusting size + mtime, and flag content that changed without its mtime changing.
+    public var deepVerify = false
+    /// Test hook: free bytes on a volume.
+    public var freeSpace: ((URL) -> Int64?)?
 
     public init() {}
 }
@@ -43,6 +53,8 @@ public struct SyncReport {
     /// Set when the run was stopped before doing anything and needs the user's go-ahead.
     public var needsConfirmation: String?
     public var preview: [String] = []
+    /// Files whose content differs from what was recorded although size and mtime are unchanged (possible silent corruption).
+    public var integrity: [String] = []
 }
 
 public final class Engine {
@@ -92,7 +104,9 @@ public final class Engine {
         var files: [String: [String: ScannedFile]] = [:]
         var hashes: [String: FileState] = [:]
         var rows: [String: [String: EndpointRow]] = [:]
-        var moveTargets: Set<String> = []
+        var integrity: Set<String> = []
+        var wroteToRemovable: Set<String> = []
+        var blocked: [String: Set<String>] = [:]      // paths that must not be touched on an endpoint (case collisions)
     }
 
     private func buildContext(_ cfgs: [EndpointConfig], writeMarker: Bool, into report: inout SyncReport) throws -> Context {
@@ -118,16 +132,67 @@ public final class Engine {
                 ctx.rows[cfg.id] = try store.rows(cfg.id)
             }
         }
+        try canonicalizeCase(ctx, &report)
         return ctx
+    }
+
+    // MARK: case-insensitive identity
+
+    static func fold(_ path: String) -> String { PortableName.canonical(path).lowercased() }
+
+    /// macOS (APFS default), exFAT, iCloud and Google Drive folders are case-insensitive, so "Report.docx" and
+    /// "report.docx" are ONE file there. Without this, two spellings become two sync entries that overwrite each other
+    /// on the next endpoint (found by the fuzz test as silent content loss). Every path gets one canonical spelling for
+    /// the whole group; case-only renames are therefore cosmetic and not propagated. Two files that differ only by case
+    /// inside one endpoint (possible on a case-sensitive volume) are left alone and reported.
+    private func canonicalizeCase(_ ctx: Context, _ report: inout SyncReport) throws {
+        var canon: [String: String] = [:]
+        var ambiguous = Set<String>()
+        for p in try store.consensusPaths().sorted() {
+            let f = Engine.fold(p)
+            if let ex = canon[f], ex != p { ambiguous.insert(f) } else { canon[f] = p }
+        }
+        for cfg in ctx.online {
+            for rel in ctx.files[cfg.id]!.keys.sorted() where canon[Engine.fold(rel)] == nil { canon[Engine.fold(rel)] = rel }
+        }
+        for cfg in ctx.online {
+            var files: [String: ScannedFile] = [:]
+            var clash = Set<String>()
+            for (rel, f) in ctx.files[cfg.id]! {
+                let fold = Engine.fold(rel), key = canon[fold]!
+                if ambiguous.contains(fold) { clash.insert(key); continue }
+                if files[key] != nil { clash.insert(key); continue }
+                var g = f; g.rel = key
+                files[key] = g
+            }
+            for key in clash {
+                files[key] = nil
+                report.skipped.append("[\(cfg.id)] \(key)：有檔名只差大小寫的項目（此資料夾區分大小寫，其他端點不區分），為避免互相覆蓋已略過，請改名其中一個")
+            }
+            ctx.files[cfg.id] = files
+            var rows: [String: EndpointRow] = [:]
+            for (k, r) in ctx.rows[cfg.id]! { rows[canon[Engine.fold(k)] ?? k] = r }
+            ctx.rows[cfg.id] = rows
+            ctx.blocked[cfg.id] = clash
+        }
+        for f in ambiguous { if let k = canon[f] { for cfg in ctx.online { ctx.blocked[cfg.id, default: []].insert(k) } } }
     }
 
     private static let dirState = FileState(kind: .directory, hash: "", size: 0)
 
     private func live(_ ctx: Context, _ ep: String, _ path: String) throws -> Live {
+        if ctx.blocked[ep]?.contains(path) == true { return .skip("大小寫衝突，暫不處理") }
         guard let f = ctx.files[ep]?[path] else { return .absent }
         if f.isDirectory { return .present(Engine.dirState, f) }
         let key = "\(ep)\u{0}\(path)"
         if let row = ctx.rows[ep]?[path], let st = row.state, st.kind == .file, st.size == f.size, row.mtimeNs == f.mtimeNs {
+            if options.deepVerify && !f.isPlaceholder {
+                guard let h = try FileOps.hashIfStable(f.url, size: f.size, mtimeNs: f.mtimeNs) else { return .skip("仍在寫入（穩定窗口）") }
+                if h != st.hash {
+                    ctx.integrity.insert("[\(ep)] \(path)")
+                    return .skip("內容與紀錄不符，但修改時間與大小沒變（疑似損壞）。已略過，不會傳播；其他端點仍持有正確版本")
+                }
+            }
             ctx.hashes[key] = st        // unchanged since last alignment: no hashing, and a placeholder needs no download
             return .present(st, f)
         }
@@ -146,13 +211,28 @@ public final class Engine {
             requestDownload(f)
             return .skip("正在讀取雲端檔案內容，完成後自動繼續")
         }
-        if options.now().timeIntervalSince(f.mtime) < options.settleSeconds { return .skip("仍在寫入（穩定窗口）") }
+        if options.settleSeconds > 0 {
+            let now = options.now(), age = now.timeIntervalSince(f.mtime)
+            if age < options.settleSeconds {
+                // An mtime in the future (wrong clock on the machine that wrote it, timezone slips) says nothing about whether
+                // the file is still being written; waiting for that "age" would postpone the sync forever. Watch it instead.
+                guard age < 0, let seen = observedFuture[key], seen.size == f.size, seen.mtimeNs == f.mtimeNs,
+                      now.timeIntervalSince(seen.at) >= options.settleSeconds else {
+                    if age < 0, observedFuture[key].map({ $0.size != f.size || $0.mtimeNs != f.mtimeNs }) ?? true {
+                        observedFuture[key] = (f.size, f.mtimeNs, now)
+                    }
+                    return .skip("仍在寫入（穩定窗口）")
+                }
+            }
+        }
         if let s = ctx.hashes[key], s.size == f.size { return .present(s, f) }
-        let st = FileState(hash: try FileOps.sha256(of: f.url), size: f.size)
+        guard let h = try FileOps.hashIfStable(f.url, size: f.size, mtimeNs: f.mtimeNs) else { return .skip("仍在寫入（穩定窗口）") }
+        let st = FileState(hash: h, size: f.size)
         ctx.hashes[key] = st
         return .present(st, f)
     }
 
+    private var observedFuture: [String: (size: Int64, mtimeNs: Int64, at: Date)] = [:]
     private lazy var materializer = Materializer()
     /// True while building a preview: a preview must not trigger downloads (or anything else).
     private var previewing = false
@@ -194,17 +274,23 @@ public final class Engine {
         report.notes += previewReport.notes
         previewing = true
         defer { previewing = false }
-        let (planned, deletions) = try plan(pctx)
+        let (planned, deletions, wipes) = try plan(pctx)
         previewing = false
         report.preview = planned
         let tracked = try store.liveConsensusCount()
 
         if dryRun { return report }
+        let lock = try SyncLock.acquire(path: store.path + ".lock")
+        defer { _ = lock }
         let newcomers = try pctx.online.filter { try !store.endpointHasHistory($0.id) }.map(\.id)
         if (firstRun || !newcomers.isEmpty) && !confirmed && !planned.isEmpty {
             report.needsConfirmation = firstRun
                 ? "首次同步：以下變更尚未執行，請確認預覽後再執行"
                 : "新端點（\(newcomers.joined(separator: "、"))）首次加入：以下變更尚未執行，請確認預覽後再執行"
+            return report
+        }
+        if let w = wipes.first, !confirmed {
+            report.needsConfirmation = "「\(w.ep)」的 \(w.tracked) 個檔案中有 \(w.deleted) 個同時消失（一半以上）。這可能是誤刪、磁碟或資料夾異常，請確認後再執行；確認後會把這些刪除傳到其他端點（先存入舊版本與垃圾桶）"
             return report
         }
         if options.deletionGuard.requiresConfirmation(plannedDeletions: deletions, totalTracked: tracked) && !confirmed {
@@ -217,8 +303,10 @@ public final class Engine {
         for pass in 1...6 {
             var scratch = SyncReport()
             let ctx = try buildContext(cfgs, writeMarker: true, into: &scratch)
+            options.afterScan?()
             let before = report.work
-            try runPass(ctx, &report)
+            do { try runPass(ctx, &report) }
+            catch let c as SimulatedCrash { store.rollbackBatch(); throw c }   // a real crash would lose the uncommitted writes
             report.passes = pass
             if report.work == before {
                 if report.skipped.contains(where: { $0.contains("穩定窗口") }) && pass < 6 {
@@ -234,8 +322,9 @@ public final class Engine {
 
     // MARK: planning (no mutation)
 
-    private func plan(_ ctx: Context) throws -> ([String], Int) {
+    private func plan(_ ctx: Context) throws -> ([String], Int, [(ep: String, deleted: Int, tracked: Int)]) {
         var lines: [String] = [], deleted = Set<String>()
+        var deletedAt: [String: Int] = [:]
         var skipPaths: [String: Set<String>] = [:]            // renamed paths are described once, not as delete + new
         for cfg in ctx.online {
             for m in try detectMoves(ctx, cfg) {
@@ -258,7 +347,7 @@ public final class Engine {
                 case .adoptEndpoint:
                     if cur == nil {
                         let others = ctx.online.filter { $0.id != cfg.id && ctx.files[$0.id]![path] != nil }.count
-                        if !isDir { deleted.insert(path) }
+                        if !isDir { deleted.insert(path); deletedAt[cfg.id, default: 0] += 1 }
                         lines.append("[\(cfg.id)] 刪除\(what)\(path)（將移除其他 \(others) 端的副本）")
                     } else {
                         lines.append("[\(cfg.id)] 新增/修改\(what)\(path) → 其他端點")
@@ -271,7 +360,12 @@ public final class Engine {
                 }
             }
         }
-        return (lines, deleted.count)
+        let wipes = ctx.online.compactMap { cfg -> (ep: String, deleted: Int, tracked: Int)? in
+            let tracked = (ctx.rows[cfg.id] ?? [:]).values.filter { $0.state?.kind == .file }.count
+            let d = deletedAt[cfg.id] ?? 0
+            return (d >= 3 && d * 2 >= tracked) ? (cfg.id, d, tracked) : nil
+        }
+        return (lines, deleted.count, wipes)
     }
 
     private func isSkip(_ l: Live) -> Bool { if case .skip = l { return true } else { return false } }
@@ -302,6 +396,7 @@ public final class Engine {
                 }
                 do {
                     try applyDecision(decision, ctx, cfg, path, cur, file, row, cons, &report)
+                } catch let c as SimulatedCrash { throw c
                 } catch {
                     // One failing file (permission, I/O) must not stop the rest of the sync.
                     report.skipped.append("[\(cfg.id)] \(path)：操作失敗，稍後重試（\(error.localizedDescription)）")
@@ -309,9 +404,13 @@ public final class Engine {
             }
         }
 
+        report.integrity = Array(Set(report.integrity).union(ctx.integrity)).sorted()
+        for root in ctx.wroteToRemovable { FileOps.syncDirectory(URL(fileURLWithPath: root)) }   // one drive-cache flush per pass
+
         // 4) Folders removed elsewhere: last, deepest first, and only once nothing but litter is left inside.
         for d in removedDirs.sorted(by: { $0.path > $1.path }) {
             do { try removeDirectory(ctx, d.cfg, d.path, d.file, d.rev, &report) }
+            catch let c as SimulatedCrash { throw c }
             catch { report.skipped.append("[\(d.cfg.id)] \(d.path)：刪除資料夾失敗，稍後重試（\(error.localizedDescription)）") }
         }
     }
@@ -378,13 +477,14 @@ public final class Engine {
                 if (try store.row(cfg.id, q)?.seenRev ?? 0) >= cons.rev { continue }          // already applied here
                 guard ctx.files[cfg.id]?[q] == nil, let fp = ctx.files[cfg.id]?[p], !fp.isDirectory, fp.size == want.size,
                       let rowP = try store.row(cfg.id, p), rowP.state == want, rowP.mtimeNs == fp.mtimeNs,   // P is untouched since alignment
-                      portableProblem(cfg, q) == nil else { continue }
+                      unchanged(fp), portableProblem(cfg, q) == nil else { continue }
                 let dst = URL(fileURLWithPath: cfg.root).appendingPathComponent(q)
                 do {
                     try perform("move", cfg.id, q, detail: "from \(p)") {
                         try FileManager.default.createDirectory(at: dst.deletingLastPathComponent(), withIntermediateDirectories: true)
                         guard rename(fp.url.path, dst.path) == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
                     }
+                } catch let c as SimulatedCrash { throw c
                 } catch {
                     report.skipped.append("[\(cfg.id)] \(p) → \(q)：改名失敗，改用一般流程（\(error.localizedDescription)）"); continue
                 }
@@ -423,6 +523,33 @@ public final class Engine {
         }
     }
 
+    /// A destructive step (trash, rename, overwrite) acts on the file as it was when scanned. If the user touched it since
+    /// (a scan of a big tree takes a while), the step is abandoned and the file is evaluated again on the next pass.
+    private func unchanged(_ f: ScannedFile) -> Bool {
+        guard let st = FileOps.statInfo(f.url) else { return false }
+        return st.size == f.size && st.mtimeNs == f.mtimeNs
+    }
+
+    /// Free space of a volume, cached for 20 s and reduced by what this engine has written since: the system call that
+    /// includes purgeable space costs milliseconds, which added up to a minute on a 12,000-file first sync.
+    private var spaceCache: [String: (free: Int64, at: Date)] = [:]
+    private var spaceUsed: [String: Int64] = [:]
+    private func freeBytes(_ root: String) -> Int64? {
+        if let hook = options.freeSpace { return hook(URL(fileURLWithPath: root)) }
+        let now = options.now()
+        if let c = spaceCache[root], now.timeIntervalSince(c.at) < 20 { return c.free - (spaceUsed[root] ?? 0) }
+        let v = (try? URL(fileURLWithPath: root).resourceValues(forKeys: [.volumeAvailableCapacityKey]))?.volumeAvailableCapacity
+        guard let v else { return nil }
+        spaceCache[root] = (Int64(v), now); spaceUsed[root] = 0
+        return Int64(v)
+    }
+
+    private var failures: [String: (count: Int, retryAt: Date)] = [:]
+    private func failed(_ key: String) {
+        let n = (failures[key]?.count ?? 0) + 1
+        failures[key] = (n, options.now().addingTimeInterval(min(1800, 10 * pow(2, Double(n - 1)))))
+    }
+
     private func note(_ report: inout SyncReport, _ line: String) {
         report.actions.append(line)
         options.log(line)
@@ -430,8 +557,12 @@ public final class Engine {
 
     private func perform(_ op: String, _ ep: String, _ path: String, detail: String = "", _ body: () throws -> Void) throws {
         let id = try store.journalBegin(op: op, endpoint: ep, path: path, detail: detail)
-        do { try body(); try store.journalEnd(id, status: "done") }
-        catch { try? store.journalEnd(id, status: "failed: \(error)"); throw error }
+        do {
+            try options.failpoint?("\(op):before")
+            try body()
+            try options.failpoint?("\(op):after")
+            try store.journalEnd(id, status: "done")
+        } catch { try? store.journalEnd(id, status: "failed: \(error)"); throw error }
     }
 
     private func holder(_ ctx: Context, excluding ep: String, _ path: String, _ want: FileState) throws -> ScannedFile? {
@@ -469,6 +600,8 @@ public final class Engine {
         if file?.isDirectory == true { report.skipped.append("[\(cfg.id)] \(path)：本端是資料夾、其他端點是檔案（類型衝突），請手動處理"); return }
         guard let want = cons?.state else {
             if let file {
+                guard unchanged(file) else { report.skipped.append("[\(cfg.id)] \(path)：刪除前發現檔案又被改動，已取消，下一輪重新評估"); return }
+                try archiveVersion(file, endpoint: cfg.id)       // Trash can be emptied at any time: keep our own copy too
                 try perform("trash", cfg.id, path) { try options.trash(file.url) }
                 ctx.files[cfg.id]![path] = nil
                 report.work += 1
@@ -482,17 +615,31 @@ public final class Engine {
             report.skipped.append("[\(cfg.id)] \(path)：目前沒有在線端點持有此版本內容，稍後重試"); return
         }
         let dst = URL(fileURLWithPath: cfg.root).appendingPathComponent(path)
-        if let file, let now = FileOps.statInfo(file.url), now.size != file.size || now.mtimeNs != file.mtimeNs {
+        if let file, !unchanged(file) {
             report.skipped.append("[\(cfg.id)] \(path)：目標在準備期間被改動，下一輪重新評估"); return
+        }
+        let failKey = "\(cfg.id)\u{0}\(path)"
+        if let f = failures[failKey], options.now() < f.retryAt {
+            report.skipped.append("[\(cfg.id)] \(path)：先前失敗 \(f.count) 次，稍後自動重試"); return
+        }
+        let free = freeBytes(cfg.root)
+        if let free, free < want.size + 64 * 1024 * 1024 {
+            failed(failKey)
+            report.skipped.append("[\(cfg.id)] \(path)：磁碟可用空間不足（需要 \(ByteCountFormatter.string(fromByteCount: want.size, countStyle: .file))）"); return
         }
         do {
             try perform("copy", cfg.id, path, detail: "from \(src.url.path)") {
                 if let file { try archiveVersion(file, endpoint: cfg.id) }
-                try FileOps.copyAtomically(from: src.url, to: dst, expectHash: want.hash, mtime: src.mtime)
+                try FileOps.copyAtomically(from: src.url, to: dst, expectHash: want.hash, mtime: src.mtime, durable: cfg.removable)
             }
+            failures[failKey] = nil
+            spaceUsed[cfg.root, default: 0] += want.size
+            if cfg.removable { ctx.wroteToRemovable.insert(cfg.root) }
         } catch FileOps.CopyError.sourceChanged {
             report.skipped.append("[\(cfg.id)] \(path)：來源在複製途中改變，稍後重試"); return
+        } catch let c as SimulatedCrash { throw c
         } catch {
+            failed(failKey)
             report.skipped.append("[\(cfg.id)] \(path)：複製失敗 \(error)"); return
         }
         let st = FileOps.statInfo(dst)
@@ -545,6 +692,7 @@ public final class Engine {
             name = ConflictNaming.name(for: ns.lastPathComponent, endpoint: "\(cfg.id) \(n)", date: options.now())
             target = target.deletingLastPathComponent().appendingPathComponent(name); n += 1
         }
+        guard unchanged(file) else { report.skipped.append("[\(cfg.id)] \(path)：處理衝突前發現檔案又被改動，下一輪重新評估"); return }
         try perform("conflict-rename", cfg.id, path, detail: name) {
             try FileManager.default.moveItem(at: file.url, to: target)
         }
@@ -562,6 +710,8 @@ public final class Engine {
     /// endpoints and trashes the extra copy; `.conflict` makes the extra copy the real file (the previous
     /// version goes to Versions) and the next sync spreads it to every endpoint.
     public func resolveConflictRecord(_ id: Int64, keep: ConflictChoice) throws {
+        let lock = try SyncLock.acquire(path: store.path + ".lock")
+        defer { _ = lock }
         guard let c = try store.conflict(id: id) else { throw DBError(description: "找不到這個衝突紀錄") }
         guard let cfg = try store.endpoints().first(where: { $0.id == c.endpoint }) else {
             throw DBError(description: "端點「\(c.endpoint)」已不存在")
@@ -591,11 +741,20 @@ public final class Engine {
         try store.closeConflict(id: id, status: closed)
     }
 
+    /// Copies `file` into the Versions archive. Never overwrites an earlier archived copy: two replacements of the same
+    /// file within one second used to collide ("File exists"), which made the replacement itself fail and retry forever.
     private func archiveVersion(_ file: ScannedFile, endpoint: String) throws {
         guard let base = options.versionsDir, file.size <= options.maxVersionBytes else { return }
         let stamp = ISO8601DateFormatter().string(from: options.now()).replacingOccurrences(of: ":", with: "-")
-        let dest = base.appendingPathComponent(stamp).appendingPathComponent(endpoint).appendingPathComponent(file.rel)
+        var dest = base.appendingPathComponent(stamp).appendingPathComponent(endpoint).appendingPathComponent(file.rel)
         try FileManager.default.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
+        var n = 2
+        while FileManager.default.fileExists(atPath: dest.path) {
+            let ns = file.rel as NSString
+            let name = ns.pathExtension.isEmpty ? "\(ns.lastPathComponent) (\(n))" : "\((ns.lastPathComponent as NSString).deletingPathExtension) (\(n)).\(ns.pathExtension)"
+            dest = dest.deletingLastPathComponent().appendingPathComponent(name)
+            n += 1
+        }
         try FileManager.default.copyItem(at: file.url, to: dest)
     }
 }

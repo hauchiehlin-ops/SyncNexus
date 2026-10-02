@@ -75,6 +75,7 @@ final class AppModel: ObservableObject {
     // MARK: actions
 
     func syncNow() { service.syncNow() }
+    func verifyNow() { service.verifyNow() }
     func togglePause() { snap.phase == .paused ? service.resume() : service.pause() }
 
     func reviewConfirmation() {

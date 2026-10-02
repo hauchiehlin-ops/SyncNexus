@@ -219,3 +219,155 @@ struct HousekeepingTests {
         #expect(!e.exists("a", ".syncnexus-endpoint") && !e.exists("b", ".syncnexus-endpoint"))
     }
 }
+
+@Suite("Hardening")
+struct HardeningTests {
+    @Test func editMadeAfterTheScanIsNotTrashedByAPropagatedDelete() throws {
+        let e = try Env2(["a", "b"])
+        try e.write("a", "f.txt", "v1"); try e.sync()
+        try FileManager.default.removeItem(at: e.url("a", "f.txt"))          // A deletes
+        e.engine.options.afterScan = { try? "edited on b right now".write(to: e.url("b", "f.txt"), atomically: false, encoding: .utf8) }
+        try e.sync()
+        e.engine.options.afterScan = nil
+        try e.sync()
+        // the late edit must survive everywhere (edit beats delete), not end up in the Trash
+        #expect(e.read("b", "f.txt") == "edited on b right now" && e.read("a", "f.txt") == "edited on b right now")
+    }
+
+    @Test func executableBitAndExtendedAttributesSurviveACopy() throws {
+        let e = try Env2(["a", "b"])
+        try e.write("a", "run.sh", "#!/bin/sh\necho hi\n")
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: e.url("a", "run.sh").path)
+        _ = e.url("a", "run.sh").path.withCString { p in setxattr(p, "com.example.tag", "blue", 4, 0, 0) }
+        try e.sync()
+        let mode = try FileManager.default.attributesOfItem(atPath: e.url("b", "run.sh").path)[.posixPermissions] as? Int
+        #expect(mode == 0o755)
+        var buf = [CChar](repeating: 0, count: 16)
+        let n = e.url("b", "run.sh").path.withCString { getxattr($0, "com.example.tag", &buf, 16, 0, 0) }
+        #expect(n == 4)
+    }
+
+    @Test func secondSyncAtTheSameTimeIsRefused() throws {
+        let e = try Env2(["a", "b"])
+        try e.write("a", "x.txt", "1")
+        let other = try Engine(store: Store(path: e.store.path))              // e.g. the command line tool
+        let lock = try SyncLock.acquire(path: e.store.path + ".lock")         // the menu bar app is syncing
+        #expect(throws: SyncBusy.self) { _ = try other.sync(confirmed: true) }
+        _ = lock
+    }
+
+    @Test func lockIsReleasedAfterwards() throws {
+        let e = try Env2(["a", "b"])
+        try e.write("a", "x.txt", "1")
+        try e.sync()
+        _ = try e.sync()           // would throw SyncBusy if the first run kept the lock
+    }
+
+    @Test func sudden_disappearanceOfMostFilesNeedsConfirmationEvenWhenSmall() throws {
+        let e = try Env2(["a", "b"])
+        for i in 0..<6 { try e.write("a", "f\(i).txt", "c\(i)") }
+        try e.sync()
+        for i in 0..<5 { try FileManager.default.removeItem(at: e.url("a", "f\(i).txt")) }
+        let r = try e.engine.sync(confirmed: false)
+        #expect(r.needsConfirmation?.contains("同時消失") == true)
+        #expect(e.read("b", "f0.txt") == "c0")                                // nothing was deleted yet
+        try e.engine.sync(confirmed: true)
+        #expect(!e.exists("b", "f0.txt"))
+    }
+
+    @Test func deletingOneOfSixIsNotAlarming() throws {
+        let e = try Env2(["a", "b"])
+        for i in 0..<6 { try e.write("a", "f\(i).txt", "c\(i)") }
+        try e.sync()
+        try FileManager.default.removeItem(at: e.url("a", "f0.txt"))
+        #expect(try e.engine.sync(confirmed: false).needsConfirmation == nil)
+    }
+
+    @Test func deepVerifyFlagsSilentChangeAndDoesNotSpreadIt() throws {
+        let e = try Env2(["a", "b"])
+        try e.write("a", "data.bin", "AAAAAAAA"); try e.sync()
+        let url = e.url("b", "data.bin")
+        let mtime = try FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate] as! Date
+        try "BBBBBBBB".write(to: url, atomically: false, encoding: .utf8)     // same size …
+        try FileManager.default.setAttributes([.modificationDate: mtime], ofItemAtPath: url.path)   // … same mtime
+        // normal sync trusts size + mtime: documented limitation
+        #expect(try e.sync().work == 0)
+        // deep verify catches it, reports it, and the bad bytes are not propagated
+        e.engine.options.deepVerify = true
+        let r = try e.sync()
+        e.engine.options.deepVerify = false
+        #expect(r.integrity == ["[b] data.bin"])
+        #expect(e.read("a", "data.bin") == "AAAAAAAA")
+    }
+
+    @Test func tornReadIsNeverAccepted() throws {
+        let e = try Env2(["a"])
+        try e.write("a", "f.txt", "content")
+        let st = try #require(FileOps.statInfo(e.url("a", "f.txt")))
+        #expect(try FileOps.hashIfStable(e.url("a", "f.txt"), size: st.size, mtimeNs: st.mtimeNs) != nil)
+        #expect(try FileOps.hashIfStable(e.url("a", "f.txt"), size: st.size, mtimeNs: st.mtimeNs - 1) == nil)   // changed meanwhile
+    }
+
+    @Test func deletedFilesAreArchivedBeforeGoingToTheTrash() throws {
+        let e = try Env2(["a", "b"])
+        try e.write("a", "precious.txt", "do not lose me"); try e.sync()
+        try FileManager.default.removeItem(at: e.url("a", "precious.txt"))
+        try e.sync()
+        let kept = (FileManager.default.enumerator(atPath: e.base.appendingPathComponent("_versions").path)?.allObjects as? [String]) ?? []
+        #expect(kept.contains(where: { $0.hasSuffix("precious.txt") }))
+    }
+
+    @Test func fullDiskIsReportedNotHammered() throws {
+        let e = try Env2(["a", "b"])
+        e.engine.options.freeSpace = { _ in 1024 }
+        try e.write("a", "big.txt", "x"); 
+        let r1 = try e.sync()
+        #expect(r1.skipped.contains(where: { $0.contains("空間不足") }))
+        #expect(!e.exists("b", "big.txt"))
+        e.engine.options.freeSpace = nil
+        let r2 = try e.sync()                      // within the back-off window: not retried yet
+        #expect(r2.skipped.contains(where: { $0.contains("稍後自動重試") }))
+        e.engine.options.now = { Date().addingTimeInterval(3600) }
+        try e.sync()
+        #expect(e.read("b", "big.txt") == "x")
+    }
+
+    @Test func archiveNeverCollidesWithinOneSecond() throws {
+        let e = try Env2(["a", "b"])
+        e.engine.options.now = { Date(timeIntervalSince1970: 1_000_000) }      // frozen clock: same stamp every time
+        try e.write("a", "f.txt", "v1"); try e.sync()
+        for i in 2...4 { try e.write("a", "f.txt", "v\(i)"); try e.sync() }
+        #expect(e.read("b", "f.txt") == "v4")
+    }
+
+    @Test func fileWithAFutureTimestampStillSyncs() throws {
+        let e = try Env2(["a", "b"])
+        e.engine.options.settleSeconds = 2
+        try e.write("a", "skewed.txt", "from a machine with a wrong clock")
+        try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(86400 * 30)], ofItemAtPath: e.url("a", "skewed.txt").path)
+        // first sight: watched; the sync waits one settle window, sees it unchanged, and then trusts it
+        _ = try e.engine.sync(confirmed: true)
+        #expect(e.read("b", "skewed.txt") == "from a machine with a wrong clock")
+    }
+
+    @Test func databaseBackupIsConsistentAndCorruptionIsDetected() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("db-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = try Store(path: dir.appendingPathComponent("state.db").path)
+        try store.addEndpoint(EndpointConfig(id: "a", root: "/tmp/a"))
+        try store.setConsensus("x.txt", state: FileState(hash: "abc", size: 3), rev: 1)
+        #expect(store.quickCheck())
+        let copy = dir.appendingPathComponent("Backups/state-1.db")
+        try store.backup(to: copy)
+        let restored = try Store(path: copy.path)
+        #expect(restored.quickCheck())
+        #expect(try restored.endpoints().map(\.id) == ["a"])
+        #expect(try restored.consensus("x.txt")?.rev == 1)
+        // garbage in place of a database is either refused or fails the check, never trusted
+        let junk = dir.appendingPathComponent("junk.db")
+        try Data((0..<4096).map { _ in UInt8.random(in: 0...255) }).write(to: junk)
+        let opened = try? Store(path: junk.path)
+        #expect(opened == nil || opened!.quickCheck() == false)
+    }
+}

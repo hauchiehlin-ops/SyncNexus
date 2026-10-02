@@ -39,6 +39,10 @@ public final class SyncService: @unchecked Sendable {
         public var conflicts: [ConflictItem] = []
         public var versions = VersionsUsage()
         public var versionsRetentionDays = 30
+        /// Health: when everything last synced with nothing skipped, and the results of the periodic deep verification.
+        public var lastCleanSync: Date?
+        public var lastDeepVerify: Date?
+        public var integrityIssues: [String] = []
         public var conflictPolicy: ConflictPolicy = .keepBoth
         public var error: String?
         public static let initial = Snapshot()
@@ -60,6 +64,7 @@ public final class SyncService: @unchecked Sendable {
     private var rerun = false
     private var rerunConfirmed = false
     private var lastMaintenance = Date.distantPast
+    private var forceDeepVerify = false
 
     public init(dbPath: String, versionsDir: URL, logURL: URL?, periodicSeconds: TimeInterval = 300,
                 onUpdate: @escaping @Sendable (Snapshot) -> Void) {
@@ -80,7 +85,7 @@ public final class SyncService: @unchecked Sendable {
                 var opts = EngineOptions()
                 opts.versionsDir = self.versionsDir
                 opts.log = { [weak self] in self?.writeLog($0) }
-                self.engine = Engine(store: try Store(path: self.dbPath), options: opts)
+                self.engine = Engine(store: try self.openStoreRecovering(), options: opts)
             } catch {
                 self.snapshot.error = "無法開啟資料庫：\(error)"
                 self.publish()
@@ -93,6 +98,49 @@ public final class SyncService: @unchecked Sendable {
             self.timer = t
             self.runIfNeeded(confirmed: false)
         }
+    }
+
+    /// Opens the state database; if it is damaged, keeps the damaged file for inspection and restores the newest daily backup.
+    /// Even a fresh database is safe: with no history every endpoint is treated as a newcomer, so files are merged, never deleted.
+    private func openStoreRecovering() throws -> Store {
+        if let s = try? Store(path: dbPath), s.quickCheck() { return s }
+        let fm = FileManager.default
+        let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
+        for ext in ["", "-wal", "-shm"] where fm.fileExists(atPath: dbPath + ext) {
+            try? fm.moveItem(atPath: dbPath + ext, toPath: dbPath + ".corrupt-\(stamp)" + ext)
+        }
+        let backups = ((try? fm.contentsOfDirectory(atPath: backupsDir.path)) ?? []).filter { $0.hasSuffix(".db") }.sorted()
+        if let newest = backups.last {
+            try fm.copyItem(at: backupsDir.appendingPathComponent(newest), to: URL(fileURLWithPath: dbPath))
+            writeLog("狀態資料庫損壞，已保留損壞檔並從備份 \(newest) 還原；下一輪同步會重新比對（只會合併，不會刪除）")
+            if let s = try? Store(path: dbPath), s.quickCheck() { return s }
+            for ext in ["", "-wal", "-shm"] { try? fm.removeItem(atPath: dbPath + ext) }
+        }
+        writeLog("狀態資料庫損壞且沒有可用備份，已建立新的資料庫；端點需要重新加入，加入後只會合併，不會刪除")
+        return try Store(path: dbPath)
+    }
+
+    private var backupsDir: URL { URL(fileURLWithPath: (dbPath as NSString).deletingLastPathComponent).appendingPathComponent("Backups") }
+
+    /// One consistent copy of the state database per day, the newest 7 kept.
+    private func backupDatabaseIfDue(_ engine: Engine) {
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.locale = Locale(identifier: "en_US_POSIX")
+        let target = backupsDir.appendingPathComponent("state-\(f.string(from: Date())).db")
+        guard !FileManager.default.fileExists(atPath: target.path) else { return }
+        do {
+            try engine.store.backup(to: target)
+            let all = ((try? FileManager.default.contentsOfDirectory(atPath: backupsDir.path)) ?? []).filter { $0.hasSuffix(".db") }.sorted()
+            for old in all.dropLast(7) { try? FileManager.default.removeItem(at: backupsDir.appendingPathComponent(old)) }
+        } catch { writeLog("備份狀態資料庫失敗：\(error)") }
+    }
+
+    /// Re-reads every file once a week (or on request) to catch content that changed without its size or mtime changing.
+    public func verifyNow() { queue.async { self.forceDeepVerify = true; self.runIfNeeded(confirmed: false) } }
+
+    private func deepVerifyDue(_ engine: Engine) -> Bool {
+        if forceDeepVerify { return true }
+        guard let s = try? engine.store.meta("lastDeepVerify"), let d = ISO8601DateFormatter().date(from: s) else { return true }
+        return Date().timeIntervalSince(d) > 7 * 86400
     }
 
     public func stop() {
@@ -174,7 +222,18 @@ public final class SyncService: @unchecked Sendable {
         do {
             let cfgs = try engine.store.endpoints()
             // A group needs at least two endpoints; with fewer there is nothing to keep consistent.
+            let deep = cfgs.count >= 2 && deepVerifyDue(engine)
+            engine.options.deepVerify = deep
+            defer { engine.options.deepVerify = false }
             let report = cfgs.count >= 2 ? try engine.sync(confirmed: confirmed) : SyncReport()
+            if deep && cfgs.count >= 2 && report.needsConfirmation == nil {
+                forceDeepVerify = false
+                try? engine.store.setMeta("lastDeepVerify", ISO8601DateFormatter().string(from: Date()))
+                snapshot.lastDeepVerify = Date()
+                snapshot.integrityIssues = report.integrity
+                if !report.integrity.isEmpty { writeLog("完整驗證：\(report.integrity.count) 個檔案內容與紀錄不符（疑似損壞）：\(report.integrity.joined(separator: "、"))") }
+            }
+            if report.needsConfirmation == nil && report.skipped.isEmpty && report.offline.isEmpty { snapshot.lastCleanSync = Date() }
             snapshot.lastRun = Date()
             snapshot.lastWork = report.work
             let skipped = Array(Set(report.skipped)).sorted()
@@ -193,6 +252,9 @@ public final class SyncService: @unchecked Sendable {
             snapshot.conflicts = try currentConflicts(engine, cfgs)
             snapshot.recent = try engine.store.recentJournal(limit: 8).map { "\($0.time.suffix(9).prefix(8)) \($0.op) [\($0.endpoint)] \($0.path)" }
             ensureWatching(cfgs.map(\.root))
+        } catch is SyncBusy {
+            writeLog("另一個同步正在進行（App 或指令列），5 秒後重試")
+            queue.asyncAfter(deadline: .now() + 5) { self.runIfNeeded(confirmed: confirmed) }
         } catch {
             snapshot.error = "\(error)"
             writeLog("錯誤：\(error)")
@@ -224,6 +286,7 @@ public final class SyncService: @unchecked Sendable {
         let freed = Versions.purge(versionsDir, olderThanDays: r.days, maxBytes: r.maxBytes)
         if freed.files > 0 { writeLog("自動清理舊版本：移除 \(freed.files) 個檔案，釋出 \(ByteCountFormatter.string(fromByteCount: freed.bytes, countStyle: .file))") }
         refreshVersionsSnapshot(engine)
+        backupDatabaseIfDue(engine)
     }
 
     private func refreshVersionsSnapshot(_ engine: Engine) {

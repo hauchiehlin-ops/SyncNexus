@@ -11,6 +11,9 @@ public final class Watcher {
     private var timer: DispatchSourceTimer?
     private let queue = DispatchQueue(label: "syncnexus.watcher")
     private let quietSeconds: Double
+    /// Under continuous activity (a big copy, an editor autosaving) the quiet period never comes; sync at least this often.
+    private let maxWaitSeconds: Double = 30
+    private var firstEvent: Date?
 
     public init(roots: [String], quietSeconds: Double = 2, ignore: IgnoreRules = .default, onChange: @escaping () -> Void) {
         self.onChange = onChange
@@ -45,9 +48,12 @@ public final class Watcher {
     /// Debounce: fire once things have been quiet for `quietSeconds`.
     private func bump() {
         timer?.cancel()
+        let now = Date()
+        if firstEvent == nil { firstEvent = now }
+        let waited = now.timeIntervalSince(firstEvent!)
         let t = DispatchSource.makeTimerSource(queue: queue)
-        t.schedule(deadline: .now() + quietSeconds)
-        t.setEventHandler { [onChange] in onChange() }
+        t.schedule(deadline: .now() + max(0, min(quietSeconds, maxWaitSeconds - waited)))
+        t.setEventHandler { [weak self, onChange] in self?.firstEvent = nil; onChange() }
         t.resume()
         timer = t
     }
