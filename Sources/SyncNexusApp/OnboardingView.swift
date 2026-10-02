@@ -43,6 +43,7 @@ enum Permissions {
 
 struct OnboardingView: View {
     @ObservedObject var model: AppModel
+    @ObservedObject private var l10n = L10n.shared
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismiss) private var dismiss
     @State private var step = 0
@@ -68,14 +69,15 @@ struct OnboardingView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             Spacer(minLength: 0)
             HStack {
-                if step > 0 { Button("上一步") { step -= 1 } }
+                if step > 0 { Button(loc("back")) { step -= 1 } }
                 Spacer()
-                if step < last { Button(step == 0 ? "開始設定" : "下一步") { step += 1 }.keyboardShortcut(.defaultAction) }
-                else { Button("完成") { finish() }.keyboardShortcut(.defaultAction) }
+                if step < last { Button(step == 0 ? loc("start_setup") : loc("next")) { step += 1 }.keyboardShortcut(.defaultAction) }
+                else { Button(loc("done")) { finish() }.keyboardShortcut(.defaultAction) }
             }
         }
         .padding(24)
         .frame(width: 560, height: 470)
+        .id(l10n.currentLanguage)
         .onAppear { refresh() }
         .onReceive(Timer.publish(every: 2, on: .main, in: .common).autoconnect()) { _ in refresh() }
     }
@@ -98,13 +100,13 @@ struct OnboardingView: View {
     private var welcome: some View {
         VStack(alignment: .leading, spacing: 12) {
             Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 72, height: 72)
-            Text("歡迎使用 Sync-Nexus").font(.title.bold())
-            Text("讓你指定的幾個資料夾 —— 本機、iCloud 雲碟、Google Drive、外接磁碟 —— 互相保持一致。")
+            Text(loc("welcome_title")).font(.title.bold())
+            Text(loc("welcome_subtitle"))
             VStack(alignment: .leading, spacing: 8) {
-                bullet("arrow.left.arrow.right", "任何一個資料夾有新增、修改、刪除或改名，其他的都會跟著變。")
-                bullet("externaldrive", "外接磁碟可以隨時拔除、到別台電腦修改；接回來會自動對帳，不會被當成「檔案全被刪除」。")
-                bullet("trash", "刪除的檔案先進垃圾桶，被取代的舊版本另存一份，改錯了都能找回。")
-                bullet("exclamationmark.triangle", "同一個檔案兩邊都被修改時不會悄悄覆蓋，由你決定留哪一份。")
+                bullet("arrow.left.arrow.right", loc("welcome_bullet_1"))
+                bullet("externaldrive", loc("welcome_bullet_2"))
+                bullet("trash", loc("welcome_bullet_3"))
+                bullet("exclamationmark.triangle", loc("welcome_bullet_4"))
             }
             .font(.callout)
         }
@@ -112,29 +114,29 @@ struct OnboardingView: View {
 
     private var permissions: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("需要的授權").font(.title2.bold())
-            Text("為了能讀寫 iCloud 雲碟、外接磁碟並把檔案移到垃圾桶，需要你在系統設定裡授權。")
+            Text(loc("onboarding_perm_title")).font(.title2.bold())
+            Text(loc("onboarding_perm_desc"))
                 .font(.callout).foregroundStyle(.secondary)
             permissionRow(
                 ok: fullDisk,
-                title: Permissions.isSandboxed ? "檔案系統存取權限" : "完整磁碟取用權限",
-                detail: Permissions.isSandboxed ? "已具備安全沙盒書籤存取權限，可持久讀寫你挑選的同步資料夾。" : "必要。沒有它就無法處理 iCloud 雲碟裡的刪除。授權後需要重新啟動 App。"
+                title: Permissions.isSandboxed ? loc("permissions_sandbox_title") : loc("permissions_full_disk_title"),
+                detail: Permissions.isSandboxed ? loc("permissions_sandbox_desc") : (fullDisk ? loc("permissions_authorized") : loc("permissions_unauthorized_desc"))
             ) {
                 if !Permissions.isSandboxed {
                     HStack {
-                        Button("開啟系統設定") { Permissions.openFullDiskAccessSettings() }
-                        if !fullDisk { Button("已授權，重新啟動") { Permissions.relaunch() } }
+                        Button(loc("permissions_btn_open_settings")) { Permissions.openFullDiskAccessSettings() }
+                        if !fullDisk { Button(loc("permissions_btn_relaunch")) { Permissions.relaunch() } }
                     }
                 }
             }
-            permissionRow(ok: notifications == .authorized, title: "通知", detail: "建議。有衝突或需要你確認時會提醒你。") {
-                if notifications == .denied { Button("開啟通知設定") { NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension")!) } }
+            permissionRow(ok: notifications == .authorized, title: loc("onboarding_perm_notifications"), detail: loc("onboarding_perm_notifications_desc")) {
+                if notifications == .denied { Button(loc("onboarding_perm_btn_notifications")) { NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension")!) } }
             }
-            permissionRow(ok: model.launchAtLogin, title: "開機自動啟動", detail: "建議。同步要一直在背景執行才有用。") {
+            permissionRow(ok: model.launchAtLogin, title: loc("settings_launch_at_login"), detail: loc("onboarding_perm_launch_desc")) {
                 Toggle("", isOn: Binding(get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) })).labelsHidden()
             }
             if !Permissions.isSandboxed {
-                Text("打開「完整磁碟取用權限」時，清單裡找不到 Sync-Nexus 的話，按「+」選擇 ~/Applications/SyncNexus.app。")
+                Text(loc("onboarding_perm_fda_hint"))
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -142,37 +144,37 @@ struct OnboardingView: View {
 
     private var folders: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("選擇要同步的資料夾").font(.title2.bold())
-            Text("建議為每一個地方各建立一個「專用資料夾」，例如都取名叫「同步用」，再依序加入：")
+            Text(loc("onboarding_folders_title")).font(.title2.bold())
+            Text(loc("onboarding_folders_desc"))
             VStack(alignment: .leading, spacing: 6) {
-                bullet("laptopcomputer", "本機：例如 文件 底下的一個資料夾")
-                bullet("icloud", "iCloud 雲碟：在 Finder 的 iCloud 雲碟裡建立一個資料夾")
-                bullet("externaldrive.badge.icloud", "Google Drive：在「我的雲端硬碟」裡建立一個資料夾")
-                bullet("externaldrive", "外接磁碟：在磁碟裡建立一個資料夾")
+                bullet("laptopcomputer", loc("onboarding_folder_local"))
+                bullet("icloud", loc("onboarding_folder_icloud"))
+                bullet("externaldrive.badge.icloud", loc("onboarding_folder_gdrive"))
+                bullet("externaldrive", loc("onboarding_folder_external"))
             }
             .font(.callout)
-            Text("至少加入兩個就會開始同步。第一次同步前會先列出預覽，確認後才會真的複製或刪除任何東西。")
+            Text(loc("onboarding_folders_min_hint"))
                 .font(.callout).foregroundStyle(.secondary)
             HStack {
-                Button("加入資料夾…") { openWindow(id: "settings"); NSApp.activate(ignoringOtherApps: true) }
-                Text("目前已加入 \(model.snap.endpoints.count) 個").foregroundStyle(.secondary)
+                Button(loc("folders_add_button")) { openWindow(id: "settings"); NSApp.activate(ignoringOtherApps: true) }
+                Text(loc("onboarding_folders_current_count", model.snap.endpoints.count)).foregroundStyle(.secondary)
             }
-            Text("建議先拿檔案不多的資料夾試用幾天，確定符合預期再換成真正的資料。").font(.callout).foregroundStyle(.orange)
+            Text(loc("onboarding_folders_test_tip")).font(.callout).foregroundStyle(.orange)
         }
     }
 
     private var done: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("設定完成").font(.title2.bold())
-            Text("Sync-Nexus 會留在選單列右上角，圖示的狀態代表：")
+            Text(loc("onboarding_done_title")).font(.title2.bold())
+            Text(loc("onboarding_done_desc"))
             VStack(alignment: .leading, spacing: 6) {
-                bullet("arrow.triangle.2.circlepath", "正常，自動同步中")
-                bullet("pause.circle", "已暫停")
-                bullet("exclamationmark.arrow.triangle.2.circlepath", "需要你處理：確認預覽、解決衝突，或發生錯誤")
-                bullet("arrow.triangle.2.circlepath.circle", "有資料夾離線（例如外接磁碟被拔除），接回後自動繼續")
+                bullet("arrow.triangle.2.circlepath", loc("onboarding_icon_ok"))
+                bullet("pause.circle", loc("onboarding_icon_paused"))
+                bullet("exclamationmark.arrow.triangle.2.circlepath", loc("onboarding_icon_attention"))
+                bullet("arrow.triangle.2.circlepath.circle", loc("onboarding_icon_partial"))
             }
             .font(.callout)
-            Text("點選圖示可以查看狀態、立即同步、暫停，或打開「設定端點」管理資料夾、衝突和舊版本。")
+            Text(loc("onboarding_done_footer"))
                 .font(.callout).foregroundStyle(.secondary)
         }
     }

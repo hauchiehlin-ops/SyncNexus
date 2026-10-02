@@ -30,12 +30,12 @@ struct SyncNexusApp: App {
         }
         .menuBarExtraStyle(.window)
 
-        Window("歡迎使用 Sync-Nexus", id: "welcome") {
+        Window(loc("window_welcome_title"), id: "welcome") {
             OnboardingView(model: model)
         }
         .windowResizability(.contentSize)
 
-        Window("彈出視窗預覽", id: "popover-preview") {
+        Window(loc("window_popover_preview"), id: "popover-preview") {
             PopoverView(model: model)
         }
         .windowResizability(.contentSize)
@@ -66,4 +66,3 @@ struct MenuBarIcon: View {
         }
     }
 }
-

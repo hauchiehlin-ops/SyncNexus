@@ -10,7 +10,7 @@ struct PickedFolder {
 func pickFolder(message: String) -> PickedFolder? {
     let p = NSOpenPanel()
     p.canChooseDirectories = true; p.canChooseFiles = false; p.canCreateDirectories = true; p.allowsMultipleSelection = false
-    p.message = message; p.prompt = "選擇"
+    p.message = message; p.prompt = loc("choose")
     NSApp.activate(ignoringOtherApps: true)
     guard p.runModal() == .OK, let url = p.url else { return nil }
     let bookmark = SecurityScopeManager.shared.createBookmark(for: url)
@@ -30,6 +30,7 @@ struct AddDraft: Identifiable {
 
 struct FoldersSection: View {
     @ObservedObject var model: AppModel
+    @ObservedObject private var l10n = L10n.shared
     @State private var draft: AddDraft?
 
     var body: some View {
@@ -64,6 +65,7 @@ struct FoldersSection: View {
 
 struct FolderRow: View {
     @ObservedObject var model: AppModel
+    @ObservedObject private var l10n = L10n.shared
     let ep: SyncService.EndpointStatus
 
     var body: some View {
@@ -83,7 +85,7 @@ struct FolderRow: View {
                     if !ep.online {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(ep.detail).font(.system(size: 12)).foregroundStyle(Theme.warn).fixedSize(horizontal: false, vertical: true)
-                            if ep.detail.contains("標記檔") || ep.detail.contains("UUID") {
+                            if ep.detail.contains("標記檔") || ep.detail.contains("UUID") || ep.detail.contains("marker") {
                                 Text(loc("folder_marker_help"))
                                     .font(.system(size: 11))
                                     .foregroundStyle(.secondary)
@@ -102,27 +104,28 @@ struct FolderRow: View {
     }
 
     private func change() {
-        guard let picked = pickFolder(message: "選擇「\(ep.id)」要改指向的新資料夾") else { return }
+        guard let picked = pickFolder(message: loc("folders_change_prompt", ep.id)) else { return }
         let issues = model.validate(path: picked.path, name: ep.id, replacing: ep.id, portable: ep.portableNames)
-        if let e = issues.first(where: \.isError) { let a = NSAlert(); a.messageText = "無法使用這個資料夾"; a.informativeText = e.message; a.runModal(); return }
+        if let e = issues.first(where: \.isError) { let a = NSAlert(); a.messageText = loc("folders_cannot_use_title"); a.informativeText = e.message; a.runModal(); return }
         let a = NSAlert()
-        a.messageText = "把「\(ep.id)」改指向新資料夾？"
-        a.informativeText = "新資料夾會被當成新加入的資料夾：它會先收到其他端點的檔案，原有的檔案也會被合併進來；不會因為它是空的就刪除其他端點的檔案。同步前會先給你看預覽。\n\n" + issues.map(\.message).joined(separator: "\n")
-        a.addButton(withTitle: "更換"); a.addButton(withTitle: "取消")
+        a.messageText = loc("folders_relink_title", ep.id)
+        a.informativeText = loc("folders_relink_desc") + issues.map(\.message).joined(separator: "\n")
+        a.addButton(withTitle: loc("folders_btn_relink")); a.addButton(withTitle: loc("cancel"))
         if a.runModal() == .alertFirstButtonReturn { model.relink(id: ep.id, to: picked.path, bookmarkData: picked.bookmarkData) }
     }
 
     private func remove() {
         let a = NSAlert()
-        a.messageText = "不再同步「\(ep.id)」？"
-        a.informativeText = "資料夾裡的檔案完全不會被刪除或改動，只是之後它的變更不會再和其他資料夾同步。"
-        a.addButton(withTitle: "移除"); a.addButton(withTitle: "取消")
+        a.messageText = loc("folders_remove_title", ep.id)
+        a.informativeText = loc("folders_remove_desc")
+        a.addButton(withTitle: loc("remove")); a.addButton(withTitle: loc("cancel"))
         if a.runModal() == .alertFirstButtonReturn { model.remove(id: ep.id) }
     }
 }
 
 struct AddSheet: View {
     @ObservedObject var model: AppModel
+    @ObservedObject private var l10n = L10n.shared
     @State var draft: AddDraft
     let close: () -> Void
 
@@ -134,21 +137,21 @@ struct AddSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("加入資料夾").font(.system(size: 20, weight: .bold))
+            Text(loc("folders_add_title")).font(.system(size: 20, weight: .bold))
             Text(shortPath(draft.path)).font(.system(size: 13)).foregroundStyle(.secondary).lineLimit(2).truncationMode(.middle)
             HStack(spacing: 8) {
                 Image(systemName: draft.desc.kind.symbol)
-                Text("偵測到：\(draft.desc.kind.label)\(draft.desc.format.map { "（\($0)）" } ?? "")").font(.system(size: 13))
+                Text(loc("folders_detected", "\(draft.desc.kind.label)\(draft.desc.format.map { "（\($0)）" } ?? "")")).font(.system(size: 13))
             }
-            TextField("名稱", text: $draft.name).textFieldStyle(.roundedBorder)
-            Toggle("可能被拔除（外接磁碟）", isOn: $draft.removable)
-            Toggle("檔名須相容 exFAT／Windows", isOn: $draft.portable)
-            Toggle("當作備份（只接收）", isOn: $draft.archive)
+            TextField(loc("folders_name_label"), text: $draft.name).textFieldStyle(.roundedBorder)
+            Toggle(loc("folders_toggle_removable"), isOn: $draft.removable)
+            Toggle(loc("folders_toggle_portable"), isOn: $draft.portable)
+            Toggle(loc("folders_toggle_archive"), isOn: $draft.archive)
             if draft.archive {
-                Text("備份資料夾只會接收其他資料夾的內容：在這裡做的修改不會傳出去（會被還原）、其他資料夾刪除的檔案會保留，被取代的舊內容存在資料夾內的 .syncnexus-history。")
+                Text(loc("folders_archive_hint"))
                     .font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
-            Text("磁碟被拔除時，這個資料夾會暫時停止同步，不會被當成「檔案全被刪除」；接回後會自動對帳。")
+            Text(loc("folders_removable_hint"))
                 .font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             ForEach(issues, id: \.message) { i in
                 Label(i.message, systemImage: i.isError ? "xmark.octagon.fill" : "exclamationmark.triangle.fill")
@@ -156,11 +159,12 @@ struct AddSheet: View {
             }
             HStack {
                 Spacer()
-                Button("取消") { close() }.buttonStyle(QuietButton(kind: .secondary)).keyboardShortcut(.cancelAction)
-                Button("加入") { model.addEndpoint(name: draft.name, path: draft.path, removable: draft.removable, portable: draft.portable, archive: draft.archive, bookmarkData: draft.bookmarkData); close() }
+                Button(loc("cancel")) { close() }.buttonStyle(QuietButton(kind: .secondary)).keyboardShortcut(.cancelAction)
+                Button(loc("folders_btn_add")) { model.addEndpoint(name: draft.name, path: draft.path, removable: draft.removable, portable: draft.portable, archive: draft.archive, bookmarkData: draft.bookmarkData); close() }
                     .buttonStyle(QuietButton(kind: .primary)).keyboardShortcut(.defaultAction).disabled(issues.contains(where: \.isError))
             }
         }
         .padding(22).frame(width: 480)
+        .id(l10n.currentLanguage)
     }
 }

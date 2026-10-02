@@ -5,6 +5,7 @@ import SyncCore
 /// The menu bar popover: one glance answers "is my data safe and in sync?".
 struct PopoverView: View {
     @ObservedObject var model: AppModel
+    @ObservedObject private var l10n = L10n.shared
     @Environment(\.openWindow) private var openWindow
 
     private func openMain(_ s: MainSection) {
@@ -20,14 +21,14 @@ struct PopoverView: View {
             scrolling {
                 VStack(alignment: .leading, spacing: 0) {
                     banners
-                    sectionLabel("資料夾")
+                    sectionLabel(loc("section_folders"))
                     if model.snap.endpoints.isEmpty {
-                        Text("還沒有加入資料夾。打開「設定」加入至少兩個。")
+                        Text(loc("popover_no_folders_hint"))
                             .font(.system(size: 13)).foregroundStyle(.secondary).padding(.horizontal, 20).padding(.vertical, 8)
                     }
                     ForEach(model.snap.endpoints, id: \.id) { ep in endpointRow(ep) }
                     if !model.snap.recent.isEmpty {
-                        sectionLabel("最近活動").padding(.top, 8)
+                        sectionLabel(loc("popover_recent_activity")).padding(.top, 8)
                         ForEach(groupedActivity.prefix(3)) { g in activityRow(g) }
                     }
                 }
@@ -37,6 +38,7 @@ struct PopoverView: View {
             footer
         }
         .frame(width: 380)
+        .id(l10n.currentLanguage)
     }
 
     /// Natural height for the usual case; scrolls only when there are unusually many rows.
@@ -62,8 +64,8 @@ struct PopoverView: View {
                     .overlay(Circle().stroke(Theme.line, lineWidth: 1))
             }
             .buttonStyle(.plain)
-            .help(model.snap.phase == .paused ? "繼續同步" : "暫停同步")
-            .accessibilityLabel(model.snap.phase == .paused ? "繼續同步" : "暫停同步")
+            .help(model.snap.phase == .paused ? loc("popover_resume_sync") : loc("popover_pause_sync"))
+            .accessibilityLabel(model.snap.phase == .paused ? loc("popover_resume_sync") : loc("popover_pause_sync"))
         }
         .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 16)
     }
@@ -90,18 +92,18 @@ struct PopoverView: View {
 
     @ViewBuilder private var banners: some View {
         if let e = model.snap.error {
-            banner(symbol: "xmark.octagon", tone: .bad, title: "同步發生錯誤", detail: e, action: "紀錄") { model.openLog() }
+            banner(symbol: "xmark.octagon", tone: .bad, title: loc("popover_sync_error"), detail: e, action: loc("popover_btn_log")) { model.openLog() }
         }
         if model.snap.confirmation != nil {
-            banner(symbol: "hand.raised", tone: .warn, title: "需要你確認", detail: model.snap.confirmation?.reason ?? "", action: "查看") { model.reviewConfirmation() }
+            banner(symbol: "hand.raised", tone: .warn, title: loc("popover_confirm_needed"), detail: model.snap.confirmation?.reason ?? "", action: loc("popover_btn_view")) { model.reviewConfirmation() }
         }
         if !model.snap.conflicts.isEmpty {
-            banner(symbol: "exclamationmark.triangle", tone: .warn, title: "\(model.snap.conflicts.count) 個衝突等你決定",
-                   detail: "\(model.snap.conflicts[0].path)　兩邊都被修改", action: "查看") { openMain(.conflicts) }
+            banner(symbol: "exclamationmark.triangle", tone: .warn, title: loc("status_conflicts_pending", model.snap.conflicts.count),
+                   detail: loc("popover_conflict_sub", (model.snap.conflicts[0].path as NSString).lastPathComponent), action: loc("popover_btn_view")) { openMain(.conflicts) }
         }
         if !model.snap.integrityIssues.isEmpty {
-            banner(symbol: "checkmark.shield", tone: .warn, title: "\(model.snap.integrityIssues.count) 個檔案疑似損壞",
-                   detail: "內容與紀錄不符，已隔離、不會傳播", action: "查看") { openMain(.verification) }
+            banner(symbol: "checkmark.shield", tone: .warn, title: loc("popover_corrupt_files", model.snap.integrityIssues.count),
+                   detail: loc("popover_corrupt_sub"), action: loc("popover_btn_view")) { openMain(.verification) }
         }
     }
 
@@ -133,11 +135,11 @@ struct PopoverView: View {
                 .background(Theme.tile, in: RoundedRectangle(cornerRadius: 9))
             VStack(alignment: .leading, spacing: 2) {
                 Text(ep.id).font(.system(size: 14, weight: .semibold))
-                Text(ep.online ? (model.pendingCloud(ep.id) > 0 ? "正在讀取 \(model.pendingCloud(ep.id)) 個雲端檔案" : shortPath(ep.root)) : (ep.removable ? "已拔除　· 接回後自動對帳" : ep.detail))
+                Text(ep.online ? (model.pendingCloud(ep.id) > 0 ? loc("popover_reading_cloud", model.pendingCloud(ep.id)) : shortPath(ep.root)) : (ep.removable ? loc("popover_unplugged_sub") : ep.detail))
                     .font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }
             Spacer(minLength: 0)
-            Chip(text: ep.online ? "在線" : "離線", kind: ep.online ? .ok : .warn)
+            Chip(text: ep.online ? loc("online") : loc("offline"), kind: ep.online ? .ok : .warn)
         }
         .padding(.horizontal, 20).padding(.vertical, 8)
     }
@@ -159,7 +161,7 @@ struct PopoverView: View {
     private func activityRow(_ a: ActivityGroup) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             Text(a.time.formatted(date: .omitted, time: .shortened)).font(.system(size: 12)).foregroundStyle(.secondary).monospacedDigit().frame(width: 52, alignment: .leading)
-            Text("\((a.path as NSString).lastPathComponent) \(friendlyOp(a.op))\(a.count > 1 ? "（\(a.count) 處）" : "")")
+            Text("\((a.path as NSString).lastPathComponent) \(friendlyOp(a.op))\(a.count > 1 ? loc("popover_activity_places", a.count) : "")")
                 .font(.system(size: 13)).foregroundStyle(a.ok ? Color.primary : Theme.bad).lineLimit(1).truncationMode(.middle)
         }
         .padding(.horizontal, 20).padding(.vertical, 3)
@@ -169,20 +171,20 @@ struct PopoverView: View {
 
     private var footer: some View {
         HStack(spacing: 8) {
-            Button("立即同步") { model.syncNow() }.buttonStyle(QuietButton(kind: .primary)).keyboardShortcut("r")
-            Button("設定…") { openMain(.overview) }.buttonStyle(QuietButton(kind: .secondary)).keyboardShortcut(",")
+            Button(loc("popover_sync_now")) { model.syncNow() }.buttonStyle(QuietButton(kind: .primary)).keyboardShortcut("r")
+            Button(loc("popover_settings")) { openMain(.overview) }.buttonStyle(QuietButton(kind: .secondary)).keyboardShortcut(",")
             Spacer(minLength: 0)
-            Text("版本 \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?")")
+            Text(loc("popover_version", Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"))
                 .font(.system(size: 12)).foregroundStyle(.secondary)
             Menu {
-                Button("立即完整驗證（重新讀取每個檔案）") { model.verifyNow() }
-                Button("開啟紀錄檔") { model.openLog() }
-                Button("使用說明與授權檢查…") { openWindow(id: "welcome"); NSApp.activate(ignoringOtherApps: true) }
+                Button(loc("popover_verify_now")) { model.verifyNow() }
+                Button(loc("settings_btn_open_log")) { model.openLog() }
+                Button(loc("popover_instructions")) { openWindow(id: "welcome"); NSApp.activate(ignoringOtherApps: true) }
                 Divider()
-                Button("結束 Sync-Nexus") { model.quit() }.keyboardShortcut("q")
+                Button(loc("popover_quit")) { model.quit() }.keyboardShortcut("q")
             } label: { Image(systemName: "ellipsis").frame(width: 24, height: 24) }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-            .accessibilityLabel("更多")
+            .accessibilityLabel(loc("popover_more"))
         }
         .padding(.horizontal, 20).padding(.vertical, 14)
     }

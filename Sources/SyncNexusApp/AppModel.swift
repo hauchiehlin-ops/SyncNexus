@@ -85,11 +85,11 @@ final class AppModel: ObservableObject {
         snap = s
         if let c = s.confirmation, c.reason != lastNotifiedConfirmation {
             lastNotifiedConfirmation = c.reason
-            notify("Sync-Nexus 需要你確認", c.reason)
+            notify(loc("status_need_confirm"), c.reason)
         } else if s.confirmation == nil { lastNotifiedConfirmation = nil }
         if s.conflicts.count > lastNotifiedConflicts {
             let n = s.conflicts.count
-            notify("有 \(n) 個同步衝突待處理", "同一個檔案在兩個地方被修改。原檔已與其他資料夾一致，另一份保留在發生衝突的資料夾，請到「設定端點」選擇要留哪一份。")
+            notify(loc("status_conflicts_pending", n), loc("conflicts_section_desc"))
         }
         lastNotifiedConflicts = s.conflicts.count
     }
@@ -145,15 +145,17 @@ final class AppModel: ObservableObject {
     }
 
     var headline: String {
-        if let e = snap.error { return "錯誤：\(e)" }
-        if snap.confirmation != nil { return "⚠︎ 需要你確認" }
+        if let e = snap.error { return loc("model_error_prefix", e) }
+        if snap.confirmation != nil { return "⚠︎ " + loc("status_need_confirm") }
         switch snap.phase {
-        case .paused: return "已暫停"
-        case .syncing: return "同步中…"
+        case .paused: return loc("status_paused")
+        case .syncing: return loc("status_syncing")
         case .idle:
-            guard let t = snap.lastRun else { return "啟動中…" }
-            let f = RelativeDateTimeFormatter(); f.locale = Locale(identifier: "zh_TW"); f.unitsStyle = .short
-            return "已同步 · \(f.localizedString(for: t, relativeTo: Date()))"
+            guard let t = snap.lastRun else { return loc("status_starting") }
+            let f = RelativeDateTimeFormatter()
+            f.locale = Locale(identifier: L10n.shared.currentLanguage.rawValue)
+            f.unitsStyle = .short
+            return loc("model_synced_relative", f.localizedString(for: t, relativeTo: Date()))
         }
     }
 
@@ -168,9 +170,9 @@ final class AppModel: ObservableObject {
         let alert = NSAlert()
         alert.messageText = c.reason
         let lines = c.preview.prefix(25).joined(separator: "\n")
-        alert.informativeText = lines + (c.preview.count > 25 ? "\n…另有 \(c.preview.count - 25) 項" : "")
-        alert.addButton(withTitle: "確認執行")
-        alert.addButton(withTitle: "取消")
+        alert.informativeText = lines + (c.preview.count > 25 ? loc("model_and_more_items", c.preview.count - 25) : "")
+        alert.addButton(withTitle: loc("model_btn_confirm_exec"))
+        alert.addButton(withTitle: loc("cancel"))
         NSApp.activate(ignoringOtherApps: true)
         if alert.runModal() == .alertFirstButtonReturn { service.syncNow(confirmed: true) }
     }
@@ -202,19 +204,19 @@ final class AppModel: ObservableObject {
     func addEndpoint(name: String, path: String, removable: Bool, portable: Bool, archive: Bool = false, bookmarkData: Data? = nil) {
         let cfg = EndpointConfig(id: name.trimmingCharacters(in: .whitespaces), root: path, removable: removable, portableNames: portable, role: archive ? .archive : .mirror, bookmarkData: bookmarkData)
         service.addEndpoint(cfg) { [weak self] err in
-            Task { @MainActor in self?.settingsMessage = err.map { "新增失敗：\($0)" } ?? "已新增「\(cfg.id)」。首次同步前會先顯示預覽，等你確認。" }
+            Task { @MainActor in self?.settingsMessage = err.map { loc("msg_add_failed", "\($0)") } ?? loc("msg_endpoint_added", cfg.id) }
         }
     }
 
     func relink(id: String, to path: String, bookmarkData: Data? = nil) {
         service.relinkEndpoint(id: id, root: path, bookmarkData: bookmarkData) { [weak self] err in
-            Task { @MainActor in self?.settingsMessage = err.map { "更換失敗：\($0)" } ?? "「\(id)」已改指向新資料夾，下次同步前會先顯示預覽。" }
+            Task { @MainActor in self?.settingsMessage = err.map { loc("msg_relink_failed", "\($0)") } ?? loc("msg_relinked", id) }
         }
     }
 
     func remove(id: String) {
         service.removeEndpoint(id: id) { [weak self] err in
-            Task { @MainActor in self?.settingsMessage = err.map { "移除失敗：\($0)" } ?? "已移除「\(id)」，資料夾內的檔案完全沒有被動到。" }
+            Task { @MainActor in self?.settingsMessage = err.map { loc("msg_remove_failed", "\($0)") } ?? loc("msg_removed", id) }
         }
     }
 
@@ -223,20 +225,20 @@ final class AppModel: ObservableObject {
     func purgeVersions(_ mode: SyncService.PurgeMode) {
         service.purgeVersions(mode) { [weak self] files, bytes in
             Task { @MainActor in
-                self?.settingsMessage = "已清理 \(files) 個舊版本檔案，釋出 \(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))"
+                self?.settingsMessage = loc("msg_versions_purged", files, ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))
             }
         }
     }
 
     func setRetention(days: Int) {
         service.setVersionsRetention(days: days) { [weak self] err in
-            Task { @MainActor in self?.settingsMessage = err.map { "設定失敗：\($0)" } ?? "舊版本保留期限已更新" }
+            Task { @MainActor in self?.settingsMessage = err.map { loc("msg_add_failed", "\($0)") } ?? loc("msg_retention_updated") }
         }
     }
 
     func setArchiveRetention(days: Int) {
         service.setArchiveRetention(days: days) { [weak self] err in
-            Task { @MainActor in self?.settingsMessage = err.map { "設定失敗：\($0)" } ?? "備份歷史保留期限已更新" }
+            Task { @MainActor in self?.settingsMessage = err.map { loc("msg_add_failed", "\($0)") } ?? loc("msg_archive_retention_updated") }
         }
     }
 
@@ -246,7 +248,7 @@ final class AppModel: ObservableObject {
             Task { @MainActor in
                 self?.isRunningTrialRun = false
                 self?.trialRunReport = report
-                self?.settingsMessage = report != nil ? "已完成模擬試跑比對" : "模擬試跑失敗"
+                self?.settingsMessage = report != nil ? loc("msg_trial_run_completed") : loc("msg_trial_run_failed")
             }
         }
     }
@@ -259,7 +261,7 @@ final class AppModel: ObservableObject {
     func repair(_ issue: IntegrityIssue, action: IntegrityAction) {
         service.resolveIntegrity(issue, action: action) { [weak self] err in
             Task { @MainActor in
-                self?.settingsMessage = err.map { "處理失敗：\($0)" } ?? (action == .restoreFromOthers ? "已用其他資料夾的版本修復，損壞的內容保留在舊版本" : "已接受現在的內容，會同步到其他資料夾")
+                self?.settingsMessage = err.map { loc("msg_add_failed", "\($0)") } ?? (action == .restoreFromOthers ? loc("msg_repaired_from_others") : loc("msg_accepted_current"))
             }
         }
     }
@@ -271,7 +273,7 @@ final class AppModel: ObservableObject {
         var p = snap.excludePresets
         if on { p.insert(preset) } else { p.remove(preset) }
         service.setExcludePresets(p) { [weak self] err in
-            Task { @MainActor in self?.settingsMessage = err.map { "設定失敗：\($0)" } ?? "排除項目已更新（已同步的檔案不會被刪除，只是不再同步）" }
+            Task { @MainActor in self?.settingsMessage = err.map { loc("msg_add_failed", "\($0)") } ?? loc("msg_excludes_updated") }
         }
     }
 
@@ -283,15 +285,15 @@ final class AppModel: ObservableObject {
 
     func setPolicy(_ p: ConflictPolicy) {
         service.setConflictPolicy(p) { [weak self] err in
-            Task { @MainActor in self?.settingsMessage = err.map { "設定失敗：\($0)" } ?? "衝突策略已更新" }
+            Task { @MainActor in self?.settingsMessage = err.map { loc("msg_add_failed", "\($0)") } ?? loc("msg_conflict_policy_updated") }
         }
     }
 
     func resolve(_ c: SyncService.ConflictItem, keep: ConflictChoice) {
         service.resolveConflict(id: c.id, keep: keep) { [weak self] err in
             Task { @MainActor in
-                self?.settingsMessage = err.map { "處理失敗：\($0)" }
-                    ?? (keep == .main ? "已保留原檔，另一份已移到垃圾桶" : "已改用衝突副本，舊版存入 Versions，正在傳到其他資料夾")
+                self?.settingsMessage = err.map { loc("msg_add_failed", "\($0)") }
+                    ?? (keep == .main ? loc("msg_conflict_kept_main") : loc("msg_conflict_used_extra"))
             }
         }
     }
@@ -311,7 +313,7 @@ final class AppModel: ObservableObject {
     func restore(_ item: VersionItem) {
         service.restoreVersion(item) { [weak self] err in
             Task { @MainActor in
-                self?.settingsMessage = err.map { "還原失敗：\($0)" } ?? "已還原「\((item.path as NSString).lastPathComponent)」，正在同步到其他資料夾"
+                self?.settingsMessage = err.map { loc("msg_restore_failed", "\($0)") } ?? loc("msg_version_restored", (item.path as NSString).lastPathComponent)
                 self?.loadVersions()
             }
         }
@@ -324,14 +326,14 @@ final class AppModel: ObservableObject {
     func refreshLoginState() {
         let status = SMAppService.mainApp.status
         launchAtLogin = status == .enabled
-        loginNote = status == .requiresApproval ? "需在「系統設定 > 一般 > 登入項目」允許" : nil
+        loginNote = status == .requiresApproval ? loc("msg_login_approval_required") : nil
     }
 
     func setLaunchAtLogin(_ on: Bool) {
         do {
             if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
         } catch {
-            loginNote = "無法設定開機啟動：\(error.localizedDescription)"
+            loginNote = loc("msg_login_config_failed", error.localizedDescription)
         }
         refreshLoginState()
         if SMAppService.mainApp.status == .requiresApproval { SMAppService.openSystemSettingsLoginItems() }
