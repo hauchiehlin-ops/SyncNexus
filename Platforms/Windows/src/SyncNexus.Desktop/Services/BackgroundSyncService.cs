@@ -1,5 +1,6 @@
 using SyncNexus.Core.Engine;
 using SyncNexus.Core.IO;
+using SyncNexus.Core.Model;
 using SyncNexus.Core.Storage;
 
 namespace SyncNexus.Desktop.Services;
