@@ -3,7 +3,7 @@
 # 一鍵式通用標準作業程序 (SOP):
 # 1. 升版本號與 bundle 號 (patch / minor / major)
 # 2. i18n 與版本一致性檢查
-# 3. macOS App Store 上架打包（全自動歸檔、簽名、驗證、上傳）
+# 3. macOS App Store 打包（建置、簽名、驗證；最後由 Transporter 傳送）
 # 4. Android 打包 AAB 與 APK
 # 5. 建立 chore(release): commit 與 tag
 set -euo pipefail
@@ -86,6 +86,9 @@ echo "版本: $NEW_VER (Build $NEW_BUILD)"
 echo "Git Commit: $COMMIT_MSG"
 echo "Git Tag: $TAG_NAME"
 echo ""
-echo "接下來您只需執行："
+echo "接下來："
+echo "  1. 使用 Apple Transporter 傳送 build/SyncNexus-$NEW_VER-b$NEW_BUILD.pkg"
+echo "  2. 將 Android AAB 上傳至 Google Play Console（正式上架時）"
+echo "  3. 推送 Git commit 與 tag："
 echo "  git push && git push --tags"
 echo "================================================================="

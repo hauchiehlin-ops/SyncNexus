@@ -17,5 +17,15 @@
     <!-- 外接磁碟 (USB/Thunderbolt) 存取權限 -->
     <key>com.apple.security.device.usb</key>
     <true/>
+
+    <!-- App Store / TestFlight 識別碼與 Team ID -->
+    <key>com.apple.application-identifier</key>
+    <string>6UJ8GS752W.com.syncnexus.app</string>
+    <key>com.apple.developer.team-identifier</key>
+    <string>6UJ8GS752W</string>
+    <key>keychain-access-groups</key>
+    <array>
+        <string>6UJ8GS752W.*</string>
+    </array>
 </dict>
 </plist>

@@ -12,6 +12,9 @@
 3. 在 [Identifiers](https://developer.apple.com/account/resources/identifiers/list) 建立 App ID：
    - Bundle ID: `com.syncnexus.app` (或您在 Developer Account 中的專屬 ID)
    - 勾選 Capabilities: **App Sandbox**
+4. 建立並下載 **Mac App Store provisioning profile**，App ID 選擇
+   `com.syncnexus.app`，憑證選擇上述 Apple Distribution 憑證。Xcode 通常會將它安裝至
+   `~/Library/Developer/Xcode/UserData/Provisioning Profiles/`。
 
 ---
 
@@ -20,22 +23,39 @@
 
 ```bash
 # 1. 建立具有 App Sandbox 與 Security-Scoped Bookmarks 的 App
-Scripts/build-app.sh --sandbox
+Scripts/build-app.sh --app-store
 
 # 2. 封裝為 Mac App Store 專用安裝包 (.pkg)
 # 請將憑證名稱換成您 Keychain 中的 Mac Installer Distribution 證書
 Scripts/package-appstore.sh "3rd Party Mac Developer Installer: YOUR_NAME (TEAM_ID)"
 ```
+Profile 也可以放在專案根目錄（Git 會忽略它）。若位於其他位置，可明確指定：
+
+```bash
+APP_PROVISIONING_PROFILE=/absolute/path/to/profile.provisionprofile \
+  Scripts/package-appstore.sh "3rd Party Mac Developer Installer: YOUR_NAME (TEAM_ID)"
+```
+
+打包腳本會檢查 profile 的平台、Team/App ID、期限，並將它嵌入
+`SyncNexus.app/Contents/embedded.provisionprofile`；缺少或不相符時會直接停止，避免再次上傳
+無法用於 TestFlight 的 build。
 產出的檔案為 `build/SyncNexus-<版本號>.pkg`。
 
 ---
 
-## 3. 上傳至 App Store Connect
-推薦使用 Apple 官方命令列工具上傳（或使用 Transporter App）：
-```bash
-xcrun altool --validate-app -f "build/SyncNexus-0.1.5.pkg" -t macos --apiKey <KEY_ID> --apiIssuer <ISSUER_ID>
-xcrun altool --upload-app -f "build/SyncNexus-0.1.5.pkg" -t macos --apiKey <KEY_ID> --apiIssuer <ISSUER_ID>
-```
+## 3. 使用 Transporter 上傳至 App Store Connect
+
+macOS 套件固定使用 Apple **Transporter** 傳送；專案腳本不接收 Apple ID、App 專用密碼，
+也不提供 `--upload` 直接上傳模式。
+
+1. 從 Mac App Store 安裝並開啟 **Transporter**。
+2. 使用具備 App Manager、Developer 或 Admin 權限的 App Store Connect 帳號登入。
+3. 將 `build/SyncNexus-<版本號>-b<Build號>.pkg` 拖入 Transporter。
+4. 按下「傳送（Deliver）」並等待成功訊息。
+5. 前往 App Store Connect 的 TestFlight 頁面，等待 Apple 完成建置處理。
+
+Transporter 會執行 App Store Connect 的伺服器端驗證；若失敗，應依 Transporter 顯示的錯誤修正後，
+遞增 `BUILD_NUMBER` 並重新產生套件。
 
 ---
 

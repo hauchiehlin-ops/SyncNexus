@@ -6,8 +6,8 @@
 set -euo pipefail
 cd "${0:A:h}/.."
 
-echo "==> Building Sandboxed App..."
-Scripts/build-app.sh --sandbox >/dev/null
+echo "==> Building Mac App Store App..."
+Scripts/build-app.sh --app-store
 
 VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" build/SyncNexus.app/Contents/Info.plist)
 PKG="build/SyncNexus-$VERSION.pkg"
@@ -22,6 +22,5 @@ else
 fi
 
 echo "==> Package created: $PKG"
-echo "To validate and upload to App Store Connect:"
-echo "  xcrun altool --validate-app -f \"$PKG\" -t macos --apiKey <KEY_ID> --apiIssuer <ISSUER_ID>"
-echo "  xcrun altool --upload-app -f \"$PKG\" -t macos --apiKey <KEY_ID> --apiIssuer <ISSUER_ID>"
+echo "Next step: open Apple Transporter, add \"$PKG\", and click Deliver."
+echo "This script does not accept Apple Account credentials or upload directly."
