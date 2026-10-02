@@ -127,7 +127,8 @@ public final class SyncService: @unchecked Sendable {
             if let engine = self.engine, let cfgs = try? engine.store.endpoints() {
                 #if os(macOS)
                 SecurityScopeManager.shared.onBookmarkRenewed = { [weak self] root, newBookmark in
-                    self?.queue.async {
+                    guard let self = self else { return }
+                    self.queue.async { [weak self] in
                         guard let engine = self?.engine else { return }
                         try? engine.store.updateBookmark(forRoot: root, bookmarkData: newBookmark)
                     }
