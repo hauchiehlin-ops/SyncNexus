@@ -17,11 +17,25 @@ if [[ "${1:-}" == "--sandbox" || "${2:-}" == "--sandbox" ]]; then
 fi
 
 Scripts/setup-signing.sh >/dev/null
-KC=~/.syncnexus-signing/signing.keychain-db
-security unlock-keychain -p "$(cat ~/.syncnexus-signing/keychain-password)" "$KC"
-HASH=$(security find-identity -p codesigning "$KC" | awk '/SyncNexus Local Signing/ {print $2; exit}')
-codesign --force --deep --sign "$HASH" "${SANDBOX_ARGS[@]}" --keychain "$KC" --identifier com.syncnexus.app "$APP"
-codesign -dr - "$APP" 2>&1 | grep designated
+APP_SIGN_IDENTITY="${APP_SIGN_IDENTITY:-}"
+if [[ -z "$APP_SIGN_IDENTITY" ]]; then
+  APP_SIGN_IDENTITY=$(security find-identity -v -p codesigning | grep "Apple Distribution" | head -n 1 | sed -E 's/.*"([^"]+)".*/\1/' || true)
+fi
+
+if [[ -n "$APP_SIGN_IDENTITY" ]]; then
+  echo "==> 使用 Apple Distribution 官方憑證簽署: $APP_SIGN_IDENTITY"
+  codesign --force --deep --sign "$APP_SIGN_IDENTITY" "${SANDBOX_ARGS[@]}" --options runtime --identifier com.syncnexus.app "$APP"
+else
+  KC=~/.syncnexus-signing/signing.keychain-db
+  if [[ -f "$KC" ]]; then
+    security unlock-keychain -p "$(cat ~/.syncnexus-signing/keychain-password)" "$KC"
+    HASH=$(security find-identity -p codesigning "$KC" | awk '/SyncNexus Local Signing/ {print $2; exit}')
+    codesign --force --deep --sign "$HASH" "${SANDBOX_ARGS[@]}" --keychain "$KC" --identifier com.syncnexus.app "$APP"
+  else
+    codesign --force --deep --sign - "${SANDBOX_ARGS[@]}" --identifier com.syncnexus.app "$APP"
+  fi
+fi
+codesign -dr - "$APP" 2>&1 | grep designated || true
 echo "built $APP"
 if [[ "${1:-}" == "--install" || "${2:-}" == "--install" ]]; then
   mkdir -p ~/Applications
