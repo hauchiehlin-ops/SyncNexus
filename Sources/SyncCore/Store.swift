@@ -15,11 +15,15 @@ public struct EndpointConfig: Sendable, Equatable {
     /// `.archive`: receive-only backup. Changes made inside it are never sent out, files deleted elsewhere are kept, and every
     /// replaced version is kept in `.syncnexus-history` inside the folder.
     public var role: EndpointRole
+    /// App Sandbox Security-Scoped Bookmark for persistent access permissions.
+    public var bookmarkData: Data?
 
     public init(id: String, root: String, removable: Bool = false, portableNames: Bool = false,
-                uuid: String = UUID().uuidString, volumeUUID: String? = nil, role: EndpointRole = .mirror) {
+                uuid: String = UUID().uuidString, volumeUUID: String? = nil, role: EndpointRole = .mirror,
+                bookmarkData: Data? = nil) {
         self.id = id; self.root = root; self.removable = removable
         self.portableNames = portableNames; self.uuid = uuid; self.volumeUUID = volumeUUID; self.role = role
+        self.bookmarkData = bookmarkData
     }
 }
 
@@ -66,6 +70,7 @@ public final class Store {
         try addColumnIfMissing("ep_state", "kind", "INTEGER NOT NULL DEFAULT 0")
         // `fold` = case-folded path, indexed: incremental runs must find every spelling of a path, not just the exact one.
         try addColumnIfMissing("endpoints", "role", "TEXT NOT NULL DEFAULT 'mirror'")
+        try addColumnIfMissing("endpoints", "bookmark_data", "TEXT")
         try addColumnIfMissing("consensus", "fold", "TEXT NOT NULL DEFAULT ''")
         try addColumnIfMissing("ep_state", "fold", "TEXT NOT NULL DEFAULT ''")
         try backfillFold(table: "consensus", keyColumns: "path")
@@ -137,16 +142,18 @@ public final class Store {
     // MARK: endpoints
 
     public func addEndpoint(_ e: EndpointConfig) throws {
-        try db.exec("INSERT OR REPLACE INTO endpoints(id, root, removable, portable, uuid, volume_uuid, role) VALUES(?,?,?,?,?,?,?)",
+        try db.exec("INSERT OR REPLACE INTO endpoints(id, root, removable, portable, uuid, volume_uuid, role, bookmark_data) VALUES(?,?,?,?,?,?,?,?)",
                     [.text(e.id), .text(e.root), .int(e.removable ? 1 : 0), .int(e.portableNames ? 1 : 0),
-                     .text(e.uuid), e.volumeUUID.map { .text($0) } ?? .null, .text(e.role.rawValue)])
+                     .text(e.uuid), e.volumeUUID.map { .text($0) } ?? .null, .text(e.role.rawValue),
+                     e.bookmarkData.map { .text($0.base64EncodedString()) } ?? .null])
     }
 
     public func endpoints() throws -> [EndpointConfig] {
-        try db.query("SELECT id, root, removable, portable, uuid, volume_uuid, role FROM endpoints ORDER BY rowid").map {
+        try db.query("SELECT id, root, removable, portable, uuid, volume_uuid, role, bookmark_data FROM endpoints ORDER BY rowid").map {
             EndpointConfig(id: $0[0].textValue!, root: $0[1].textValue!, removable: $0[2].intValue == 1,
                            portableNames: $0[3].intValue == 1, uuid: $0[4].textValue!, volumeUUID: $0[5].textValue,
-                           role: EndpointRole(rawValue: $0[6].textValue ?? "") ?? .mirror)
+                           role: EndpointRole(rawValue: $0[6].textValue ?? "") ?? .mirror,
+                           bookmarkData: $0[7].textValue.flatMap { Data(base64Encoded: $0) })
         }
     }
 
@@ -253,12 +260,18 @@ public final class Store {
     /// Point an existing endpoint at a different folder (e.g. Drive re-signed-in as another account).
     /// Its snapshots are dropped, so the new folder is treated as a newcomer: it receives what the group has,
     /// and anything it already holds is merged in. A fresh folder can never be read as "everything was deleted".
-    public func relinkEndpoint(id: String, root: String, volumeUUID: String?) throws {
+    public func relinkEndpoint(id: String, root: String, volumeUUID: String?, bookmarkData: Data? = nil) throws {
         try db.transaction {
-            try db.exec("UPDATE endpoints SET root=?, uuid=?, volume_uuid=? WHERE id=?",
-                        [.text(root), .text(UUID().uuidString), volumeUUID.map { .text($0) } ?? .null, .text(id)])
+            try db.exec("UPDATE endpoints SET root=?, uuid=?, volume_uuid=?, bookmark_data=? WHERE id=?",
+                        [.text(root), .text(UUID().uuidString), volumeUUID.map { .text($0) } ?? .null,
+                         bookmarkData.map { .text($0.base64EncodedString()) } ?? .null, .text(id)])
             try db.exec("DELETE FROM ep_state WHERE endpoint=?", [.text(id)])
         }
+    }
+
+    public func updateBookmark(forRoot root: String, bookmarkData: Data) throws {
+        try db.exec("UPDATE endpoints SET bookmark_data=? WHERE root=?",
+                    [.text(bookmarkData.base64EncodedString()), .text(root)])
     }
 
     public func endpointHasHistory(_ endpoint: String) throws -> Bool {

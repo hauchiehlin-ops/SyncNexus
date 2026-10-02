@@ -1,0 +1,27 @@
+<resources>
+    <string name="app_name">Sync-Nexus</string>
+    <string name="sync_status_idle">ซิงค์ข้อมูลเรียบร้อยทั้งหมด</string>
+    <string name="sync_status_syncing">กำลังตรวจสอบและถ่ายโอนข้อมูล…</string>
+    <string name="sync_notification_channel">สถานะบริการซิงค์</string>
+    <string name="sync_notification_content">Sync-Nexus กำลังทำงานอยู่เบื้องหลังเพื่อปกป้องโฟลเดอร์ของคุณ</string>
+    <string name="sync_notification_desc">แจ้งเตือนเมื่อระบบซิงค์ไฟล์หลักกำลังทำงาน</string>
+    <string name="btn_add_folder">เพิ่มโฟลเดอร์…</string>
+    <string name="btn_sync_now">ตรวจสอบและซิงค์ทันที</string>
+    <string name="status_card_title_syncing">กำลังตรวจสอบและถ่ายโอนข้อมูล…</string>
+    <string name="status_card_title_ready">พร้อมสำหรับการซิงค์</string>
+    <string name="status_folder_count">จำนวนโฟลเดอร์ที่ตั้งค่า: %1$d</string>
+    <string name="status_tracked_files">จำนวนไฟล์ที่ติดตาม: %1$d</string>
+    <string name="status_recent_transfers">จำนวนการถ่ายโอนล่าสุด: %1$d</string>
+    <string name="status_last_sync_time">เวลาที่ซิงค์ล่าสุด: %1$s</string>
+    <string name="status_error_prefix">ข้อผิดพลาด: %1$s</string>
+    <string name="nearby_devices_title">อุปกรณ์ในเครือข่าย Wi-Fi เดียวกัน (P2P โดยตรง)</string>
+    <string name="nearby_devices_searching">กำลังค้นหา…</string>
+    <string name="nearby_devices_found">พบ %1$d เครื่อง</string>
+    <string name="nearby_devices_hint">เปิด Sync-Nexus บน Mac หรืออุปกรณ์อื่นในเครือข่าย Wi-Fi เดียวกัน ระบบจะแสดงและเชื่อมต่อโดยอัตโนมัติ</string>
+    <string name="section_folders_title">โฟลเดอร์ที่กำหนดค่าไว้</string>
+    <string name="empty_folders_hint">ยังไม่ได้เพิ่มโฟลเดอร์\nกรุณาแตะ \"เพิ่มโฟลเดอร์…\" ด้านบนเพื่อเลือกอย่างน้อยสองโฟลเดอร์สำหรับการซิงค์สองทางอัตโนมัติ</string>
+    <string name="btn_remove">ลบออก</string>
+    <string name="section_logs_title">บันทึกกิจกรรมการซิงค์</string>
+    <string name="logs_empty">ยังไม่มีบันทึกกิจกรรม</string>
+    <string name="custom_folder_fallback">โฟลเดอร์ที่กำหนดเอง</string>
+</resources>

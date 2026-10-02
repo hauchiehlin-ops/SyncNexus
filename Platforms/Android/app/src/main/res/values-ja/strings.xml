@@ -1,0 +1,27 @@
+<resources>
+    <string name="app_name">Sync-Nexus</string>
+    <string name="sync_status_idle">すべて同期済み</string>
+    <string name="sync_status_syncing">照合および転送中…</string>
+    <string name="sync_notification_channel">同期サービスの状態</string>
+    <string name="sync_notification_content">Sync-Nexus がバックグラウンドでフォルダを同期しています</string>
+    <string name="sync_notification_desc">ファイル同期コアサービスが実行中であることを通知します</string>
+    <string name="btn_add_folder">フォルダを追加…</string>
+    <string name="btn_sync_now">今すぐ照合・同期</string>
+    <string name="status_card_title_syncing">照合および転送中…</string>
+    <string name="status_card_title_ready">同期の準備完了</string>
+    <string name="status_folder_count">設定済みフォルダ数: %1$d</string>
+    <string name="status_tracked_files">追跡ファイル数: %1$d</string>
+    <string name="status_recent_transfers">最近の転送回数: %1$d</string>
+    <string name="status_last_sync_time">最終同期時刻: %1$s</string>
+    <string name="status_error_prefix">エラー: %1$s</string>
+    <string name="nearby_devices_title">同一 Wi-Fi 近隣デバイス (P2P 直接接続)</string>
+    <string name="nearby_devices_searching">検索中…</string>
+    <string name="nearby_devices_found">%1$d 台検出</string>
+    <string name="nearby_devices_hint">同一 Wi-Fi 内で Mac や他端末の Sync-Nexus を起動すると、自動的に検出され直接接続が確立されます。</string>
+    <string name="section_folders_title">設定済みフォルダ</string>
+    <string name="empty_folders_hint">フォルダが登録されていません。\n上の「フォルダを追加…」をタップして、2つ以上のフォルダを選択してください。</string>
+    <string name="btn_remove">削除</string>
+    <string name="section_logs_title">同期アクティビティログ</string>
+    <string name="logs_empty">履歴はありません</string>
+    <string name="custom_folder_fallback">カスタムフォルダ</string>
+</resources>

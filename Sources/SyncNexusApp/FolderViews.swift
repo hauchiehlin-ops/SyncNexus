@@ -2,17 +2,25 @@ import AppKit
 import SwiftUI
 import SyncCore
 
-func pickFolder(message: String) -> String? {
+struct PickedFolder {
+    let path: String
+    let bookmarkData: Data?
+}
+
+func pickFolder(message: String) -> PickedFolder? {
     let p = NSOpenPanel()
     p.canChooseDirectories = true; p.canChooseFiles = false; p.canCreateDirectories = true; p.allowsMultipleSelection = false
     p.message = message; p.prompt = "選擇"
     NSApp.activate(ignoringOtherApps: true)
-    return p.runModal() == .OK ? p.url?.path : nil
+    guard p.runModal() == .OK, let url = p.url else { return nil }
+    let bookmark = SecurityScopeManager.shared.createBookmark(for: url)
+    return PickedFolder(path: url.path, bookmarkData: bookmark)
 }
 
 struct AddDraft: Identifiable {
     let id = UUID()
     var path: String
+    var bookmarkData: Data?
     var name: String
     var removable: Bool
     var portable: Bool
@@ -25,32 +33,32 @@ struct FoldersSection: View {
     @State private var draft: AddDraft?
 
     var body: some View {
-        sectionHeader("資料夾", "這些資料夾會互相保持一致：任一個有新增、修改、刪除或改名，其他的都會跟著變。刪除的檔案先進垃圾桶。")
+        sectionHeader(loc("section_folders"), loc("folders_desc"))
         if model.snap.endpoints.isEmpty {
-            Card { Text("還沒有加入資料夾。建議依序加入：本機資料夾、iCloud 雲碟裡的資料夾、Google Drive 裡的資料夾、外接磁碟裡的資料夾。")
+            Card { Text(loc("folders_empty_hint"))
                 .font(.system(size: 14)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
         }
         ForEach(model.snap.endpoints, id: \.id) { ep in FolderRow(model: model, ep: ep) }
         HStack {
-            Button("加入資料夾…") { startAdd() }.buttonStyle(QuietButton(kind: .primary))
-            if model.snap.endpoints.count < 2 { Text("至少需要兩個資料夾才會開始同步。").font(.system(size: 13)).foregroundStyle(Theme.warn) }
+            Button(loc("folders_add_button")) { startAdd() }.buttonStyle(QuietButton(kind: .primary))
+            if model.snap.endpoints.count < 2 { Text(loc("folders_minimum_warning")).font(.system(size: 13)).foregroundStyle(Theme.warn) }
         }
         .sheet(item: $draft) { d in AddSheet(model: model, draft: d) { draft = nil } }
     }
 
     private func startAdd() {
-        guard let path = pickFolder(message: "選擇要加入同步的資料夾") else { return }
-        let d = EndpointValidator.describe(path: path)
+        guard let picked = pickFolder(message: loc("folders_add_button")) else { return }
+        let d = EndpointValidator.describe(path: picked.path)
         let base: String
         switch d.kind {
-        case .local: base = "本機"
+        case .local: base = loc("kind_local")
         case .icloud: base = "iCloud"
         case .googleDrive: base = "GoogleDrive"
-        case .external: base = d.volumeName ?? "外接碟"
+        case .external: base = d.volumeName ?? loc("kind_external")
         }
         let taken = Set(model.snap.endpoints.map(\.id))
         let name = taken.contains(base) ? ((2...9).map { "\(base)\($0)" }.first { !taken.contains($0) } ?? base) : base
-        draft = AddDraft(path: path, name: name, removable: d.suggestRemovable, portable: d.suggestPortableNames, desc: d)
+        draft = AddDraft(path: picked.path, bookmarkData: picked.bookmarkData, name: name, removable: d.suggestRemovable, portable: d.suggestPortableNames, desc: d)
     }
 }
 
@@ -66,31 +74,31 @@ struct FolderRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
                         Text(ep.id).font(.system(size: 15, weight: .bold))
-                        Chip(text: ep.online ? "在線" : "離線", kind: ep.online ? .ok : .warn)
-                        if ep.role == .archive { Chip(text: "備份：只接收", kind: .neutral) }
-                        if ep.removable { Chip(text: "可移除", kind: .neutral) }
-                        if ep.portableNames { Chip(text: "檔名相容 exFAT／Windows", kind: .neutral) }
+                        Chip(text: ep.online ? loc("online") : loc("offline"), kind: ep.online ? .ok : .warn)
+                        if ep.role == .archive { Chip(text: loc("archive_badge"), kind: .neutral) }
+                        if ep.removable { Chip(text: loc("removable_badge"), kind: .neutral) }
+                        if ep.portableNames { Chip(text: loc("portable_badge"), kind: .neutral) }
                     }
                     Text(shortPath(ep.root)).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
                     if !ep.online { Text(ep.detail).font(.system(size: 12)).foregroundStyle(Theme.warn).fixedSize(horizontal: false, vertical: true) }
                 }
                 Spacer()
-                if ep.role == .archive { Button("顯示歷史") { model.reveal(ep.root + "/.syncnexus-history") }.buttonStyle(QuietButton(kind: .plain)) }
-                Button("更換資料夾…") { change() }.buttonStyle(QuietButton(kind: .secondary, compact: true))
-                Button("移除…") { remove() }.buttonStyle(QuietButton(kind: .secondary, compact: true))
+                if ep.role == .archive { Button(loc("show_history")) { model.reveal(ep.root + "/.syncnexus-history") }.buttonStyle(QuietButton(kind: .plain)) }
+                Button(loc("change_folder")) { change() }.buttonStyle(QuietButton(kind: .secondary, compact: true))
+                Button(loc("remove")) { remove() }.buttonStyle(QuietButton(kind: .secondary, compact: true))
             }
         }
     }
 
     private func change() {
-        guard let path = pickFolder(message: "選擇「\(ep.id)」要改指向的新資料夾") else { return }
-        let issues = model.validate(path: path, name: ep.id, replacing: ep.id, portable: ep.portableNames)
+        guard let picked = pickFolder(message: "選擇「\(ep.id)」要改指向的新資料夾") else { return }
+        let issues = model.validate(path: picked.path, name: ep.id, replacing: ep.id, portable: ep.portableNames)
         if let e = issues.first(where: \.isError) { let a = NSAlert(); a.messageText = "無法使用這個資料夾"; a.informativeText = e.message; a.runModal(); return }
         let a = NSAlert()
         a.messageText = "把「\(ep.id)」改指向新資料夾？"
         a.informativeText = "新資料夾會被當成新加入的資料夾：它會先收到其他端點的檔案，原有的檔案也會被合併進來；不會因為它是空的就刪除其他端點的檔案。同步前會先給你看預覽。\n\n" + issues.map(\.message).joined(separator: "\n")
         a.addButton(withTitle: "更換"); a.addButton(withTitle: "取消")
-        if a.runModal() == .alertFirstButtonReturn { model.relink(id: ep.id, to: path) }
+        if a.runModal() == .alertFirstButtonReturn { model.relink(id: ep.id, to: picked.path, bookmarkData: picked.bookmarkData) }
     }
 
     private func remove() {
@@ -138,7 +146,7 @@ struct AddSheet: View {
             HStack {
                 Spacer()
                 Button("取消") { close() }.buttonStyle(QuietButton(kind: .secondary)).keyboardShortcut(.cancelAction)
-                Button("加入") { model.addEndpoint(name: draft.name, path: draft.path, removable: draft.removable, portable: draft.portable, archive: draft.archive); close() }
+                Button("加入") { model.addEndpoint(name: draft.name, path: draft.path, removable: draft.removable, portable: draft.portable, archive: draft.archive, bookmarkData: draft.bookmarkData); close() }
                     .buttonStyle(QuietButton(kind: .primary)).keyboardShortcut(.defaultAction).disabled(issues.contains(where: \.isError))
             }
         }

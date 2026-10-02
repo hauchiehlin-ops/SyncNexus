@@ -16,6 +16,7 @@ struct MainWindowView: View {
                     VStack(alignment: .leading, spacing: 20) {
                         switch model.section {
                         case .overview: OverviewSection(model: model)
+                        case .diffPreview: DiffPreviewSection(model: model)
                         case .folders: FoldersSection(model: model)
                         case .conflicts: ConflictsSection(model: model)
                         case .versions: VersionsSection(model: model)
@@ -113,6 +114,39 @@ struct OverviewSection: View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
             ForEach(model.snap.endpoints, id: \.id) { ep in EndpointCard(model: model, ep: ep) }
         }
+
+        // 同 Wi-Fi 局域網近端設備 (P2P 局域網直連)
+        Card {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Image(systemName: "wifi").foregroundStyle(Color.accentColor)
+                    Text(loc("p2p_section_title")).font(.system(size: 14, weight: .semibold))
+                    Spacer()
+                    Text(model.nearbyPeers.isEmpty ? loc("p2p_searching") : loc("p2p_found", model.nearbyPeers.count))
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                }
+
+                if model.nearbyPeers.isEmpty {
+                    Text(loc("p2p_empty_hint"))
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                } else {
+                    ForEach(model.nearbyPeers) { peer in
+                        HStack(spacing: 10) {
+                            Image(systemName: "laptopcomputer.and.iphone").font(.system(size: 16))
+                            VStack(alignment: .leading) {
+                                Text(peer.name).font(.system(size: 13, weight: .medium))
+                                Text("P2P Direct").font(.system(size: 11)).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Chip(text: loc("online"), kind: .ok)
+                        }
+                        .padding(8)
+                        .background(Theme.tile, in: RoundedRectangle(cornerRadius: 8))
+                    }
+                }
+            }
+        }
+
         if model.snap.endpoints.count < 2 {
             Card { HStack { Image(systemName: "folder.badge.plus").foregroundStyle(Color.accentColor)
                 Text("至少加入兩個資料夾才會開始同步。").font(.system(size: 14))
@@ -418,6 +452,20 @@ struct SettingsSection: View {
         }
         Card {
             VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    Text(loc("settings_language")).font(.system(size: 14, weight: .semibold))
+                    Spacer()
+                    Picker("", selection: Binding(
+                        get: { L10n.shared.currentLanguage },
+                        set: { L10n.shared.currentLanguage = $0 }
+                    )) {
+                        ForEach(AppLanguage.allCases) { lang in
+                            Text(lang.displayName).tag(lang)
+                        }
+                    }
+                    .frame(width: 160)
+                }
+                Divider()
                 Toggle("開機自動啟動", isOn: Binding(get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) })).toggleStyle(.switch)
                 if let n = model.loginNote { Text(n).font(.system(size: 12)).foregroundStyle(Theme.warn) }
                 Divider()
@@ -444,5 +492,115 @@ struct SettingsSection: View {
             }
         }
         Color.clear.frame(height: 0).onAppear { fullDisk = Permissions.hasFullDiskAccess() }
+    }
+}
+
+struct DiffPreviewSection: View {
+    @ObservedObject var model: AppModel
+
+    var body: some View {
+        sectionHeader(loc("diff_preview_title"), loc("diff_preview_desc"))
+
+        Card {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 12) {
+                    Button(model.isRunningTrialRun ? loc("btn_running_trial") : loc("btn_run_trial")) {
+                        model.runTrialRun()
+                    }
+                    .buttonStyle(QuietButton(kind: .primary))
+                    .disabled(model.isRunningTrialRun || model.snap.endpoints.count < 2)
+
+                    Button(loc("settings_apfs_snapshot")) {
+                        model.createAPFSSnapshot()
+                    }
+                    .buttonStyle(QuietButton(kind: .secondary))
+
+                    Spacer()
+
+                    if let _ = model.trialRunReport {
+                        Text("\(Date().formatted(date: .omitted, time: .standard))")
+                            .font(.system(size: 12)).foregroundStyle(.secondary)
+                    }
+                }
+
+                if let report = model.trialRunReport {
+                    Divider()
+                    if report.preview.isEmpty {
+                        HStack(spacing: 8) {
+                            Image(systemName: "checkmark.circle.fill").foregroundStyle(Theme.ok)
+                            Text(loc("diff_no_changes")).font(.system(size: 14))
+                        }
+                        .padding(.vertical, 8)
+                    } else {
+                        Text("\(report.preview.count) items:")
+                            .font(.system(size: 14, weight: .semibold))
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            ForEach(Array(report.preview.enumerated()), id: \.offset) { _, line in
+                                HStack(alignment: .top, spacing: 8) {
+                                    diffIcon(for: line)
+                                    Text(line).font(.system(size: 13, design: .monospaced))
+                                }
+                            }
+                        }
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
+
+                        HStack {
+                            Spacer()
+                            Button(loc("status_ok")) {
+                                model.syncNow()
+                            }
+                            .buttonStyle(QuietButton(kind: .primary))
+                        }
+                    }
+                }
+            }
+        }
+
+        Card {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Image(systemName: "wifi").foregroundStyle(Color.accentColor)
+                    Text(loc("p2p_section_title")).font(.system(size: 14, weight: .semibold))
+                    Spacer()
+                    Text(model.nearbyPeers.isEmpty ? loc("p2p_searching") : loc("p2p_found", model.nearbyPeers.count))
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                }
+
+                if model.nearbyPeers.isEmpty {
+                    Text(loc("p2p_empty_hint"))
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                } else {
+                    ForEach(model.nearbyPeers) { peer in
+                        HStack(spacing: 10) {
+                            Image(systemName: "laptopcomputer.and.iphone").font(.system(size: 16))
+                            VStack(alignment: .leading) {
+                                Text(peer.name).font(.system(size: 13, weight: .medium))
+                                Text("P2P Direct").font(.system(size: 11)).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Chip(text: loc("online"), kind: .ok)
+                        }
+                        .padding(8)
+                        .background(Theme.tile, in: RoundedRectangle(cornerRadius: 8))
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func diffIcon(for line: String) -> some View {
+        if line.contains("刪除") || line.contains("垃圾桶") {
+            Image(systemName: "minus.circle.fill").foregroundStyle(Theme.bad)
+        } else if line.contains("重新命名") {
+            Image(systemName: "arrow.right.circle.fill").foregroundStyle(Color.accentColor)
+        } else if line.contains("衝突") {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Theme.warn)
+        } else {
+            Image(systemName: "plus.circle.fill").foregroundStyle(Theme.ok)
+        }
     }
 }

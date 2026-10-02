@@ -1,0 +1,29 @@
+name: Release - Dual Platform Artifacts
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-release:
+    name: Build Multi-Platform Releases
+    runs-on: macos-14
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build macOS App & Homebrew Zip
+        run: |
+          Scripts/package.sh
+          Scripts/package-appstore.sh
+
+      - name: Upload Artifacts
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            build/SyncNexus-*.zip
+            build/SyncNexus-*.pkg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

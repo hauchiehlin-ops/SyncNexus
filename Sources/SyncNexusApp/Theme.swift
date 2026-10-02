@@ -88,7 +88,12 @@ extension EndpointKind {
         switch self { case .local: "laptopcomputer"; case .icloud: "icloud"; case .googleDrive: "cloud"; case .external: "externaldrive" }
     }
     var label: String {
-        switch self { case .local: "本機"; case .icloud: "iCloud 雲碟"; case .googleDrive: "Google Drive"; case .external: "外接磁碟" }
+        switch self {
+        case .local: loc("kind_local")
+        case .icloud: loc("kind_icloud")
+        case .googleDrive: loc("kind_gdrive")
+        case .external: loc("kind_external")
+        }
     }
 }
 
@@ -100,13 +105,13 @@ func shortPath(_ p: String) -> String {
 
 func friendlyOp(_ op: String) -> String {
     switch op {
-    case "copy": "已更新"
-    case "move": "已改名"
-    case "trash": "已移到垃圾桶"
-    case "mkdir": "已建立資料夾"
-    case "restore": "已還原舊版本"
-    case "conflict-rename": "衝突，已保留兩份"
-    case "conflict-keep-main", "conflict-keep-copy": "衝突已處理"
+    case "copy": loc("op_copy")
+    case "move": loc("op_move")
+    case "trash": loc("op_trash")
+    case "mkdir": loc("op_mkdir")
+    case "restore": loc("op_restore")
+    case "conflict-rename": loc("op_conflict_rename")
+    case "conflict-keep-main", "conflict-keep-copy": loc("op_conflict_resolved")
     default: op
     }
 }

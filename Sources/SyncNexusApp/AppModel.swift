@@ -5,21 +5,23 @@ import SyncCore
 import UserNotifications
 
 enum MainSection: String, CaseIterable, Identifiable {
-    case overview, folders, conflicts, versions, verification, settings
+    case overview, diffPreview, folders, conflicts, versions, verification, settings
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .overview: "概覽"
-        case .folders: "資料夾"
-        case .conflicts: "衝突"
-        case .versions: "舊版本"
-        case .verification: "驗證紀錄"
-        case .settings: "設定"
+        case .overview: loc("section_overview")
+        case .diffPreview: loc("section_diff_preview")
+        case .folders: loc("section_folders")
+        case .conflicts: loc("section_conflicts")
+        case .versions: loc("section_versions")
+        case .verification: loc("section_verification")
+        case .settings: loc("section_settings")
         }
     }
     var symbol: String {
         switch self {
         case .overview: "house"
+        case .diffPreview: "arrow.left.arrow.right"
         case .folders: "folder"
         case .conflicts: "exclamationmark.triangle"
         case .versions: "clock.arrow.circlepath"
@@ -39,6 +41,8 @@ final class AppModel: ObservableObject {
     @Published var loginNote: String?
     @Published var section: MainSection = .overview
     @Published var versionItems: [VersionItem] = []
+    @Published var trialRunReport: SyncReport?
+    @Published var isRunningTrialRun = false
 
     private var service: SyncService!
     private var lastNotifiedConfirmation: String?
@@ -48,6 +52,8 @@ final class AppModel: ObservableObject {
         .appendingPathComponent("SyncNexus")
     static let logURL = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0]
         .appendingPathComponent("Logs/SyncNexus/syncnexus.log")
+
+    @Published var nearbyPeers: [LocalPeer] = []
 
     init() {
         service = SyncService(dbPath: Self.appSupport.appendingPathComponent("state.db").path,
@@ -65,6 +71,12 @@ final class AppModel: ObservableObject {
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
             self?.service.syncNow()
         }
+
+        // 啟動局域網點對點設備發現
+        LocalPeerDiscovery.shared.onPeersChanged = { [weak self] peers in
+            Task { @MainActor in self?.nearbyPeers = peers }
+        }
+        LocalPeerDiscovery.shared.start()
     }
 
     // MARK: state
@@ -93,32 +105,32 @@ final class AppModel: ObservableObject {
 
     var overallTitle: String {
         switch overall {
-        case .starting: return "正在啟動…"
-        case .ok: return "全部已同步"
-        case .partial: return "部分資料夾離線"
+        case .starting: return loc("status_starting")
+        case .ok: return loc("status_ok")
+        case .partial: return loc("status_partial")
         case .attention:
-            if snap.error != nil { return "同步發生錯誤" }
-            if snap.confirmation != nil { return "需要你確認" }
-            if !snap.conflicts.isEmpty { return "\(snap.conflicts.count) 個衝突等你決定" }
-            return "有檔案需要檢查"
-        case .syncing: return "同步中…"
-        case .paused: return "已暫停"
+            if snap.error != nil { return loc("status_error") }
+            if snap.confirmation != nil { return loc("status_need_confirm") }
+            if !snap.conflicts.isEmpty { return loc("status_conflicts_pending", snap.conflicts.count) }
+            return loc("status_need_check")
+        case .syncing: return loc("status_syncing")
+        case .paused: return loc("status_paused")
         }
     }
 
     var overallDetail: String {
         switch overall {
         case .ok, .partial:
-            if let t = snap.lastDeepVerify { return "最近一次完整驗證　\(t.formatted(date: .omitted, time: .shortened))" }
-            if let t = snap.lastRun { return "最近同步　\(t.formatted(date: .omitted, time: .shortened))" }
+            if let t = snap.lastDeepVerify { return "\(loc("section_verification"))　\(t.formatted(date: .omitted, time: .shortened))" }
+            if let t = snap.lastRun { return "\(loc("status_ok"))　\(t.formatted(date: .omitted, time: .shortened))" }
             return ""
         case .attention:
             if let e = snap.error { return e }
             if let c = snap.confirmation { return c.reason }
-            if !snap.integrityIssues.isEmpty { return "\(snap.integrityIssues.count) 個檔案內容與紀錄不符，已隔離、不會傳播" }
-            return snap.conflicts.first.map { "\($0.path)　兩邊都被修改" } ?? ""
-        case .syncing: return "正在比對並更新各個資料夾"
-        case .paused: return "按「繼續」恢復自動同步"
+            if !snap.integrityIssues.isEmpty { return "\(snap.integrityIssues.count) items quarantined" }
+            return snap.conflicts.first.map { "\($0.path)" } ?? ""
+        case .syncing: return loc("status_detail_syncing")
+        case .paused: return loc("status_detail_paused")
         case .starting: return ""
         }
     }
@@ -187,15 +199,15 @@ final class AppModel: ObservableObject {
         EndpointValidator.validate(path: path, name: name, replacing: replacing, existing: existingConfigs, portableNames: portable)
     }
 
-    func addEndpoint(name: String, path: String, removable: Bool, portable: Bool, archive: Bool = false) {
-        let cfg = EndpointConfig(id: name.trimmingCharacters(in: .whitespaces), root: path, removable: removable, portableNames: portable, role: archive ? .archive : .mirror)
+    func addEndpoint(name: String, path: String, removable: Bool, portable: Bool, archive: Bool = false, bookmarkData: Data? = nil) {
+        let cfg = EndpointConfig(id: name.trimmingCharacters(in: .whitespaces), root: path, removable: removable, portableNames: portable, role: archive ? .archive : .mirror, bookmarkData: bookmarkData)
         service.addEndpoint(cfg) { [weak self] err in
             Task { @MainActor in self?.settingsMessage = err.map { "新增失敗：\($0)" } ?? "已新增「\(cfg.id)」。首次同步前會先顯示預覽，等你確認。" }
         }
     }
 
-    func relink(id: String, to path: String) {
-        service.relinkEndpoint(id: id, root: path) { [weak self] err in
+    func relink(id: String, to path: String, bookmarkData: Data? = nil) {
+        service.relinkEndpoint(id: id, root: path, bookmarkData: bookmarkData) { [weak self] err in
             Task { @MainActor in self?.settingsMessage = err.map { "更換失敗：\($0)" } ?? "「\(id)」已改指向新資料夾，下次同步前會先顯示預覽。" }
         }
     }
@@ -226,6 +238,22 @@ final class AppModel: ObservableObject {
         service.setArchiveRetention(days: days) { [weak self] err in
             Task { @MainActor in self?.settingsMessage = err.map { "設定失敗：\($0)" } ?? "備份歷史保留期限已更新" }
         }
+    }
+
+    func runTrialRun() {
+        isRunningTrialRun = true
+        service.trialRun { [weak self] report in
+            Task { @MainActor in
+                self?.isRunningTrialRun = false
+                self?.trialRunReport = report
+                self?.settingsMessage = report != nil ? "已完成模擬試跑比對" : "模擬試跑失敗"
+            }
+        }
+    }
+
+    func createAPFSSnapshot() {
+        let res = APFSSnapshotManager.shared.createLocalSnapshot()
+        settingsMessage = res.message
     }
 
     func repair(_ issue: IntegrityIssue, action: IntegrityAction) {

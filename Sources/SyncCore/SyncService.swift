@@ -124,13 +124,26 @@ public final class SyncService: @unchecked Sendable {
             it.setEventHandler { [weak self] in self?.saveEventId() }
             it.resume()
             self.eventIdTimer = it
-            if let engine = self.engine, let cfgs = try? engine.store.endpoints(), cfgs.count >= 2,
-               let saved = (try? engine.store.meta("fsEventId")).flatMap({ $0 }).flatMap(UInt64.init) {
-                self.needFull = false
-                self.startWatcher(cfgs.map(\.root), since: saved)
-                self.queue.asyncAfter(deadline: .now() + 90) { [weak self] in self?.runIfNeeded(confirmed: false) }
-            } else {
-                self.runIfNeeded(confirmed: false)
+            if let engine = self.engine, let cfgs = try? engine.store.endpoints() {
+                #if os(macOS)
+                SecurityScopeManager.shared.onBookmarkRenewed = { [weak self] root, newBookmark in
+                    self?.queue.async {
+                        guard let engine = self?.engine else { return }
+                        try? engine.store.updateBookmark(forRoot: root, bookmarkData: newBookmark)
+                    }
+                }
+                #endif
+                for cfg in cfgs {
+                    SecurityScopeManager.shared.startAccessing(path: cfg.root, bookmarkData: cfg.bookmarkData)
+                }
+                if cfgs.count >= 2,
+                   let saved = (try? engine.store.meta("fsEventId")).flatMap({ $0 }).flatMap(UInt64.init) {
+                    self.needFull = false
+                    self.startWatcher(cfgs.map(\.root), since: saved)
+                    self.queue.asyncAfter(deadline: .now() + 90) { [weak self] in self?.runIfNeeded(confirmed: false) }
+                } else {
+                    self.runIfNeeded(confirmed: false)
+                }
             }
         }
     }
@@ -206,6 +219,7 @@ public final class SyncService: @unchecked Sendable {
 
     public func addEndpoint(_ cfg: EndpointConfig, completion: @escaping @Sendable (Error?) -> Void) {
         configure(completion) { store in
+            SecurityScopeManager.shared.startAccessing(path: cfg.root, bookmarkData: cfg.bookmarkData)
             try FileManager.default.createDirectory(atPath: cfg.root, withIntermediateDirectories: true)
             var c = cfg
             c.volumeUUID = FileOps.volumeUUID(of: URL(fileURLWithPath: cfg.root))
@@ -213,9 +227,10 @@ public final class SyncService: @unchecked Sendable {
         }
     }
 
-    public func relinkEndpoint(id: String, root: String, completion: @escaping @Sendable (Error?) -> Void) {
+    public func relinkEndpoint(id: String, root: String, bookmarkData: Data? = nil, completion: @escaping @Sendable (Error?) -> Void) {
         configure(completion) { store in
-            try store.relinkEndpoint(id: id, root: root, volumeUUID: FileOps.volumeUUID(of: URL(fileURLWithPath: root)))
+            SecurityScopeManager.shared.startAccessing(path: root, bookmarkData: bookmarkData)
+            try store.relinkEndpoint(id: id, root: root, volumeUUID: FileOps.volumeUUID(of: URL(fileURLWithPath: root)), bookmarkData: bookmarkData)
         }
     }
 
@@ -224,6 +239,7 @@ public final class SyncService: @unchecked Sendable {
             if let cfg = try store.endpoints().first(where: { $0.id == id }) {
                 // Only our own marker file is removed; the user's files stay untouched.
                 try? FileManager.default.removeItem(atPath: cfg.root + "/" + Engine.markerName)
+                SecurityScopeManager.shared.stopAccessing(path: cfg.root)
             }
             try store.removeEndpoint(id: id)
         }
@@ -236,6 +252,18 @@ public final class SyncService: @unchecked Sendable {
     public func setExcludePresets(_ presets: Set<ExcludePreset>, completion: @escaping @Sendable (Error?) -> Void) {
         configure(completion) { try $0.setMeta("excludePresets", presets.map(\.rawValue).sorted().joined(separator: ",")) }
         queue.async { self.needFull = true }
+    }
+
+    public func trialRun(completion: @escaping @Sendable (SyncReport?) -> Void) {
+        queue.async {
+            guard let engine = self.engine else { completion(nil); return }
+            do {
+                let report = try engine.sync(dryRun: true)
+                completion(report)
+            } catch {
+                completion(nil)
+            }
+        }
     }
 
     public func resolveConflict(id: Int64, keep: ConflictChoice, completion: @escaping @Sendable (Error?) -> Void) {

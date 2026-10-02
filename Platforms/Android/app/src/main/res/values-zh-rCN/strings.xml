@@ -1,0 +1,27 @@
+<resources>
+    <string name="app_name">Sync-Nexus</string>
+    <string name="sync_status_idle">全部已同步</string>
+    <string name="sync_status_syncing">正在对账与传输中…</string>
+    <string name="sync_notification_channel">同步服务状态</string>
+    <string name="sync_notification_content">Sync-Nexus 正在后台守护同步文件夹</string>
+    <string name="sync_notification_desc">通知用户文件同步核心服务正在运行</string>
+    <string name="btn_add_folder">添加文件夹…</string>
+    <string name="btn_sync_now">立即对账同步</string>
+    <string name="status_card_title_syncing">正在对账与传输中…</string>
+    <string name="status_card_title_ready">同步已就绪</string>
+    <string name="status_folder_count">同步文件夹数量: %1$d</string>
+    <string name="status_tracked_files">追踪文件数量: %1$d</string>
+    <string name="status_recent_transfers">最近传输次数: %1$d</string>
+    <string name="status_last_sync_time">最近同步时间: %1$s</string>
+    <string name="status_error_prefix">错误信息: %1$s</string>
+    <string name="nearby_devices_title">同 Wi-Fi 局域网近端设备 (P2P 直连)</string>
+    <string name="nearby_devices_searching">搜寻中…</string>
+    <string name="nearby_devices_found">已发现 %1$d 台</string>
+    <string name="nearby_devices_hint">在同一 Wi-Fi 开启 Mac 或其他设备的 Sync-Nexus，将自动在此显示并建立直连。</string>
+    <string name="section_folders_title">已设置的同步文件夹</string>
+    <string name="empty_folders_hint">尚未添加文件夹。\n请点击上方“添加文件夹…”选取至少两个文件夹以启动自动双向同步。</string>
+    <string name="btn_remove">移除</string>
+    <string name="section_logs_title">同步日志记录</string>
+    <string name="logs_empty">尚无活动记录</string>
+    <string name="custom_folder_fallback">自定义文件夹</string>
+</resources>

@@ -1,15 +1,20 @@
 import Foundation
+
+#if canImport(CoreServices)
 import CoreServices
+#endif
 
 /// What happened since the last quiet moment: either "look at everything" (events were lost, a volume came or went) or the
 /// absolute paths that changed.
 public struct WatchBatch: Sendable {
-    /// FSEvents has finished replaying what happened since the stored event id (events before this were from the past).
+    /// Event stream has finished replaying what happened since the stored event id.
     public var replayDone = false
     public var full = false
     public var paths: Set<String> = []
+    public init() {}
 }
 
+#if canImport(CoreServices)
 /// FSEvents over the endpoint roots plus the first level of /Volumes (mount / unmount). Events are only hints about WHERE
 /// something changed; the engine always re-reads real state, so unreliable event flags (see docs/PHASE0-FINDINGS.md) do not matter.
 public final class Watcher {
@@ -92,3 +97,39 @@ public final class Watcher {
         timer = t
     }
 }
+#else
+/// Cross-platform fallback watcher for non-macOS platforms (Linux, Android, etc.).
+public final class Watcher {
+    private let onChange: (WatchBatch) -> Void
+    private let ignore: IgnoreRules
+    private var timer: DispatchSourceTimer?
+    private let queue = DispatchQueue(label: "syncnexus.watcher")
+    private var roots: [String]
+    public private(set) var lastEventId: UInt64 = 0
+
+    public init(roots: [String], quietSeconds: Double = 2, ignore: IgnoreRules = .default, sinceEventId: UInt64? = nil, onChange: @escaping (WatchBatch) -> Void) {
+        self.roots = roots
+        self.ignore = ignore
+        self.onChange = onChange
+        self.lastEventId = sinceEventId ?? 0
+    }
+
+    public func start() {
+        let t = DispatchSource.makeTimerSource(queue: queue)
+        t.schedule(deadline: .now() + 5, repeating: 5)
+        t.setEventHandler { [weak self] in
+            guard let self else { return }
+            var batch = WatchBatch()
+            batch.full = true
+            self.onChange(batch)
+        }
+        t.resume()
+        timer = t
+    }
+
+    public func stop() {
+        timer?.cancel()
+        timer = nil
+    }
+}
+#endif

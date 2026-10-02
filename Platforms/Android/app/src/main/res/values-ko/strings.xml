@@ -1,0 +1,27 @@
+<resources>
+    <string name="app_name">Sync-Nexus</string>
+    <string name="sync_status_idle">모두 동기화됨</string>
+    <string name="sync_status_syncing">대조 및 전송 중…</string>
+    <string name="sync_notification_channel">동기화 서비스 상태</string>
+    <string name="sync_notification_content">Sync-Nexus가 백그라운드에서 폴더를 보호하고 있습니다</string>
+    <string name="sync_notification_desc">파일 동기화 코어 서비스 실행 상태를 알립니다</string>
+    <string name="btn_add_folder">폴더 추가…</string>
+    <string name="btn_sync_now">지금 대조 및 동기화</string>
+    <string name="status_card_title_syncing">대조 및 전송 중…</string>
+    <string name="status_card_title_ready">동기화 준비 완료</string>
+    <string name="status_folder_count">설정된 폴더 수: %1$d</string>
+    <string name="status_tracked_files">추적 중인 파일 수: %1$d</string>
+    <string name="status_recent_transfers">최근 전송 횟수: %1$d</string>
+    <string name="status_last_sync_time">최근 동기화 시간: %1$s</string>
+    <string name="status_error_prefix">오류: %1$s</string>
+    <string name="nearby_devices_title">동일 Wi-Fi 주변 기기 (P2P 직접 연결)</string>
+    <string name="nearby_devices_searching">검색 중…</string>
+    <string name="nearby_devices_found">%1$d대 발견</string>
+    <string name="nearby_devices_hint">동일한 Wi-Fi에서 Mac 또는 다른 기기의 Sync-Nexus를 실행하면 자동으로 감지되어 직접 연결됩니다.</string>
+    <string name="section_folders_title">설정된 동기화 폴더</string>
+    <string name="empty_folders_hint">추가된 폴더가 없습니다.\n위의 \"폴더 추가…\"를 눌러 자동 양방향 동기화를 위한 폴더를 최소 2개 선택하십시오.</string>
+    <string name="btn_remove">삭제</string>
+    <string name="section_logs_title">동기화 활동 로그</string>
+    <string name="logs_empty">활동 내역 없음</string>
+    <string name="custom_folder_fallback">사용자 지정 폴더</string>
+</resources>

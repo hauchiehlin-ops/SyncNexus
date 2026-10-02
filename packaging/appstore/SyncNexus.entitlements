@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- 啟用 macOS App Sandbox (Mac App Store 規定必須) -->
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+
+    <!-- 允許使用者手動選取的檔案/資料夾具有完整讀寫權限 -->
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+
+    <!-- 允許 App 保存並存取 Security-Scoped Bookmarks (重開機後依然可存取選定資料夾) -->
+    <key>com.apple.security.files.bookmarks.app-scope</key>
+    <true/>
+
+    <!-- 外接磁碟 (USB/Thunderbolt) 存取權限 -->
+    <key>com.apple.security.device.usb</key>
+    <true/>
+</dict>
+</plist>

@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgB" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0E121E" />
+      <stop offset="100%" stop-color="#06070B" />
+    </linearGradient>
+
+    <!-- Frosted Folder 1 (Cyan/Azure) -->
+    <linearGradient id="folderLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00E5FF" stop-opacity="0.85" />
+      <stop offset="100%" stop-color="#0066FF" stop-opacity="0.65" />
+    </linearGradient>
+
+    <!-- Frosted Folder 2 (Mint/Emerald) -->
+    <linearGradient id="folderRight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00FFB2" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#00A389" stop-opacity="0.6" />
+    </linearGradient>
+
+    <!-- Sync Arrow Gradient -->
+    <linearGradient id="syncArrow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#D0F0FD" />
+    </linearGradient>
+
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="16" stdDeviation="22" flood-color="#000000" flood-opacity="0.65"/>
+    </filter>
+  </defs>
+
+  <!-- Container Squircle -->
+  <rect x="32" y="32" width="448" height="448" rx="100" ry="100" fill="url(#bgB)" filter="url(#shadow)" stroke="#1F2638" stroke-width="2"/>
+  
+  <!-- Subtle Grid Lines (Modern Architectural Aesthetic) -->
+  <line x1="120" y1="32" x2="120" y2="480" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+  <line x1="256" y1="32" x2="256" y2="480" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+  <line x1="392" y1="32" x2="392" y2="480" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+  <line x1="32" y1="256" x2="480" y2="256" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+
+  <!-- Left Folder Prism -->
+  <g transform="translate(110, 140)">
+    <!-- Back Tab -->
+    <path d="M 10 20 L 70 20 L 90 40 L 170 40 C 180 40, 185 45, 185 55 L 185 70 L 10 70 Z" fill="#0088FF" opacity="0.4"/>
+    <!-- Front Glass Body -->
+    <rect x="0" y="45" width="200" height="150" rx="20" ry="20" fill="url(#folderLeft)" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" />
+    <!-- Diagonal Glass Sheen -->
+    <path d="M 10 50 L 150 50 L 50 190 L 10 190 Z" fill="rgba(255,255,255,0.1)"/>
+  </g>
+
+  <!-- Right Folder Prism (Overlapping) -->
+  <g transform="translate(202, 180)">
+    <!-- Back Tab -->
+    <path d="M 10 20 L 70 20 L 90 40 L 170 40 C 180 40, 185 45, 185 55 L 185 70 L 10 70 Z" fill="#00C888" opacity="0.4"/>
+    <!-- Front Glass Body -->
+    <rect x="0" y="45" width="200" height="150" rx="20" ry="20" fill="url(#folderRight)" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" />
+    <!-- Diagonal Glass Sheen -->
+    <path d="M 10 50 L 150 50 L 50 190 L 10 190 Z" fill="rgba(255,255,255,0.12)"/>
+  </g>
+
+  <!-- Central Quantum Exchange Beams (Interlocking Double Chevron / Arrows) -->
+  <g transform="translate(256, 256)" filter="url(#softGlow)">
+    <!-- Clockwise Curved Sync Arc -->
+    <path d="M -45 -15 A 50 50 0 0 1 45 -15" fill="none" stroke="url(#syncArrow)" stroke-width="14" stroke-linecap="round"/>
+    <polygon points="40,-32 60,-15 35,2" fill="#FFFFFF"/>
+
+    <!-- Counter-Clockwise Curved Sync Arc -->
+    <path d="M 45 15 A 50 50 0 0 1 -45 15" fill="none" stroke="url(#syncArrow)" stroke-width="14" stroke-linecap="round"/>
+    <polygon points="-40,32 -60,15 -35,-2" fill="#FFFFFF"/>
+  </g>
+</svg>

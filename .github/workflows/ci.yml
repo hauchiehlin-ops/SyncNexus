@@ -1,0 +1,45 @@
+name: CI - Build and Test
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test-macos:
+    name: macOS Test & Sandboxed App Build
+    runs-on: macos-14
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Swift Core Tests
+        run: swift test
+
+      - name: Build Sandboxed App
+        run: Scripts/build-app.sh --sandbox
+
+  test-android:
+    name: Android Project Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Grant Gradle execute permission
+        run: |
+          cd Platforms/Android
+          if [ -f gradlew ]; then chmod +x gradlew; fi
+
+      - name: Check Android Project Files
+        run: |
+          test -f Platforms/Android/app/src/main/AndroidManifest.xml
+          test -f Platforms/Android/app/build.gradle.kts
+          echo "Android project structure verified."

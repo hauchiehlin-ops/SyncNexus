@@ -1,0 +1,27 @@
+<resources>
+    <string name="app_name">Sync-Nexus</string>
+    <string name="sync_status_idle">All synchronized</string>
+    <string name="sync_status_syncing">Reconciling &amp; Syncing…</string>
+    <string name="sync_notification_channel">Sync Service Status</string>
+    <string name="sync_notification_content">Sync-Nexus is protecting your folders in the background</string>
+    <string name="sync_notification_desc">Notifies when the synchronization core is running</string>
+    <string name="btn_add_folder">Add Folder…</string>
+    <string name="btn_sync_now">Reconcile &amp; Sync Now</string>
+    <string name="status_card_title_syncing">Reconciling &amp; Transferring…</string>
+    <string name="status_card_title_ready">Sync Ready</string>
+    <string name="status_folder_count">Configured folders: %1$d</string>
+    <string name="status_tracked_files">Tracked files: %1$d</string>
+    <string name="status_recent_transfers">Recent transfers: %1$d</string>
+    <string name="status_last_sync_time">Last sync: %1$s</string>
+    <string name="status_error_prefix">Error: %1$s</string>
+    <string name="nearby_devices_title">Local Wi-Fi Devices (P2P Direct)</string>
+    <string name="nearby_devices_searching">Searching…</string>
+    <string name="nearby_devices_found">Found %1$d</string>
+    <string name="nearby_devices_hint">Open Sync-Nexus on Mac or other devices on the same Wi-Fi to establish direct P2P connection.</string>
+    <string name="section_folders_title">Configured Folders</string>
+    <string name="empty_folders_hint">No folders added yet.\nTap \"Add Folder…\" above to select at least two folders for automatic bidirectional sync.</string>
+    <string name="btn_remove">Remove</string>
+    <string name="section_logs_title">Sync Activity Log</string>
+    <string name="logs_empty">No activity yet</string>
+    <string name="custom_folder_fallback">Custom Folder</string>
+</resources>

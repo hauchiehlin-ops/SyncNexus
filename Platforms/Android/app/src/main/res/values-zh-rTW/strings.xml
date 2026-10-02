@@ -1,0 +1,27 @@
+<resources>
+    <string name="app_name">Sync-Nexus</string>
+    <string name="sync_status_idle">全部已同步</string>
+    <string name="sync_status_syncing">正在對帳與傳輸中…</string>
+    <string name="sync_notification_channel">同步服務狀態</string>
+    <string name="sync_notification_content">Sync-Nexus 正在背景守護同步資料夾</string>
+    <string name="sync_notification_desc">通知使用者檔案同步核心服務正在運行</string>
+    <string name="btn_add_folder">加入資料夾…</string>
+    <string name="btn_sync_now">立即對帳同步</string>
+    <string name="status_card_title_syncing">正在對帳與傳輸中…</string>
+    <string name="status_card_title_ready">同步已就緒</string>
+    <string name="status_folder_count">同步資料夾數量: %1$d</string>
+    <string name="status_tracked_files">追蹤檔案數量: %1$d</string>
+    <string name="status_recent_transfers">最近傳輸次數: %1$d</string>
+    <string name="status_last_sync_time">最近同步時間: %1$s</string>
+    <string name="status_error_prefix">錯誤訊息: %1$s</string>
+    <string name="nearby_devices_title">同 Wi-Fi 近端設備 (P2P 局域網直連)</string>
+    <string name="nearby_devices_searching">搜尋中…</string>
+    <string name="nearby_devices_found">已發現 %1$d 台</string>
+    <string name="nearby_devices_hint">在同一 Wi-Fi 開啟 Mac 或其他設備的 Sync-Nexus，將自動在此顯示並建立直連。</string>
+    <string name="section_folders_title">已設定的同步資料夾</string>
+    <string name="empty_folders_hint">尚未加入資料夾。\n請點擊上方「加入資料夾…」選取至少兩個資料夾以啟動自動雙向同步。</string>
+    <string name="btn_remove">移除</string>
+    <string name="section_logs_title">同步日誌紀錄</string>
+    <string name="logs_empty">尚無活動紀錄</string>
+    <string name="custom_folder_fallback">自訂資料夾</string>
+</resources>
