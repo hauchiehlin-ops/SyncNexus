@@ -7,7 +7,7 @@
 需要 Xcode 命令列工具（`xcode-select --install`）。
 
 ```bash
-git clone <this repo> && cd SyncNexus
+git clone https://github.com/hauchiehlin-ops/SyncNexus.git && cd SyncNexus
 Scripts/build-app.sh --install
 ```
 
@@ -24,11 +24,11 @@ App 沒有經過 Apple 公證（需要付費的開發者帳號），所以用個
 1. `Scripts/package.sh` 產生 `build/SyncNexus-<版本>.zip` 與 sha256。
 2. 把 zip 上傳到 GitHub Release（標籤 `v<版本>`）。
 3. 建立名為 `homebrew-syncnexus` 的 GitHub 倉庫，把 `packaging/homebrew/syncnexus.rb` 放在 `Casks/syncnexus.rb`，
-   填入 OWNER、版本與 sha256。
+   填入版本與 sha256。
 4. 使用者安裝：
 
 ```bash
-brew tap OWNER/syncnexus
+brew tap hauchiehlin-ops/syncnexus
 brew install --cask syncnexus
 ```
 

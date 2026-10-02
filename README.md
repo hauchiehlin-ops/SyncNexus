@@ -15,7 +15,7 @@ Mac 選單列 App：讓你指定的幾個資料夾 —— **本機、iCloud 雲�
 詳見 [docs/INSTALL.md](docs/INSTALL.md)。最簡單的方式（需要 Xcode 命令列工具、macOS 14 以上）：
 
 ```bash
-git clone <this repo> && cd SyncNexus
+git clone https://github.com/hauchiehlin-ops/SyncNexus.git && cd SyncNexus
 Scripts/build-app.sh --install
 ```
 

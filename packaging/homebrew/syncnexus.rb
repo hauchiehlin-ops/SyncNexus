@@ -1,13 +1,13 @@
 # Homebrew Cask for Sync-Nexus. Lives in a personal tap (a GitHub repo named  homebrew-syncnexus,  file  Casks/syncnexus.rb).
-# Replace OWNER, and fill version / sha256 from the output of Scripts/package.sh.
+# Fill sha256 (and version, which Scripts/bump-version.sh keeps in step) from the output of Scripts/package.sh.
 cask "syncnexus" do
-  version "0.1.0"
+  version "0.1.1"
   sha256 "REPLACE_WITH_SHA256_FROM_package.sh"
 
-  url "https://github.com/OWNER/SyncNexus/releases/download/v#{version}/SyncNexus-#{version}.zip"
+  url "https://github.com/hauchiehlin-ops/SyncNexus/releases/download/v#{version}/SyncNexus-#{version}.zip"
   name "Sync-Nexus"
   desc "Keeps local, iCloud, Google Drive and external-disk folders in sync"
-  homepage "https://github.com/OWNER/SyncNexus"
+  homepage "https://github.com/hauchiehlin-ops/SyncNexus"
 
   depends_on macos: ">= :sonoma"
 
