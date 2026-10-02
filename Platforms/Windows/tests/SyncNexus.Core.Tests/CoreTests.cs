@@ -153,5 +153,80 @@ public class CoreTests
         var discovered = IO.CloudProviderProbe.ProbeAll();
         Assert.NotNull(discovered);
     }
+
+    [Fact]
+    public void SyncLock_PreventsConcurrentAccess()
+    {
+        var lockFile = Path.Combine(Path.GetTempPath(), $"syncnexus_lock_{Guid.NewGuid():N}.lock");
+        try
+        {
+            using var lock1 = SyncLock.TryAcquire(lockFile);
+            Assert.NotNull(lock1);
+
+            // Second attempt should fail
+            using var lock2 = SyncLock.TryAcquire(lockFile);
+            Assert.Null(lock2);
+        }
+        finally
+        {
+            if (File.Exists(lockFile))
+            {
+                try { File.Delete(lockFile); } catch { }
+            }
+        }
+    }
+
+    [Fact]
+    public void SyncEngine_FullSync_TwoFolders_PropagatesChanges()
+    {
+        var baseDir = Path.Combine(Path.GetTempPath(), $"syncnexus_test_{Guid.NewGuid():N}");
+        var dirA = Path.Combine(baseDir, "endpointA");
+        var dirB = Path.Combine(baseDir, "endpointB");
+        var dbPath = Path.Combine(baseDir, "state.db");
+
+        Directory.CreateDirectory(dirA);
+        Directory.CreateDirectory(dirB);
+
+        try
+        {
+            using var store = new Storage.SqliteStore(dbPath);
+            var epA = new Model.EndpointConfig("epA", dirA);
+            var epB = new Model.EndpointConfig("epB", dirB);
+            store.SaveEndpoint(epA);
+            store.SaveEndpoint(epB);
+
+            var engine = new SyncEngine(store);
+
+            // Step 1: Write file in endpoint A
+            var fileA = Path.Combine(dirA, "hello.txt");
+            File.WriteAllText(fileA, "Hello World from Windows!");
+
+            // Run first sync
+            var report1 = engine.SyncAll();
+            Assert.True(report1.IsSuccess);
+            Assert.True(report1.Actions > 0);
+
+            // Verify file propagated to endpoint B!
+            var fileB = Path.Combine(dirB, "hello.txt");
+            Assert.True(File.Exists(fileB));
+            Assert.Equal("Hello World from Windows!", File.ReadAllText(fileB));
+
+            // Step 2: Edit file in endpoint B
+            File.WriteAllText(fileB, "Updated in Endpoint B!");
+            var report2 = engine.SyncAll();
+            Assert.True(report2.IsSuccess);
+
+            // Verify updated content propagated back to endpoint A!
+            Assert.Equal("Updated in Endpoint B!", File.ReadAllText(fileA));
+        }
+        finally
+        {
+            if (Directory.Exists(baseDir))
+            {
+                try { Directory.Delete(baseDir, true); } catch { }
+            }
+        }
+    }
 }
+
 

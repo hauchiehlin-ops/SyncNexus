@@ -95,4 +95,50 @@ public partial class MainWindow : Window
             _ => AppLanguage.ZhHant
         };
     }
+
+    #region System Tray & Close-to-Tray
+
+    private bool _isRealExit;
+
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        if (!_isRealExit)
+        {
+            e.Cancel = true;
+            Hide();
+            MyTaskbarIcon.ShowNotification("SyncNexus", "已最小化至系統匣，持續在背景進行檔案即時同步與對帳。");
+            return;
+        }
+
+        MyTaskbarIcon.Dispose();
+        base.OnClosing(e);
+    }
+
+    private void MyTaskbarIcon_TrayMouseDoubleClick(object sender, RoutedEventArgs e)
+    {
+        Show();
+        WindowState = WindowState.Normal;
+        Activate();
+    }
+
+    private void MenuOpen_Click(object sender, RoutedEventArgs e)
+    {
+        Show();
+        WindowState = WindowState.Normal;
+        Activate();
+    }
+
+    private void MenuSync_Click(object sender, RoutedEventArgs e)
+    {
+        _ = _syncService.RequestSyncAsync("手動觸發");
+    }
+
+    private void MenuExit_Click(object sender, RoutedEventArgs e)
+    {
+        _isRealExit = true;
+        Close();
+        Application.Current.Shutdown();
+    }
+
+    #endregion
 }

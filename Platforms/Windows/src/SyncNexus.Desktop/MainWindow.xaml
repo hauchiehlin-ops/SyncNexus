@@ -18,6 +18,20 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
+        <!-- System Tray Icon -->
+        <tb:TaskbarIcon x:Name="MyTaskbarIcon"
+                        ToolTipText="SyncNexus 跨平台同步中心"
+                        TrayMouseDoubleClick="MyTaskbarIcon_TrayMouseDoubleClick">
+            <tb:TaskbarIcon.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="開啟主視窗" Click="MenuOpen_Click" FontWeight="Bold"/>
+                    <MenuItem Header="立即對帳" Click="MenuSync_Click"/>
+                    <Separator/>
+                    <MenuItem Header="結束 SyncNexus" Click="MenuExit_Click"/>
+                </ContextMenu>
+            </tb:TaskbarIcon.ContextMenu>
+        </tb:TaskbarIcon>
+
         <!-- Header -->
         <DockPanel Grid.Row="0" Margin="0,0,0,16">
             <StackPanel Orientation="Horizontal" DockPanel.Dock="Left">

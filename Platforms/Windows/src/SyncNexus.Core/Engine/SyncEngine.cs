@@ -88,15 +88,19 @@ public class SyncEngine
     }
 
     /// <summary>
-    /// Executes a full synchronization cycle across all configured endpoints.
+    /// Executes a full, robust synchronization cycle across all configured endpoints.
+    /// Fully implements 3-way reconciliation, deletion guard, version archiving, and atomic transfers.
     /// </summary>
-    public SyncReport SyncAll()
+    public SyncReport SyncAll(bool confirmed = false)
     {
+        var lockPath = _store.DbPath + ".lock";
+        using var syncLock = SyncLock.Acquire(lockPath, TimeSpan.FromSeconds(10));
+
         var report = new SyncReport();
         var endpoints = _store.GetEndpoints();
         var onlineEndpoints = new List<EndpointConfig>();
 
-        // 1. Verify identities
+        // 1. Verify identities and markers
         foreach (var ep in endpoints)
         {
             var check = CheckIdentity(ep, writeMarker: true);
@@ -136,11 +140,15 @@ public class SyncEngine
             allPaths.Add(path);
         }
 
-        // 3. Reconcile each path
+        // 3. Pre-calculate decisions for all paths
+        var pathDecisions = new Dictionary<string, Dictionary<string, (Decision Decision, FileState? Current, ScannedFile? Scanned)>>();
+        var plannedDeletions = 0;
+        var totalTracked = consensusMap.Count(c => c.Value.State != null);
+
         foreach (var relPath in allPaths)
         {
             consensusMap.TryGetValue(relPath, out var consensus);
-            var pathDecisions = new Dictionary<string, (Decision Decision, ScannedFile? Scanned)>();
+            var epDecisions = new Dictionary<string, (Decision Decision, FileState? Current, ScannedFile? Scanned)>();
 
             foreach (var ep in onlineEndpoints)
             {
@@ -156,96 +164,173 @@ public class SyncEngine
 
                 var obs = new PathObservation(row?.State, current, row?.SeenRev ?? 0);
                 var decision = Reconciler.Decide(obs, consensus);
-                pathDecisions[ep.Id] = (decision, scanned);
+                epDecisions[ep.Id] = (decision, current, scanned);
+
+                // Track planned deletions
+                if (decision == Decision.AdoptEndpoint && current == null && (consensus?.State != null || row?.State != null))
+                {
+                    plannedDeletions++;
+                }
+                else if (decision == Decision.ApplyConsensus && consensus?.State == null && current != null)
+                {
+                    plannedDeletions++;
+                }
             }
 
-            // Apply decisions
-            ProcessPathDecisions(relPath, pathDecisions, onlineEndpoints, scans, ref consensus, report);
+            pathDecisions[relPath] = epDecisions;
+        }
+
+        // 4. Deletion Guard check
+        if (_deletionGuard.RequiresConfirmation(plannedDeletions, totalTracked) && !confirmed)
+        {
+            var warning = $"預計刪除 {plannedDeletions} 個檔案（共追蹤 {totalTracked} 個），超過安全防護門檻，已安全暫停，需使用者確認後方可執行。";
+            report.Notes.Add(warning);
+            report.Offline.Add(warning);
+            return report;
+        }
+
+        // 5. Execute reconciliation passes
+        foreach (var (relPath, epDecisions) in pathDecisions)
+        {
+            consensusMap.TryGetValue(relPath, out var consensus);
+
+            // Phase A: Handle Conflicts
+            var conflicts = epDecisions.Where(kv => kv.Value.Decision == Decision.Conflict).ToList();
+            if (conflicts.Count > 0)
+            {
+                foreach (var c in conflicts)
+                {
+                    var epId = c.Key;
+                    var scanned = c.Value.Scanned;
+                    if (scanned == null) continue;
+
+                    var epCfg = onlineEndpoints.First(e => e.Id == epId);
+                    var conflictName = ConflictNaming.Name(Path.GetFileName(relPath), epId, DateTime.UtcNow);
+                    var dir = Path.GetDirectoryName(relPath) ?? "";
+                    var conflictRel = string.IsNullOrEmpty(dir) ? conflictName : $"{dir.Replace('\\', '/')}/{conflictName}";
+                    var conflictFull = Path.Combine(epCfg.Root, conflictRel);
+
+                    FileOps.CopyAtomically(scanned.FullPath, conflictFull, scanned.Mtime);
+                    _store.AddConflict(epId, relPath, conflictRel, DateTime.UtcNow);
+                    _store.RecordJournal("conflict", epId, relPath, $"保留為 {conflictName}", "done");
+                    report.Notes.Add($"[{epId}] 衝突 {relPath}：本端版本保留為「{conflictName}」");
+                    report.Actions++;
+                }
+            }
+
+            // Phase B: Handle AdoptEndpoint (local modifications, creations, deletions)
+            var adopters = epDecisions.Where(kv => kv.Value.Decision == Decision.AdoptEndpoint).ToList();
+            if (adopters.Count > 0)
+            {
+                var primary = adopters[0];
+                var srcEp = onlineEndpoints.First(e => e.Id == primary.Key);
+                var newState = primary.Value.Current;
+                var scanned = primary.Value.Scanned;
+
+                var newRev = (consensus?.Rev ?? 0) + 1;
+                consensus = new ConsensusEntry(newState, newRev);
+                _store.SetConsensus(relPath, newState, newRev);
+
+                var mtimeNs = scanned?.MtimeNs ?? 0;
+                _store.SetRow(srcEp.Id, relPath, newState, mtimeNs, newRev);
+
+                if (newState != null)
+                {
+                    _store.RecordJournal("adopt", srcEp.Id, relPath, $"hash={newState.Hash[..Math.Min(8, newState.Hash.Length)]}", "done");
+                    report.Notes.Add($"[{srcEp.Id}] 新增/修改 {relPath}（版號 {newRev}）");
+                }
+                else
+                {
+                    _store.RecordJournal("delete", srcEp.Id, relPath, null, "done");
+                    report.Notes.Add($"[{srcEp.Id}] 刪除 {relPath}（版號 {newRev}）");
+                }
+                report.Work++;
+            }
+
+            // Phase C: Handle ApplyConsensus (propagate consensus to endpoints that are behind)
+            if (consensus != null)
+            {
+                foreach (var ep in onlineEndpoints)
+                {
+                    if (epDecisions.TryGetValue(ep.Id, out var dec) &&
+                        (dec.Decision == Decision.ApplyConsensus ||
+                         (adopters.Count > 0 && dec.Decision != Decision.AdoptEndpoint)))
+                    {
+                        ApplyConsensusToEndpoint(ep, relPath, consensus, scans, onlineEndpoints, report);
+                    }
+                    else if (epDecisions.TryGetValue(ep.Id, out var markDec) && markDec.Decision == Decision.MarkSeen)
+                    {
+                        var scanned = markDec.Scanned;
+                        _store.SetRow(ep.Id, relPath, consensus.State, scanned?.MtimeNs ?? 0, consensus.Rev);
+                    }
+                }
+            }
         }
 
         return report;
     }
 
-    private void ProcessPathDecisions(
+    private void ApplyConsensusToEndpoint(
+        EndpointConfig targetEp,
         string relPath,
-        Dictionary<string, (Decision Decision, ScannedFile? Scanned)> decisions,
-        List<EndpointConfig> onlineEndpoints,
+        ConsensusEntry consensus,
         Dictionary<string, Dictionary<string, ScannedFile>> scans,
-        ref ConsensusEntry? consensus,
+        List<EndpointConfig> onlineEndpoints,
         SyncReport report)
     {
-        // Check if any endpoint changed and should be adopted
-        var adopters = decisions.Where(kv => kv.Value.Decision == Decision.AdoptEndpoint).ToList();
-        var conflicts = decisions.Where(kv => kv.Value.Decision == Decision.Conflict).ToList();
+        var targetFullPath = Path.Combine(targetEp.Root, relPath);
 
-        if (conflicts.Count > 0)
+        if (consensus.State == null)
         {
-            // Conflict occurred: keep existing file, copy new version as conflict file
-            foreach (var c in conflicts)
+            // Consensus is deleted -> move to trash
+            if (File.Exists(targetFullPath))
             {
-                var epId = c.Key;
-                var scanned = c.Value.Scanned;
-                if (scanned == null) continue;
-
-                var epCfg = onlineEndpoints.First(e => e.Id == epId);
-                var conflictName = ConflictNaming.Name(Path.GetFileName(relPath), epId, DateTime.UtcNow);
-                var dir = Path.GetDirectoryName(relPath) ?? "";
-                var conflictRelPath = string.IsNullOrEmpty(dir) ? conflictName : Path.Combine(dir, conflictName).Replace('\\', '/');
-                var conflictFullPath = Path.Combine(epCfg.Root, conflictRelPath);
-
-                FileOps.CopyAtomically(scanned.FullPath, conflictFullPath);
-                _store.AddConflict(epId, relPath, conflictRelPath, DateTime.UtcNow);
-                _store.RecordJournal("conflict", epId, relPath, $"保留為 {conflictName}", "done");
-                report.Notes.Add($"[{epId}] 衝突 {relPath}：本端版本保留為「{conflictName}」");
+                FileOps.ArchiveVersion(targetEp.Root, relPath);
+                FileOps.MoveToTrash(targetFullPath);
+                _store.RecordJournal("trash", targetEp.Id, relPath, null, "done");
+                report.Actions++;
+                report.Notes.Add($"[{targetEp.Id}] 移到資源回收筒 {relPath}");
             }
-            return;
+            _store.SetRow(targetEp.Id, relPath, null, 0, consensus.Rev);
         }
-
-        if (adopters.Count > 0)
+        else
         {
-            // First adopter establishes the new consensus revision
-            var primary = adopters[0];
-            var srcEp = onlineEndpoints.First(e => e.Id == primary.Key);
-            var scanned = primary.Value.Scanned;
+            // Consensus has file content -> find online holder
+            ScannedFile? holderFile = null;
+            string? holderEpId = null;
 
-            var newRev = (consensus?.Rev ?? 0) + 1;
-            FileState? newState = null;
-            if (scanned != null)
+            foreach (var ep in onlineEndpoints.Where(e => e.Id != targetEp.Id))
             {
-                var hash = FileOps.ComputeSha256(scanned.FullPath);
-                newState = new FileState(FileKind.File, hash, scanned.Size);
+                if (scans[ep.Id].TryGetValue(relPath, out var sf) &&
+                    !sf.IsPlaceholder &&
+                    FileOps.ComputeSha256(sf.FullPath) == consensus.State.Hash)
+                {
+                    holderFile = sf;
+                    holderEpId = ep.Id;
+                    break;
+                }
             }
 
-            consensus = new ConsensusEntry(newState, newRev);
-            _store.SetConsensus(relPath, newState, newRev);
-
-            // Update row for source endpoint
-            _store.SetRow(srcEp.Id, relPath, newState, scanned?.MtimeNs ?? 0, newRev);
-
-            // Propagate to other online endpoints
-            foreach (var targetEp in onlineEndpoints.Where(e => e.Id != srcEp.Id))
+            if (holderFile != null)
             {
-                var targetFullPath = Path.Combine(targetEp.Root, relPath);
-                if (newState == null)
+                if (File.Exists(targetFullPath))
                 {
-                    // Deleted
-                    if (File.Exists(targetFullPath))
-                    {
-                        FileOps.MoveToTrash(targetFullPath);
-                        _store.RecordJournal("trash", targetEp.Id, relPath, null, "done");
-                        report.Actions++;
-                    }
-                    _store.SetRow(targetEp.Id, relPath, null, 0, newRev);
+                    FileOps.ArchiveVersion(targetEp.Root, relPath);
                 }
-                else
-                {
-                    // Copy
-                    FileOps.CopyAtomically(scanned!.FullPath, targetFullPath);
-                    var fi = new FileInfo(targetFullPath);
-                    _store.RecordJournal("copy", targetEp.Id, relPath, $"from {srcEp.Id}", "done");
-                    _store.SetRow(targetEp.Id, relPath, newState, fi.LastWriteTimeUtc.Ticks * 100L, newRev);
-                    report.Actions++;
-                }
+
+                FileOps.CopyAtomically(holderFile.FullPath, targetFullPath, holderFile.Mtime);
+                var fi = new FileInfo(targetFullPath);
+                var mtimeNs = fi.LastWriteTimeUtc.Ticks * 100L;
+
+                _store.RecordJournal("copy", targetEp.Id, relPath, $"from {holderEpId}", "done");
+                _store.SetRow(targetEp.Id, relPath, consensus.State, mtimeNs, consensus.Rev);
+                report.Actions++;
+                report.Notes.Add($"[{targetEp.Id}] 寫入 {relPath}（來源：{holderEpId}）");
+            }
+            else
+            {
+                report.Skipped++;
+                report.Notes.Add($"[{targetEp.Id}] {relPath}：目前無其他在線端點持有有效副本，稍後重試");
             }
         }
     }

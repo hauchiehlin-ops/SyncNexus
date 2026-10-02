@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using System.Text;
 using SyncNexus.Core.Engine;
 using SyncNexus.Core.Model;
 
@@ -21,7 +22,6 @@ public interface ICloudPlaceholderDetector
 
 public class WindowsCloudPlaceholderDetector : ICloudPlaceholderDetector
 {
-    // Windows file attributes
     private const int FILE_ATTRIBUTE_REPARSE_POINT = 0x00000400;
     private const int FILE_ATTRIBUTE_OFFLINE = 0x00001000;
     private const int FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS = 0x00400000;
@@ -33,12 +33,9 @@ public class WindowsCloudPlaceholderDetector : ICloudPlaceholderDetector
             if (!File.Exists(fullPath)) return false;
             var attr = (int)File.GetAttributes(fullPath);
 
-            // In OneDrive and Google Drive Streaming mode, uncached / unhydrated files
-            // carry RECALL_ON_DATA_ACCESS or OFFLINE or REPARSE_POINT flags
             if ((attr & FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS) != 0) return true;
             if ((attr & FILE_ATTRIBUTE_OFFLINE) != 0) return true;
 
-            // Also check for iCloud-style placeholders on Windows
             var name = Path.GetFileName(fullPath);
             if (name.StartsWith('.') && name.EndsWith(".icloud", StringComparison.OrdinalIgnoreCase)) return true;
 
@@ -55,6 +52,34 @@ public static class FileOps
 {
     private static readonly ICloudPlaceholderDetector PlaceholderDetector = new WindowsCloudPlaceholderDetector();
 
+    #region Win32 Shell Recycle Bin
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct SHFILEOPSTRUCT
+    {
+        public IntPtr hwnd;
+        public uint wFunc;
+        public string pFrom;
+        public string? pTo;
+        public ushort fFlags;
+        public bool fAnyOperationsAborted;
+        public IntPtr hNameMappings;
+        public string? lpszProgressTitle;
+    }
+
+    private const uint FO_DELETE = 0x0003;
+    private const ushort FOF_ALLOWUNDO = 0x0040;
+    private const ushort FOF_NOCONFIRMATION = 0x0010;
+    private const ushort FOF_SILENT = 0x0004;
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern int SHFileOperation(ref SHFILEOPSTRUCT lpFileOp);
+
+    #endregion
+
+    /// <summary>
+    /// Computes SHA-256 hash using streaming buffer.
+    /// </summary>
     public static string ComputeSha256(string filePath)
     {
         using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
@@ -63,17 +88,19 @@ public static class FileOps
         return Convert.ToHexString(hashBytes).ToLowerInvariant();
     }
 
+    /// <summary>
+    /// Recursively scans directory, normalizing relative paths to Unicode NFC and POSIX slashes '/'.
+    /// </summary>
     public static Dictionary<string, ScannedFile> ScanDirectory(string rootPath, IgnoreRules ignoreRules)
     {
         var result = new Dictionary<string, ScannedFile>(StringComparer.OrdinalIgnoreCase);
         if (!Directory.Exists(rootPath)) return result;
 
-        var rootUri = new Uri(rootPath.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar);
-        var dirInfo = new DirectoryInfo(rootPath);
+        var cleanRoot = Path.GetFullPath(rootPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var dirInfo = new DirectoryInfo(cleanRoot);
 
-        void ScanSubdir(DirectoryInfo dir)
+        void ScanSubdir(DirectoryInfo dir, string currentRelPrefix)
         {
-            // Skip ignored directory names (e.g. .git, $RECYCLE.BIN, System Volume Information)
             if (ignoreRules.IsIgnored(dir.Name)) return;
 
             try
@@ -82,12 +109,12 @@ public static class FileOps
                 {
                     if (ignoreRules.IsIgnored(file.Name)) continue;
 
-                    var fileUri = new Uri(file.FullName);
-                    var relPath = Uri.UnescapeDataString(rootUri.MakeRelativeUri(fileUri).ToString()).Replace('\\', '/');
+                    var rawRel = string.IsNullOrEmpty(currentRelPrefix) ? file.Name : $"{currentRelPrefix}/{file.Name}";
+                    var relPath = PortableName.Canonical(rawRel.Replace('\\', '/'));
 
                     var isPlaceholder = PlaceholderDetector.IsPlaceholder(file.FullName);
                     var mtime = file.LastWriteTimeUtc;
-                    var mtimeNs = mtime.Ticks * 100L; // DateTime.Ticks is 100ns
+                    var mtimeNs = mtime.Ticks * 100L;
 
                     result[relPath] = new ScannedFile(
                         Rel: relPath,
@@ -101,32 +128,36 @@ public static class FileOps
 
                 foreach (var sub in dir.GetDirectories())
                 {
-                    ScanSubdir(sub);
+                    var subPrefix = string.IsNullOrEmpty(currentRelPrefix) ? sub.Name : $"{currentRelPrefix}/{sub.Name}";
+                    ScanSubdir(sub, subPrefix);
                 }
             }
             catch (UnauthorizedAccessException)
             {
-                // Skip directories without permissions
+                // Skip directories without permission
             }
         }
 
-        ScanSubdir(dirInfo);
+        ScanSubdir(dirInfo, string.Empty);
         return result;
     }
 
     /// <summary>
-    /// Atomically copy file via temp file + replace.
+    /// Copies file atomically via temporary part file, ensuring directory existence and preserving mtime.
     /// </summary>
-    public static void CopyAtomically(string sourcePath, string destPath)
+    public static void CopyAtomically(string sourcePath, string destPath, DateTime? expectedMtime = null)
     {
         var destDir = Path.GetDirectoryName(destPath);
-        if (!string.IsNullOrEmpty(destDir)) Directory.CreateDirectory(destDir);
+        if (!string.IsNullOrEmpty(destDir))
+        {
+            Directory.CreateDirectory(destDir);
+        }
 
         var tempPath = Path.Combine(destDir ?? "", $".nexus-{Guid.NewGuid():N}.nexus-part");
         try
         {
             File.Copy(sourcePath, tempPath, overwrite: true);
-            var mtime = File.GetLastWriteTimeUtc(sourcePath);
+            var mtime = expectedMtime ?? File.GetLastWriteTimeUtc(sourcePath);
             File.SetLastWriteTimeUtc(tempPath, mtime);
 
             if (File.Exists(destPath))
@@ -149,18 +180,64 @@ public static class FileOps
     }
 
     /// <summary>
-    /// Safely move a file to local recycle bin / trash or rename with .trashed timestamp.
+    /// Archives an existing file version to .syncnexus-history before it is replaced or deleted.
+    /// </summary>
+    public static void ArchiveVersion(string rootPath, string relPath)
+    {
+        var sourceFile = Path.Combine(rootPath, relPath);
+        if (!File.Exists(sourceFile)) return;
+
+        try
+        {
+            var historyDir = Path.Combine(rootPath, ".syncnexus-history");
+            var stamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH-mm-ss");
+            var destDir = Path.Combine(historyDir, stamp, Path.GetDirectoryName(relPath) ?? "");
+            Directory.CreateDirectory(destDir);
+
+            var fileName = Path.GetFileName(relPath);
+            var destFile = Path.Combine(destDir, fileName);
+            File.Copy(sourceFile, destFile, overwrite: true);
+        }
+        catch
+        {
+            // Do not fail the sync if archiving encounters minor permissions issue
+        }
+    }
+
+    /// <summary>
+    /// Moves a file to the native Windows Recycle Bin (回收桶).
+    /// If Recycle Bin is unavailable (e.g. external USB without trash), falls back to .syncnexus-history.
     /// </summary>
     public static void MoveToTrash(string filePath)
     {
         if (!File.Exists(filePath)) return;
 
-        // Windows Shell IFileOperation or fallback to safe archive
         try
         {
-            // Simple reliable fallback: move to .syncnexus-history / trash dir
+            // Windows native Recycle Bin via SHFileOperationW
+            var shf = new SHFILEOPSTRUCT
+            {
+                wFunc = FO_DELETE,
+                pFrom = filePath + '\0' + '\0', // Must be double-null terminated
+                fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT
+            };
+
+            var res = SHFileOperation(ref shf);
+            if (res == 0 && !shf.fAnyOperationsAborted && !File.Exists(filePath))
+            {
+                return; // Successfully moved to Windows Recycle Bin!
+            }
+        }
+        catch
+        {
+            // Fallback below
+        }
+
+        // Safe Fallback: move to local .syncnexus-history folder
+        try
+        {
             var dir = Path.GetDirectoryName(filePath) ?? "";
-            var trashDir = Path.Combine(dir, ".syncnexus-history");
+            var trashDir = Path.Combine(dir, ".syncnexus-history", "trash");
             Directory.CreateDirectory(trashDir);
             var name = Path.GetFileName(filePath);
             var dest = Path.Combine(trashDir, $"{DateTime.UtcNow:yyyyMMdd_HHmmss}_{name}");
@@ -178,12 +255,12 @@ public static class WindowsVolumeHelper
     [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
     private static extern bool GetVolumeInformation(
         string rootPathName,
-        System.Text.StringBuilder? volumeNameBuffer,
+        StringBuilder? volumeNameBuffer,
         int volumeNameSize,
         out uint volumeSerialNumber,
         out uint maximumComponentLength,
         out uint fileSystemFlags,
-        System.Text.StringBuilder? fileSystemNameBuffer,
+        StringBuilder? fileSystemNameBuffer,
         int nFileSystemNameSize);
 
     /// <summary>
