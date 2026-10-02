@@ -133,7 +133,7 @@ struct PopoverView: View {
                 .background(Theme.tile, in: RoundedRectangle(cornerRadius: 9))
             VStack(alignment: .leading, spacing: 2) {
                 Text(ep.id).font(.system(size: 14, weight: .semibold))
-                Text(ep.online ? shortPath(ep.root) : (ep.removable ? "已拔除　· 接回後自動對帳" : ep.detail))
+                Text(ep.online ? (model.pendingCloud(ep.id) > 0 ? "正在讀取 \(model.pendingCloud(ep.id)) 個雲端檔案" : shortPath(ep.root)) : (ep.removable ? "已拔除　· 接回後自動對帳" : ep.detail))
                     .font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }
             Spacer(minLength: 0)

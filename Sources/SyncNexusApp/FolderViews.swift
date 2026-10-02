@@ -16,6 +16,7 @@ struct AddDraft: Identifiable {
     var name: String
     var removable: Bool
     var portable: Bool
+    var archive = false
     var desc: VolumeDescription
 }
 
@@ -66,6 +67,7 @@ struct FolderRow: View {
                     HStack(spacing: 8) {
                         Text(ep.id).font(.system(size: 15, weight: .bold))
                         Chip(text: ep.online ? "在線" : "離線", kind: ep.online ? .ok : .warn)
+                        if ep.role == .archive { Chip(text: "備份：只接收", kind: .neutral) }
                         if ep.removable { Chip(text: "可移除", kind: .neutral) }
                         if ep.portableNames { Chip(text: "檔名相容 exFAT／Windows", kind: .neutral) }
                     }
@@ -73,6 +75,7 @@ struct FolderRow: View {
                     if !ep.online { Text(ep.detail).font(.system(size: 12)).foregroundStyle(Theme.warn).fixedSize(horizontal: false, vertical: true) }
                 }
                 Spacer()
+                if ep.role == .archive { Button("顯示歷史") { model.reveal(ep.root + "/.syncnexus-history") }.buttonStyle(QuietButton(kind: .plain)) }
                 Button("更換資料夾…") { change() }.buttonStyle(QuietButton(kind: .secondary, compact: true))
                 Button("移除…") { remove() }.buttonStyle(QuietButton(kind: .secondary, compact: true))
             }
@@ -121,6 +124,11 @@ struct AddSheet: View {
             TextField("名稱", text: $draft.name).textFieldStyle(.roundedBorder)
             Toggle("可能被拔除（外接磁碟）", isOn: $draft.removable)
             Toggle("檔名須相容 exFAT／Windows", isOn: $draft.portable)
+            Toggle("當作備份（只接收）", isOn: $draft.archive)
+            if draft.archive {
+                Text("備份資料夾只會接收其他資料夾的內容：在這裡做的修改不會傳出去（會被還原）、其他資料夾刪除的檔案會保留，被取代的舊內容存在資料夾內的 .syncnexus-history。")
+                    .font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
             Text("磁碟被拔除時，這個資料夾會暫時停止同步，不會被當成「檔案全被刪除」；接回後會自動對帳。")
                 .font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             ForEach(issues, id: \.message) { i in
@@ -130,7 +138,7 @@ struct AddSheet: View {
             HStack {
                 Spacer()
                 Button("取消") { close() }.buttonStyle(QuietButton(kind: .secondary)).keyboardShortcut(.cancelAction)
-                Button("加入") { model.addEndpoint(name: draft.name, path: draft.path, removable: draft.removable, portable: draft.portable); close() }
+                Button("加入") { model.addEndpoint(name: draft.name, path: draft.path, removable: draft.removable, portable: draft.portable, archive: draft.archive); close() }
                     .buttonStyle(QuietButton(kind: .primary)).keyboardShortcut(.defaultAction).disabled(issues.contains(where: \.isError))
             }
         }

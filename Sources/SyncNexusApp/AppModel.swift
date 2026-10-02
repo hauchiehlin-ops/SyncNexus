@@ -187,8 +187,8 @@ final class AppModel: ObservableObject {
         EndpointValidator.validate(path: path, name: name, replacing: replacing, existing: existingConfigs, portableNames: portable)
     }
 
-    func addEndpoint(name: String, path: String, removable: Bool, portable: Bool) {
-        let cfg = EndpointConfig(id: name.trimmingCharacters(in: .whitespaces), root: path, removable: removable, portableNames: portable)
+    func addEndpoint(name: String, path: String, removable: Bool, portable: Bool, archive: Bool = false) {
+        let cfg = EndpointConfig(id: name.trimmingCharacters(in: .whitespaces), root: path, removable: removable, portableNames: portable, role: archive ? .archive : .mirror)
         service.addEndpoint(cfg) { [weak self] err in
             Task { @MainActor in self?.settingsMessage = err.map { "新增失敗：\($0)" } ?? "已新增「\(cfg.id)」。首次同步前會先顯示預覽，等你確認。" }
         }
@@ -222,6 +222,31 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func setArchiveRetention(days: Int) {
+        service.setArchiveRetention(days: days) { [weak self] err in
+            Task { @MainActor in self?.settingsMessage = err.map { "設定失敗：\($0)" } ?? "備份歷史保留期限已更新" }
+        }
+    }
+
+    func repair(_ issue: IntegrityIssue, action: IntegrityAction) {
+        service.resolveIntegrity(issue, action: action) { [weak self] err in
+            Task { @MainActor in
+                self?.settingsMessage = err.map { "處理失敗：\($0)" } ?? (action == .restoreFromOthers ? "已用其他資料夾的版本修復，損壞的內容保留在舊版本" : "已接受現在的內容，會同步到其他資料夾")
+            }
+        }
+    }
+
+    /// How many cloud files of this folder are still being read in the background (iCloud / Drive placeholders).
+    func pendingCloud(_ id: String) -> Int { snap.skipped.filter { $0.hasPrefix("[\(id)]") && $0.contains("讀取雲端") }.count }
+
+    func setExclude(_ preset: ExcludePreset, on: Bool) {
+        var p = snap.excludePresets
+        if on { p.insert(preset) } else { p.remove(preset) }
+        service.setExcludePresets(p) { [weak self] err in
+            Task { @MainActor in self?.settingsMessage = err.map { "設定失敗：\($0)" } ?? "排除項目已更新（已同步的檔案不會被刪除，只是不再同步）" }
+        }
+    }
+
     func refreshVersions() { service.refreshVersionsUsage() }
 
     func revealVersionsFolder() { revealVersions() }
@@ -241,6 +266,10 @@ final class AppModel: ObservableObject {
                     ?? (keep == .main ? "已保留原檔，另一份已移到垃圾桶" : "已改用衝突副本，舊版存入 Versions，正在傳到其他資料夾")
             }
         }
+    }
+
+    func revealInEndpoint(_ endpoint: String, _ rel: String) {
+        if let ep = snap.endpoints.first(where: { $0.id == endpoint }) { reveal(ep.root + "/" + rel) }
     }
 
     func reveal(_ path: String) { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)]) }

@@ -8,6 +8,7 @@ public final class SyncService: @unchecked Sendable {
     public struct EndpointStatus: Sendable {
         public var id: String, root: String, online: Bool, detail: String
         public var removable = false, portableNames = false
+        public var role: EndpointRole = .mirror
     }
 
     /// An open conflict: the file in sync with the other endpoints (`mainPath`) and the extra copy kept on one endpoint.
@@ -48,10 +49,13 @@ public final class SyncService: @unchecked Sendable {
         public var conflicts: [ConflictItem] = []
         public var versions = VersionsUsage()
         public var versionsRetentionDays = 30
+        public var archiveRetentionDays = 365
         /// Health: when everything last synced with nothing skipped, and the results of the periodic deep verification.
         public var lastCleanSync: Date?
         public var lastDeepVerify: Date?
-        public var integrityIssues: [String] = []
+        public var excludePresets: Set<ExcludePreset> = ExcludePreset.defaults
+        public var integrityIssues: [IntegrityIssue] = []
+        public var duplicateHints: [DuplicateHint] = []
         public var conflictPolicy: ConflictPolicy = .keepBoth
         public var error: String?
         public static let initial = Snapshot()
@@ -229,6 +233,11 @@ public final class SyncService: @unchecked Sendable {
         configure(completion) { try $0.setMeta("conflictPolicy", policy.rawValue) }
     }
 
+    public func setExcludePresets(_ presets: Set<ExcludePreset>, completion: @escaping @Sendable (Error?) -> Void) {
+        configure(completion) { try $0.setMeta("excludePresets", presets.map(\.rawValue).sorted().joined(separator: ",")) }
+        queue.async { self.needFull = true }
+    }
+
     public func resolveConflict(id: Int64, keep: ConflictChoice, completion: @escaping @Sendable (Error?) -> Void) {
         queue.async {
             guard let engine = self.engine else { completion(DBError(description: "服務尚未啟動")); return }
@@ -305,8 +314,9 @@ public final class SyncService: @unchecked Sendable {
                 try? engine.store.setMeta("lastDeepVerify", ISO8601DateFormatter().string(from: Date()))
                 snapshot.lastDeepVerify = Date()
                 snapshot.integrityIssues = report.integrity
-                if !report.integrity.isEmpty { writeLog("完整驗證：\(report.integrity.count) 個檔案內容與紀錄不符（疑似損壞）：\(report.integrity.joined(separator: "、"))") }
+                if !report.integrity.isEmpty { writeLog("完整驗證：\(report.integrity.count) 個檔案內容與紀錄不符（疑似損壞）：\(report.integrity.map(\.description).joined(separator: "、"))") }
             }
+            if report.coveredFullScan { snapshot.duplicateHints = report.duplicateHints }
             if report.needsConfirmation == nil && report.skipped.isEmpty && report.offline.isEmpty { snapshot.lastCleanSync = Date() }
             snapshot.lastRun = Date()
             snapshot.lastWork = report.work
@@ -340,12 +350,13 @@ public final class SyncService: @unchecked Sendable {
     private func fillStatus(_ engine: Engine, _ cfgs: [EndpointConfig]) throws {
         snapshot.endpoints = try cfgs.map { cfg in
             if case .offline(let why) = try engine.checkIdentity(cfg) {
-                return EndpointStatus(id: cfg.id, root: cfg.root, online: false, detail: why, removable: cfg.removable, portableNames: cfg.portableNames)
+                return EndpointStatus(id: cfg.id, root: cfg.root, online: false, detail: why, removable: cfg.removable, portableNames: cfg.portableNames, role: cfg.role)
             }
-            return EndpointStatus(id: cfg.id, root: cfg.root, online: true, detail: "在線", removable: cfg.removable, portableNames: cfg.portableNames)
+            return EndpointStatus(id: cfg.id, root: cfg.root, online: true, detail: "在線", removable: cfg.removable, portableNames: cfg.portableNames, role: cfg.role)
         }
         snapshot.trackedFiles = try engine.store.liveConsensusCount()
         snapshot.conflictPolicy = ConflictPolicy(rawValue: try engine.store.meta("conflictPolicy") ?? "") ?? .keepBoth
+        snapshot.excludePresets = IgnoreRules.parsePresets(try engine.store.meta("excludePresets"))
         snapshot.conflicts = try currentConflicts(engine, cfgs)
         let iso = ISO8601DateFormatter()
         snapshot.recent = try engine.store.recentJournal(limit: 12).map {
@@ -361,6 +372,16 @@ public final class SyncService: @unchecked Sendable {
         return (d, Int64(g) * 1_073_741_824)
     }
 
+    private func archiveDays(_ engine: Engine) -> Int { Int((try? engine.store.meta("archiveRetentionDays")) ?? nil ?? "") ?? 365 }
+
+    public func setArchiveRetention(days: Int, completion: @escaping @Sendable (Error?) -> Void) {
+        queue.async {
+            guard let engine = self.engine else { completion(DBError(description: "服務尚未啟動")); return }
+            do { try engine.store.setMeta("archiveRetentionDays", String(days)); completion(nil) } catch { completion(error) }
+            self.refreshVersionsSnapshot(engine); self.publish()
+        }
+    }
+
     /// Automatic cleanup: at most every 6 hours, by age and by total size.
     private func maintainVersionsIfDue(_ engine: Engine) {
         guard Date().timeIntervalSince(lastMaintenance) > 6 * 3600 else { return }
@@ -368,6 +389,13 @@ public final class SyncService: @unchecked Sendable {
         let r = retention(engine)
         let freed = Versions.purge(versionsDir, olderThanDays: r.days, maxBytes: r.maxBytes)
         if freed.files > 0 { writeLog("自動清理舊版本：移除 \(freed.files) 個檔案，釋出 \(ByteCountFormatter.string(fromByteCount: freed.bytes, countStyle: .file))") }
+        for cfg in (try? engine.store.endpoints()) ?? [] where cfg.role == .archive {
+            let days = archiveDays(engine)
+            if days > 0 {
+                let r = Versions.purge(URL(fileURLWithPath: cfg.root).appendingPathComponent(".syncnexus-history"), olderThanDays: days, maxBytes: nil)
+                if r.files > 0 { writeLog("備份「\(cfg.id)」的歷史：清除超過 \(days) 天的 \(r.files) 個檔案") }
+            }
+        }
         refreshVersionsSnapshot(engine)
         backupDatabaseIfDue(engine)
     }
@@ -375,6 +403,7 @@ public final class SyncService: @unchecked Sendable {
     private func refreshVersionsSnapshot(_ engine: Engine) {
         snapshot.versions = Versions.usage(versionsDir)
         snapshot.versionsRetentionDays = retention(engine).days
+        snapshot.archiveRetentionDays = archiveDays(engine)
     }
 
     public enum PurgeMode: Sendable { case expired, all }
@@ -389,6 +418,20 @@ public final class SyncService: @unchecked Sendable {
             self.refreshVersionsSnapshot(engine)
             self.publish()
             completion(freed.files, freed.bytes)
+        }
+    }
+
+    public func resolveIntegrity(_ issue: IntegrityIssue, action: IntegrityAction, completion: @escaping @Sendable (Error?) -> Void) {
+        queue.async {
+            guard let engine = self.engine else { completion(DBError(description: "服務尚未啟動")); return }
+            do {
+                try engine.resolveIntegrity(issue, action: action)
+                self.snapshot.integrityIssues.removeAll { $0 == issue }
+                completion(nil)
+            } catch { completion(error) }
+            self.dirty.insert(issue.path)
+            self.runIfNeeded(confirmed: false, incremental: true)       // spreads the accepted content / refreshes the status
+            self.publish()
         }
     }
 

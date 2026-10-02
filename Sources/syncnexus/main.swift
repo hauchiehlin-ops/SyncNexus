@@ -42,7 +42,7 @@ func printReport(_ r: SyncReport, dryRun: Bool) {
         r.preview.forEach { print("  \($0)") }
     }
     for s in Set(r.skipped).sorted() { print("↷ 略過  \(s)") }
-    for i in r.integrity { print("‼︎ 內容與紀錄不符（疑似損壞）：\(i)") }
+    for i in r.integrity { print("‼︎ 內容與紀錄不符（疑似損壞）：\(i.description)") }
     if let c = r.needsConfirmation { print("✋ \(c)"); return }
     if !dryRun { print("完成：\(r.work) 個動作，\(r.passes) 輪") }
 }
@@ -50,9 +50,9 @@ func printReport(_ r: SyncReport, dryRun: Bool) {
 do {
     switch command {
     case "init":
-        // --endpoint name=/path[,removable][,portable]
+        // --endpoint name=/path[,removable][,portable][,archive]
         let specs = values("--endpoint")
-        guard specs.count >= 2 else { fail("至少需要兩個 --endpoint name=/path[,removable][,portable]") }
+        guard specs.count >= 2 else { fail("至少需要兩個 --endpoint name=/path[,removable][,portable][,archive]") }
         let engine = try openEngine()
         for spec in specs {
             let parts = spec.split(separator: ",").map(String.init)
@@ -61,9 +61,10 @@ do {
             try FileManager.default.createDirectory(atPath: root, withIntermediateDirectories: true)
             let cfg = EndpointConfig(id: name, root: root, removable: parts.contains("removable"),
                                      portableNames: parts.contains("portable"),
-                                     volumeUUID: FileOps.volumeUUID(of: URL(fileURLWithPath: root)))
+                                     volumeUUID: FileOps.volumeUUID(of: URL(fileURLWithPath: root)),
+                                     role: parts.contains("archive") ? .archive : .mirror)
             try engine.store.addEndpoint(cfg)
-            print("端點 \(name) → \(root)\(cfg.removable ? "（可移除）" : "")\(cfg.portableNames ? "（檔名須相容 exFAT/Windows）" : "")")
+            print("端點 \(name) → \(root)\(cfg.removable ? "（可移除）" : "")\(cfg.portableNames ? "（檔名須相容 exFAT/Windows）" : "")\(cfg.role == .archive ? "（備份：只接收）" : "")")
         }
         print("資料庫：\(dbPath)")
 
@@ -200,7 +201,7 @@ do {
     default:
         print("""
         syncnexus
-          init  --endpoint name=/path[,removable][,portable] ... [--db file]
+          init  --endpoint name=/path[,removable][,portable][,archive] ... [--db file]
           relink name=/新路徑 [--db file]
           versions [--purge] [--purge-all] [--retention 天數]
           policy [keep-both|newer-wins]

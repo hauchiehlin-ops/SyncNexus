@@ -42,6 +42,11 @@ private final class Env2 {
         try FileManager.default.createDirectory(at: url(ep, b).deletingLastPathComponent(), withIntermediateDirectories: true)
         try FileManager.default.moveItem(at: url(ep, a), to: url(ep, b))
     }
+    func makeArchive(_ name: String) throws {
+        var cfg = try #require(store.endpoints().first(where: { $0.id == name }))
+        cfg.role = .archive
+        try store.addEndpoint(cfg)
+    }
     @discardableResult func sync() throws -> SyncReport {
         let ph = placeholders
         engine.options.placeholderCheck = { ph.contains($0.lastPathComponent) }
@@ -299,7 +304,7 @@ struct HardeningTests {
         e.engine.options.deepVerify = true
         let r = try e.sync()
         e.engine.options.deepVerify = false
-        #expect(r.integrity == ["[b] data.bin"])
+        #expect(r.integrity == [IntegrityIssue(endpoint: "b", path: "data.bin")])
         #expect(e.read("a", "data.bin") == "AAAAAAAA")
     }
 
@@ -446,5 +451,141 @@ struct IncrementalTests {
         let r = Engine.retryPaths(from: ["[a] docs/f.txt：仍在寫入（穩定窗口）", "[b] x.txt：先前失敗 2 次，稍後自動重試", "[c] y.txt：大小寫衝突，暫不處理"])
         #expect(r == ["docs/f.txt", "x.txt"])
         #expect(Engine.collapse(["a", "a/b", "a/b/c", "z"]) == ["a", "z"])
+    }
+}
+
+@Suite("Backup (receive-only) endpoint")
+struct ArchiveTests {
+    private func history(_ e: Env2, _ ep: String) -> [String] {
+        (FileManager.default.enumerator(atPath: e.url(ep, ".syncnexus-history").path)?.allObjects as? [String]) ?? []
+    }
+
+    @Test func receivesNewAndChangedFilesAndKeepsTheOldContentInHistory() throws {
+        let e = try Env2(["a", "b", "bak"]); try e.makeArchive("bak")
+        try e.write("a", "doc.txt", "v1"); try e.sync()
+        #expect(e.read("bak", "doc.txt") == "v1")
+        try e.write("a", "doc.txt", "v2"); try e.sync()
+        #expect(e.read("bak", "doc.txt") == "v2")
+        #expect(history(e, "bak").contains(where: { $0.hasSuffix("doc.txt") }))
+        // the archive's history never travels to the other folders
+        #expect(!e.exists("a", ".syncnexus-history") && !e.exists("b", ".syncnexus-history"))
+    }
+
+    @Test func filesDeletedElsewhereAreKept() throws {
+        let e = try Env2(["a", "b", "bak"]); try e.makeArchive("bak")
+        try e.write("a", "old.txt", "keep me"); try e.sync()
+        try FileManager.default.removeItem(at: e.url("a", "old.txt")); try e.sync()
+        #expect(!e.exists("b", "old.txt"))                       // mirrors follow the deletion …
+        #expect(e.read("bak", "old.txt") == "keep me")           // … the backup does not
+        try e.sync()
+        #expect(e.read("bak", "old.txt") == "keep me")
+    }
+
+    @Test func changesInsideTheBackupAreNotSentOutAndAreUndone() throws {
+        let e = try Env2(["a", "b", "bak"]); try e.makeArchive("bak")
+        try e.write("a", "doc.txt", "original"); try e.write("a", "other.txt", "other"); try e.sync()
+        try e.write("bak", "doc.txt", "tampered")                 // edit inside the backup
+        try FileManager.default.removeItem(at: e.url("bak", "other.txt"))   // delete inside the backup
+        try e.write("bak", "stray.txt", "put here by accident")  // unknown file
+        try e.sync()
+        #expect(e.read("a", "doc.txt") == "original" && e.read("b", "doc.txt") == "original")
+        #expect(e.read("bak", "doc.txt") == "original")           // restored
+        #expect(e.read("bak", "other.txt") == "other")            // restored
+        #expect(!e.exists("a", "stray.txt") && !e.exists("b", "stray.txt"))     // never leaks out
+        #expect(e.read("bak", "stray.txt") == "put here by accident")           // and is left alone
+        #expect(history(e, "bak").contains(where: { $0.hasSuffix("doc.txt") }))  // the tampered version is kept too
+    }
+
+    @Test func aConflictHereNeverCreatesConflictCopies() throws {
+        let e = try Env2(["a", "bak"]); try e.makeArchive("bak")
+        try e.write("a", "r.txt", "base"); try e.sync()
+        try e.write("a", "r.txt", "from a"); try e.write("bak", "r.txt", "from bak")
+        try e.sync()
+        #expect(e.read("bak", "r.txt") == "from a" && e.read("a", "r.txt") == "from a")
+        #expect(try e.store.openConflicts().isEmpty)
+    }
+
+    @Test func aFileDeletedAndLaterRecreatedAtTheSourceReachesTheBackupAgain() throws {
+        let e = try Env2(["a", "bak"]); try e.makeArchive("bak")
+        try e.write("a", "f.txt", "one"); try e.sync()
+        try FileManager.default.removeItem(at: e.url("a", "f.txt")); try e.sync()
+        try e.write("a", "f.txt", "two"); try e.sync()
+        #expect(e.read("bak", "f.txt") == "two")
+    }
+}
+
+@Suite("Integrity repair")
+struct IntegrityRepairTests {
+    private func corrupted() throws -> (Env2, IntegrityIssue) {
+        let e = try Env2(["a", "b"])
+        try e.write("a", "data.bin", "AAAAAAAA"); try e.sync()
+        let url = e.url("b", "data.bin")
+        let mtime = try FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate] as! Date
+        try "BBBBBBBB".write(to: url, atomically: false, encoding: .utf8)
+        try FileManager.default.setAttributes([.modificationDate: mtime], ofItemAtPath: url.path)
+        e.engine.options.deepVerify = true
+        let r = try e.sync()
+        e.engine.options.deepVerify = false
+        return (e, try #require(r.integrity.first))
+    }
+
+    @Test func restoreFromOthersPutsTheGoodVersionBackAndKeepsTheDamagedOne() throws {
+        let (e, issue) = try corrupted()
+        try e.engine.resolveIntegrity(issue, action: .restoreFromOthers)
+        #expect(e.read("b", "data.bin") == "AAAAAAAA" && e.read("a", "data.bin") == "AAAAAAAA")
+        let kept = (FileManager.default.enumerator(atPath: e.base.appendingPathComponent("_versions").path)?.allObjects as? [String]) ?? []
+        #expect(kept.contains(where: { $0.hasSuffix("data.bin") }))
+        e.engine.options.deepVerify = true
+        #expect(try e.sync().integrity.isEmpty)                  // verified clean now
+    }
+
+    @Test func acceptCurrentMakesTheNewContentTheRealOne() throws {
+        let (e, issue) = try corrupted()
+        try e.engine.resolveIntegrity(issue, action: .acceptCurrent)
+        try e.sync()
+        #expect(e.read("a", "data.bin") == "BBBBBBBB" && e.read("b", "data.bin") == "BBBBBBBB")
+    }
+}
+
+@Suite("Cloud duplicate hints")
+struct DuplicateHintTests {
+    @Test func flagsNumberedCopiesWithDifferentContentOnCloudEndpointsOnly() throws {
+        let e = try Env2(["local", "icloud"])
+        e.engine.options.isCloudEndpoint = { $0.id == "icloud" }
+        try e.write("icloud", "report.docx", "version one")
+        try e.write("icloud", "report 2.docx", "version two")        // looks like iCloud's conflict copy
+        try e.write("icloud", "notes.txt", "same"); try e.write("icloud", "notes (1).txt", "same")   // identical: not a conflict
+        try e.write("local", "plan.txt", "a"); try e.write("local", "plan 2.txt", "b")                 // not a cloud folder
+        let r = try e.sync()
+        // "plan 2.txt" comes from the local folder but now also sits in the iCloud folder, where it looks like a cloud copy
+        #expect(Set(r.duplicateHints.map(\.path)) == ["report 2.docx", "plan 2.txt"])
+        #expect(r.duplicateHints.first(where: { $0.path == "report 2.docx" })?.basePath == "report.docx")
+        #expect(e.exists("local", "report 2.docx"))                  // and nothing was removed or renamed automatically
+    }
+}
+
+@Suite("Exclude presets")
+struct ExcludeTests {
+    @Test func defaultsKeepPackageFoldersAndDatabasesOut() throws {
+        let e = try Env2(["a", "b"])
+        try e.write("a", "app/node_modules/pkg/index.js", "x"); try e.write("a", "app/main.js", "m")
+        try e.write("a", "data.sqlite-wal", "w"); try e.write("a", "Pics.photoslibrary/db", "d"); try e.write("a", "repo/.git/HEAD", "ref")
+        try e.sync()
+        #expect(e.read("b", "app/main.js") == "m")
+        #expect(!e.exists("b", "app/node_modules") && !e.exists("b", "data.sqlite-wal") && !e.exists("b", "Pics.photoslibrary"))
+        #expect(e.read("b", "repo/.git/HEAD") == "ref")           // .git is not excluded by default
+    }
+
+    @Test func excludingSomethingAlreadySyncedNeverDeletesIt() throws {
+        let e = try Env2(["a", "b"])
+        try e.store.setMeta("excludePresets", "")                  // nothing excluded yet
+        try e.write("a", "repo/.git/HEAD", "ref"); try e.write("a", "keep.txt", "k"); try e.sync()
+        #expect(e.read("b", "repo/.git/HEAD") == "ref")
+        try e.store.setMeta("excludePresets", "git")               // now exclude .git
+        try e.sync()
+        #expect(e.read("a", "repo/.git/HEAD") == "ref" && e.read("b", "repo/.git/HEAD") == "ref")   // untouched on both sides
+        try FileManager.default.removeItem(at: e.url("a", "repo/.git"))
+        try e.sync()
+        #expect(e.read("b", "repo/.git/HEAD") == "ref")            // and changes there are no longer propagated either
     }
 }

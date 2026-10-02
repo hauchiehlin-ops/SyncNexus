@@ -18,6 +18,25 @@ public enum SyncScope: Sendable, Equatable {
     case paths(Set<String>)
 }
 
+/// A file whose content changed although its size and modification time did not (possible silent corruption).
+public struct IntegrityIssue: Sendable, Equatable, Hashable, Identifiable {
+    public var endpoint: String
+    public var path: String
+    public var id: String { "\(endpoint)\u{0}\(path)" }
+    public var description: String { "[\(endpoint)] \(path)" }
+}
+
+/// "report 2.docx" / "report (1).docx" next to "report.docx" in an iCloud or Google Drive folder, with different content: probably a
+/// copy the cloud client made because two devices edited the file. Informational only; nothing is done automatically.
+public struct DuplicateHint: Sendable, Equatable, Hashable, Identifiable {
+    public var endpoint: String
+    public var path: String
+    public var basePath: String
+    public var id: String { "\(endpoint)\u{0}\(path)" }
+}
+
+public enum IntegrityAction: Sendable { case restoreFromOthers, acceptCurrent }
+
 public enum ConflictChoice: Sendable, Equatable { case main, conflict }
 
 public struct EngineOptions {
@@ -46,6 +65,8 @@ public struct EngineOptions {
     public var deepVerify = false
     /// Test hook: free bytes on a volume.
     public var freeSpace: ((URL) -> Int64?)?
+    /// Test hook: which endpoints count as iCloud / Google Drive for duplicate hints.
+    public var isCloudEndpoint: ((EndpointConfig) -> Bool)?
 
     public init() {}
 }
@@ -65,7 +86,8 @@ public struct SyncReport {
     /// What this run actually covered (an incremental request falls back to full when a newcomer, a first run or a deep verify is involved).
     public var coveredFullScan = true
     /// Files whose content differs from what was recorded although size and mtime are unchanged (possible silent corruption).
-    public var integrity: [String] = []
+    public var integrity: [IntegrityIssue] = []
+    public var duplicateHints: [DuplicateHint] = []
 }
 
 public final class Engine {
@@ -79,6 +101,9 @@ public final class Engine {
 
     private var policy: ConflictPolicy = .keepBoth
     private var prefixes: [String]?           // nil = full scan
+    private var cfgByID: [String: EndpointConfig] = [:]
+    private var cloudKindCache: [String: Bool] = [:]
+    private var effectiveIgnore = IgnoreRules.default
     /// Called (on a background queue) when the content of a cloud placeholder has been read, so the caller can re-check that path.
     public var onContentReady: ((URL) -> Void)?
 
@@ -118,7 +143,7 @@ public final class Engine {
         var files: [String: [String: ScannedFile]] = [:]
         var hashes: [String: FileState] = [:]
         var rows: [String: [String: EndpointRow]] = [:]
-        var integrity: Set<String> = []
+        var integrity: Set<IntegrityIssue> = []
         var wroteToRemovable: Set<String> = []
         var blocked: [String: Set<String>] = [:]      // paths that must not be touched on an endpoint (case collisions)
     }
@@ -131,7 +156,7 @@ public final class Engine {
                 report.offline.append("\(cfg.id)：\(why)")
             case .online:
                 let scan: ScanResult
-                do { scan = try FileOps.scan(root: URL(fileURLWithPath: cfg.root), ignore: options.ignore, placeholder: options.placeholderCheck, only: prefixes) }
+                do { scan = try FileOps.scan(root: URL(fileURLWithPath: cfg.root), ignore: effectiveIgnore, placeholder: options.placeholderCheck, only: prefixes) }
                 catch {
                     // Unreadable (missing permission, I/O error): never treat a partial listing as "files are gone".
                     report.offline.append("\(cfg.id)：無法完整讀取，已停止此端點（請檢查「系統設定 > 隱私權與安全性」的檔案存取授權）。\(error.localizedDescription)")
@@ -203,7 +228,7 @@ public final class Engine {
             if options.deepVerify && !f.isPlaceholder {
                 guard let h = try FileOps.hashIfStable(f.url, size: f.size, mtimeNs: f.mtimeNs) else { return .skip("仍在寫入（穩定窗口）") }
                 if h != st.hash {
-                    ctx.integrity.insert("[\(ep)] \(path)")
+                    ctx.integrity.insert(IntegrityIssue(endpoint: ep, path: path))
                     return .skip("內容與紀錄不符，但修改時間與大小沒變（疑似損壞）。已略過，不會傳播；其他端點仍持有正確版本")
                 }
             }
@@ -270,7 +295,8 @@ public final class Engine {
             set.formUnion(ctx.files[cfg.id]!.keys)
             set.formUnion(ctx.rows[cfg.id]!.keys)
         }
-        return set.sorted()
+        // Excluded paths are not ours to touch: they must never look like "deleted" just because the scan skips them.
+        return set.filter { !effectiveIgnore.isIgnored(relativePath: $0) }.sorted()
     }
 
     // MARK: public entry
@@ -282,7 +308,9 @@ public final class Engine {
             report.notes.append("上次有 \(interrupted.count) 個操作中斷，已安全重新評估（每個動作皆冪等）")
         }
         policy = ConflictPolicy(rawValue: try store.meta("conflictPolicy") ?? "") ?? .keepBoth
+        effectiveIgnore = options.ignore.applying(IgnoreRules.parsePresets(try store.meta("excludePresets")))
         let cfgs = try store.endpoints()
+        cfgByID = Dictionary(uniqueKeysWithValues: cfgs.map { ($0.id, $0) })
         let firstRun = try store.consensusCount() == 0
         let newcomersExist = try cfgs.contains { try !store.endpointHasHistory($0.id) }
         // Incremental only when the group is established, no deep verify is wanted, and the change set is small.
@@ -371,6 +399,7 @@ public final class Engine {
     // MARK: planning (no mutation)
 
     private func plan(_ ctx: Context) throws -> ([String], Int, [(ep: String, deleted: Int, tracked: Int)]) {
+        prehash(ctx)
         var lines: [String] = [], deleted = Set<String>()
         var deletedAt: [String: Int] = [:]
         var skipPaths: [String: Set<String>] = [:]            // renamed paths are described once, not as delete + new
@@ -389,7 +418,7 @@ public final class Engine {
                 let cur = state(of: l)
                 let isDir = (cur ?? row?.state ?? cons?.state)?.kind == .directory
                 let what = isDir ? "資料夾 " : ""
-                let d = Reconciler.decide(PathObservation(snapshot: row?.state, current: cur, seenRev: row?.seenRev ?? 0), consensus: cons)
+                let d = effective(Reconciler.decide(PathObservation(snapshot: row?.state, current: cur, seenRev: row?.seenRev ?? 0), consensus: cons), cfg, cons)
                 switch d {
                 case .noop, .markSeen: continue
                 case .adoptEndpoint:
@@ -416,12 +445,83 @@ public final class Engine {
         return (lines, deleted.count, wipes)
     }
 
+    /// A backup endpoint ("only in, never out"): what happens inside it is not a change of the group, and what is deleted
+    /// elsewhere stays. The group's version always wins there; what it replaces goes to `.syncnexus-history`.
+    private func effective(_ d: Decision, _ cfg: EndpointConfig, _ cons: ConsensusEntry?) -> Decision {
+        guard cfg.role == .archive else { return d }
+        switch d {
+        case .adoptEndpoint:
+            if cons?.state != nil { return .applyConsensus }     // edited or deleted inside the backup: put the group's version back
+            return .markSeen                                      // unknown to the group: leave it alone, never send it out
+        case .applyConsensus:
+            return cons?.state == nil ? .markSeen : .applyConsensus   // deleted elsewhere: keep our copy
+        case .conflict:
+            return .applyConsensus                                // the group's version wins; ours is kept in history
+        default:
+            return d
+        }
+    }
+
+    private func duplicateHints(_ ctx: Context) throws -> [DuplicateHint] {
+        var out: [DuplicateHint] = []
+        for cfg in ctx.online {
+            let cloud: Bool
+            if let hook = options.isCloudEndpoint { cloud = hook(cfg) }
+            else if let known = cloudKindCache[cfg.root] { cloud = known }
+            else { cloud = [EndpointKind.icloud, .googleDrive].contains(EndpointValidator.describe(path: cfg.root).kind); cloudKindCache[cfg.root] = cloud }
+            guard cloud, let files = ctx.files[cfg.id] else { continue }
+            for (path, f) in files where !f.isDirectory {
+                let ns = path as NSString
+                let ext = ns.pathExtension.isEmpty ? "" : "." + ns.pathExtension
+                let stem = ns.deletingPathExtension
+                var base: String?
+                if let r = stem.range(of: #" \(\d+\)$"#, options: .regularExpression) ?? stem.range(of: #" \d+$"#, options: .regularExpression) {
+                    base = String(stem[..<r.lowerBound]) + ext
+                }
+                guard let b = base, let other = files[b], !other.isDirectory,
+                      case .present(let s1, _) = try live(ctx, cfg.id, path), case .present(let s2, _) = try live(ctx, cfg.id, b), s1 != s2 else { continue }
+                out.append(DuplicateHint(endpoint: cfg.id, path: path, basePath: b))
+            }
+        }
+        return out.sorted { $0.id < $1.id }
+    }
+
     private func isSkip(_ l: Live) -> Bool { if case .skip = l { return true } else { return false } }
     private func state(of l: Live) -> FileState? { if case .present(let s, _) = l { return s } else { return nil } }
 
     // MARK: one pass
 
+    /// Reads the files that need hashing in parallel (the first scan of a big tree is I/O bound, one file at a time left the
+    /// disk idle between reads). Results are only cached for files that did not change while being read.
+    private func prehash(_ ctx: Context) {
+        struct Job { let key: String; let url: URL; let size: Int64; let mtimeNs: Int64 }
+        var jobs: [Job] = []
+        let now = options.now()
+        for cfg in ctx.online {
+            for (path, f) in ctx.files[cfg.id] ?? [:] where !f.isDirectory && !f.isPlaceholder {
+                if ctx.blocked[cfg.id]?.contains(path) == true { continue }
+                if let row = ctx.rows[cfg.id]?[path], let st = row.state, st.kind == .file, st.size == f.size, row.mtimeNs == f.mtimeNs, !options.deepVerify { continue }
+                if options.settleSeconds > 0, now.timeIntervalSince(f.mtime) < options.settleSeconds { continue }
+                jobs.append(Job(key: "\(cfg.id)\u{0}\(path)", url: f.url, size: f.size, mtimeNs: f.mtimeNs))
+            }
+        }
+        guard jobs.count >= 8 else { return }
+        let workers = min(4, max(2, ProcessInfo.processInfo.activeProcessorCount))
+        let lock = NSLock()
+        var results: [String: FileState] = [:]
+        DispatchQueue.concurrentPerform(iterations: workers) { w in
+            for i in stride(from: w, to: jobs.count, by: workers) {
+                let j = jobs[i]
+                if let h = try? FileOps.hashIfStable(j.url, size: j.size, mtimeNs: j.mtimeNs) {
+                    lock.lock(); results[j.key] = FileState(hash: h, size: j.size); lock.unlock()
+                }
+            }
+        }
+        for (k, v) in results { ctx.hashes[k] = v }
+    }
+
     private func runPass(_ ctx: Context, _ report: inout SyncReport) throws {
+        prehash(ctx)
         // 1) Renames made on an endpoint are adopted as one move, not as "delete + new file".
         for cfg in ctx.online { try adoptMoves(ctx, cfg, &report) }
         // 2) The other endpoints repeat the rename locally, so nothing is transferred again.
@@ -438,6 +538,7 @@ public final class Engine {
                 let row = try store.row(cfg.id, path)
                 let cons = try store.consensus(path)
                 var decision = Reconciler.decide(PathObservation(snapshot: row?.state, current: cur, seenRev: row?.seenRev ?? 0), consensus: cons)
+                decision = effective(decision, cfg, cons)
                 if decision == .applyConsensus, cur == cons?.state { decision = .markSeen }
                 if decision == .applyConsensus, cons?.state == nil, let f = file, f.isDirectory {
                     removedDirs.append((cfg, path, f, cons?.rev ?? 0)); continue
@@ -452,7 +553,8 @@ public final class Engine {
             }
         }
 
-        report.integrity = Array(Set(report.integrity).union(ctx.integrity)).sorted()
+        report.integrity = Array(Set(report.integrity).union(ctx.integrity)).sorted { $0.id < $1.id }
+        if prefixes == nil { report.duplicateHints = try duplicateHints(ctx) }
         for root in ctx.wroteToRemovable { FileOps.syncDirectory(URL(fileURLWithPath: root)) }   // one drive-cache flush per pass
 
         // 4) Folders removed elsewhere: last, deepest first, and only once nothing but litter is left inside.
@@ -484,7 +586,7 @@ public final class Engine {
         let files = ctx.files[cfg.id] ?? [:]
         var gone: [Int64: [String]] = [:]
         for (p, row) in rows {
-            guard let st = row.state, st.kind == .file, st.size > 0, files[p] == nil else { continue }
+            guard let st = row.state, st.kind == .file, st.size > 0, files[p] == nil, !effectiveIgnore.isIgnored(relativePath: p) else { continue }
             if (try store.consensus(p)?.rev ?? 0) > row.seenRev { continue }       // changed elsewhere too: not a plain rename
             gone[st.size, default: []].append(p)
         }
@@ -774,6 +876,43 @@ public final class Engine {
         }
     }
 
+    /// A file that failed the deep verification: either put the group's good version back (the damaged one is kept in the
+    /// archive), or accept what is there now as the real content (it then spreads like any edit).
+    public func resolveIntegrity(_ issue: IntegrityIssue, action: IntegrityAction) throws {
+        let lock = try SyncLock.acquire(path: store.path + ".lock")
+        defer { _ = lock }
+        let cfgs = try store.endpoints()
+        cfgByID = Dictionary(uniqueKeysWithValues: cfgs.map { ($0.id, $0) })
+        guard let cfg = cfgByID[issue.endpoint] else { throw DBError(description: "端點「\(issue.endpoint)」已不存在") }
+        if case .offline(let why) = try checkIdentity(cfg) { throw DBError(description: "端點「\(cfg.id)」目前離線：\(why)") }
+        let path = issue.path
+        let url = URL(fileURLWithPath: cfg.root).appendingPathComponent(path)
+        guard let st = FileOps.statInfo(url) else { throw DBError(description: "檔案已不存在") }
+        let scanned = ScannedFile(rel: path, url: url, size: st.size, mtimeNs: st.mtimeNs, mtime: Date(), isPlaceholder: false)
+
+        switch action {
+        case .acceptCurrent:
+            let hash = try FileOps.sha256(of: url)
+            let state = FileState(hash: hash, size: st.size)
+            let rev = (try store.consensus(path)?.rev ?? 0) + 1
+            try store.setConsensus(path, state: state, rev: rev)
+            try store.setRow(cfg.id, path, state: state, mtimeNs: st.mtimeNs, seenRev: rev)
+        case .restoreFromOthers:
+            guard let cons = try store.consensus(path), let want = cons.state, want.kind == .file else { throw DBError(description: "群組裡已沒有這個檔案的正確版本") }
+            prefixes = [path]
+            defer { prefixes = nil }
+            var scratch = SyncReport()
+            let ctx = try buildContext(cfgs, writeMarker: false, into: &scratch)
+            guard let src = try holder(ctx, excluding: cfg.id, path, want) else { throw DBError(description: "目前沒有其他在線的資料夾持有正確版本") }
+            try perform("repair", cfg.id, path, detail: "from \(src.url.path)") {
+                try archiveVersion(scanned, endpoint: cfg.id)
+                try FileOps.copyAtomically(from: src.url, to: url, expectHash: want.hash, mtime: src.mtime, durable: cfg.removable)
+            }
+            let after = FileOps.statInfo(url)
+            try store.setRow(cfg.id, path, state: want, mtimeNs: after?.mtimeNs ?? 0, seenRev: cons.rev)
+        }
+    }
+
     /// Resolve one recorded conflict on its endpoint. `.main` keeps the file that is in sync with the other
     /// endpoints and trashes the extra copy; `.conflict` makes the extra copy the real file (the previous
     /// version goes to Versions) and the next sync spreads it to every endpoint.
@@ -812,9 +951,13 @@ public final class Engine {
     /// Copies `file` into the Versions archive. Never overwrites an earlier archived copy: two replacements of the same
     /// file within one second used to collide ("File exists"), which made the replacement itself fail and retry forever.
     private func archiveVersion(_ file: ScannedFile, endpoint: String) throws {
-        guard let base = options.versionsDir, file.size <= options.maxVersionBytes else { return }
+        guard file.size <= options.maxVersionBytes || cfgByID[endpoint]?.role == .archive else { return }
+        let base: URL
+        if let cfg = cfgByID[endpoint], cfg.role == .archive {
+            base = URL(fileURLWithPath: cfg.root).appendingPathComponent(".syncnexus-history")     // a backup keeps its own history
+        } else if let v = options.versionsDir { base = v } else { return }
         let stamp = ISO8601DateFormatter().string(from: options.now()).replacingOccurrences(of: ":", with: "-")
-        var dest = base.appendingPathComponent(stamp).appendingPathComponent(endpoint).appendingPathComponent(file.rel)
+        var dest = base.appendingPathComponent(stamp).appendingPathComponent(cfgByID[endpoint]?.role == .archive ? "" : endpoint).appendingPathComponent(file.rel)
         try FileManager.default.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
         var n = 2
         while FileManager.default.fileExists(atPath: dest.path) {

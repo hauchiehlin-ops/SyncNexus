@@ -111,7 +111,7 @@ struct OverviewSection: View {
             StatTile(label: "舊版本", value: bytes(model.snap.versions.bytes), sub: model.snap.versionsRetentionDays == 0 ? "永久保留，可隨時還原" : "保留 \(model.snap.versionsRetentionDays) 天，可隨時還原")
         }
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
-            ForEach(model.snap.endpoints, id: \.id) { ep in EndpointCard(ep: ep) }
+            ForEach(model.snap.endpoints, id: \.id) { ep in EndpointCard(model: model, ep: ep) }
         }
         if model.snap.endpoints.count < 2 {
             Card { HStack { Image(systemName: "folder.badge.plus").foregroundStyle(Color.accentColor)
@@ -130,6 +130,7 @@ struct OverviewSection: View {
 }
 
 struct EndpointCard: View {
+    @ObservedObject var model: AppModel
     let ep: SyncService.EndpointStatus
     var body: some View {
         let kind = EndpointValidator.describe(path: ep.root).kind
@@ -142,7 +143,7 @@ struct EndpointCard: View {
                     Chip(text: ep.online ? "在線" : "離線", kind: ep.online ? .ok : .warn)
                 }
                 Text(shortPath(ep.root)).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(2).truncationMode(.middle)
-                Text(ep.online ? kind.label + (ep.portableNames ? "　· 檔名相容 exFAT／Windows" : "")
+                Text(ep.online ? (model.pendingCloud(ep.id) > 0 ? "正在讀取 \(model.pendingCloud(ep.id)) 個雲端檔案，完成後自動繼續" : kind.label + (ep.portableNames ? "　· 檔名相容 exFAT／Windows" : "") + (ep.role == .archive ? "　· 備份：只接收" : ""))
                      : (ep.removable ? "已拔除　· 接回後自動對帳，不會被當成「檔案全被刪除」" : ep.detail))
                     .font(.system(size: 13)).foregroundStyle(ep.online ? Color.primary : Theme.warn).fixedSize(horizontal: false, vertical: true)
             }
@@ -167,6 +168,30 @@ struct ConflictsSection: View {
             }
         }
         ForEach(model.snap.conflicts) { c in ConflictCard(model: model, c: c) }
+        if !model.snap.duplicateHints.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("可能的雲端衝突副本").font(.system(size: 16, weight: .bold))
+                Text("iCloud 或 Google Drive 在兩台裝置都修改同一個檔案時，會自己產生「檔名 2」或「檔名 (1)」這樣的副本。以下檔案看起來像這種情況；它們會正常同步，不會自動刪除，請自己確認要留哪一個。")
+                    .font(.system(size: 13)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Card(padding: 0) {
+                    VStack(spacing: 0) {
+                        ForEach(Array(model.snap.duplicateHints.prefix(30).enumerated()), id: \.element.id) { i, h in
+                            if i > 0 { Divider() }
+                            HStack {
+                                Image(systemName: "doc.on.doc").foregroundStyle(.secondary)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text((h.path as NSString).lastPathComponent).font(.system(size: 14, weight: .semibold))
+                                    Text("與「\((h.basePath as NSString).lastPathComponent)」內容不同　· \(h.endpoint)").font(.system(size: 12)).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Button("在 Finder 顯示") { model.revealInEndpoint(h.endpoint, h.path) }.buttonStyle(QuietButton(kind: .plain))
+                            }
+                            .padding(.horizontal, 16).padding(.vertical, 10)
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -251,6 +276,19 @@ struct VersionsSection: View {
                 Button("全部清除…") { confirmClear = true }.buttonStyle(QuietButton(kind: .secondary, compact: true)).disabled(u.files == 0)
             }
         }
+        if model.snap.endpoints.contains(where: { $0.role == .archive }) {
+            Card {
+                HStack(spacing: 14) {
+                    Text("備份資料夾的歷史：保留").font(.system(size: 14))
+                    Picker("", selection: Binding(get: { model.snap.archiveRetentionDays }, set: { model.setArchiveRetention(days: $0) })) {
+                        Text("90 天").tag(90); Text("1 年").tag(365); Text("3 年").tag(1095); Text("永久").tag(0)
+                    }
+                    .labelsHidden().frame(width: 100)
+                    Text("存在各備份資料夾內的 .syncnexus-history。").font(.system(size: 12)).foregroundStyle(.secondary)
+                    Spacer()
+                }
+            }
+        }
         HStack {
             Text("可還原的版本").font(.system(size: 16, weight: .bold))
             Spacer()
@@ -304,8 +342,17 @@ struct VerificationSection: View {
             Card {
                 VStack(alignment: .leading, spacing: 8) {
                     Label("內容與紀錄不符，但大小與修改時間都沒變", systemImage: "exclamationmark.triangle").font(.system(size: 14, weight: .bold)).foregroundStyle(Theme.warn)
-                    ForEach(model.snap.integrityIssues, id: \.self) { Text($0).font(.system(size: 13)).textSelection(.enabled) }
-                    Text("這些檔案已被隔離，壞掉的內容不會傳到其他資料夾；其他資料夾仍持有正確的版本。").font(.system(size: 12)).foregroundStyle(.secondary)
+                    ForEach(model.snap.integrityIssues) { issue in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("\(issue.path)　· 在「\(issue.endpoint)」").font(.system(size: 13, weight: .semibold)).textSelection(.enabled)
+                            HStack {
+                                Button("用其他資料夾的版本修復") { model.repair(issue, action: .restoreFromOthers) }.buttonStyle(QuietButton(kind: .primary, compact: true))
+                                Button("保留現在的內容") { model.repair(issue, action: .acceptCurrent) }.buttonStyle(QuietButton(kind: .secondary, compact: true))
+                            }
+                        }
+                        .padding(12).frame(maxWidth: .infinity, alignment: .leading).background(Theme.tile, in: RoundedRectangle(cornerRadius: 10))
+                    }
+                    Text("這些檔案已被隔離，壞掉的內容不會傳到其他資料夾；其他資料夾仍持有正確的版本。「修復」會把壞掉的內容存進舊版本，再放回正確的。").font(.system(size: 12)).foregroundStyle(.secondary)
                 }
             }
         }
@@ -352,6 +399,21 @@ struct SettingsSection: View {
                      ? "原檔會和其他資料夾保持一致；另一份加上「(conflict …)」標記，只留在發生衝突的資料夾，不會再同步出去，直到你在「衝突」頁選擇。"
                      : "以檔案修改時間判斷。兩邊時間相差 2 秒內、或無法判斷時，仍會保留兩份。不同電腦的時鐘若不準，可能選錯；舊版一律存入舊版本，隨時可以還原。")
                     .font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        Card {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("不要同步這些項目").font(.system(size: 15, weight: .bold))
+                ForEach(ExcludePreset.allCases) { p in
+                    Toggle(isOn: Binding(get: { model.snap.excludePresets.contains(p) }, set: { model.setExclude(p, on: $0) })) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(p.title).font(.system(size: 13, weight: .semibold))
+                            Text(p.why).font(.system(size: 12)).foregroundStyle(.secondary)
+                        }
+                    }
+                    .toggleStyle(.switch)
+                }
+                Text("被排除的項目在所有資料夾裡都原封不動：之前已經同步過的不會被刪除，之後也不再同步。").font(.system(size: 12)).foregroundStyle(.secondary)
             }
         }
         Card {

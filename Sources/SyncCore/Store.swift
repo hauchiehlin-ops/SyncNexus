@@ -1,5 +1,7 @@
 import Foundation
 
+public enum EndpointRole: String, Sendable { case mirror, archive }
+
 public struct EndpointConfig: Sendable, Equatable {
     public var id: String
     public var root: String
@@ -10,11 +12,14 @@ public struct EndpointConfig: Sendable, Equatable {
     /// Written to `.syncnexus-endpoint` inside the root; proves this is still the same folder.
     public var uuid: String
     public var volumeUUID: String?
+    /// `.archive`: receive-only backup. Changes made inside it are never sent out, files deleted elsewhere are kept, and every
+    /// replaced version is kept in `.syncnexus-history` inside the folder.
+    public var role: EndpointRole
 
     public init(id: String, root: String, removable: Bool = false, portableNames: Bool = false,
-                uuid: String = UUID().uuidString, volumeUUID: String? = nil) {
+                uuid: String = UUID().uuidString, volumeUUID: String? = nil, role: EndpointRole = .mirror) {
         self.id = id; self.root = root; self.removable = removable
-        self.portableNames = portableNames; self.uuid = uuid; self.volumeUUID = volumeUUID
+        self.portableNames = portableNames; self.uuid = uuid; self.volumeUUID = volumeUUID; self.role = role
     }
 }
 
@@ -60,6 +65,7 @@ public final class Store {
         try addColumnIfMissing("consensus", "moved_from", "TEXT")
         try addColumnIfMissing("ep_state", "kind", "INTEGER NOT NULL DEFAULT 0")
         // `fold` = case-folded path, indexed: incremental runs must find every spelling of a path, not just the exact one.
+        try addColumnIfMissing("endpoints", "role", "TEXT NOT NULL DEFAULT 'mirror'")
         try addColumnIfMissing("consensus", "fold", "TEXT NOT NULL DEFAULT ''")
         try addColumnIfMissing("ep_state", "fold", "TEXT NOT NULL DEFAULT ''")
         try backfillFold(table: "consensus", keyColumns: "path")
@@ -131,15 +137,16 @@ public final class Store {
     // MARK: endpoints
 
     public func addEndpoint(_ e: EndpointConfig) throws {
-        try db.exec("INSERT OR REPLACE INTO endpoints VALUES(?,?,?,?,?,?)",
+        try db.exec("INSERT OR REPLACE INTO endpoints(id, root, removable, portable, uuid, volume_uuid, role) VALUES(?,?,?,?,?,?,?)",
                     [.text(e.id), .text(e.root), .int(e.removable ? 1 : 0), .int(e.portableNames ? 1 : 0),
-                     .text(e.uuid), e.volumeUUID.map { .text($0) } ?? .null])
+                     .text(e.uuid), e.volumeUUID.map { .text($0) } ?? .null, .text(e.role.rawValue)])
     }
 
     public func endpoints() throws -> [EndpointConfig] {
-        try db.query("SELECT id, root, removable, portable, uuid, volume_uuid FROM endpoints ORDER BY rowid").map {
+        try db.query("SELECT id, root, removable, portable, uuid, volume_uuid, role FROM endpoints ORDER BY rowid").map {
             EndpointConfig(id: $0[0].textValue!, root: $0[1].textValue!, removable: $0[2].intValue == 1,
-                           portableNames: $0[3].intValue == 1, uuid: $0[4].textValue!, volumeUUID: $0[5].textValue)
+                           portableNames: $0[3].intValue == 1, uuid: $0[4].textValue!, volumeUUID: $0[5].textValue,
+                           role: EndpointRole(rawValue: $0[6].textValue ?? "") ?? .mirror)
         }
     }
 
