@@ -370,4 +370,19 @@ struct HardeningTests {
         let opened = try? Store(path: junk.path)
         #expect(opened == nil || opened!.quickCheck() == false)
     }
+
+    @Test func archivedVersionCanBeListedAndRestoredAndSpreads() throws {
+        let e = try Env2(["a", "b"])
+        try e.write("a", "doc.txt", "first"); try e.sync()
+        try e.write("a", "doc.txt", "second"); try e.sync()
+        let items = Versions.list(e.base.appendingPathComponent("_versions"))
+        let old = try #require(items.first(where: { $0.path == "doc.txt" && (try? String(contentsOf: $0.url, encoding: .utf8)) == "first" }))
+        #expect(old.endpoint == "a" || old.endpoint == "b")
+        try e.engine.restoreVersion(old)
+        try e.sync()
+        #expect(e.read(old.endpoint, "doc.txt") == "first")
+        #expect(e.read("a", "doc.txt") == "first" && e.read("b", "doc.txt") == "first")    // the restore spread like any edit
+        #expect(Versions.restorePath("dir/report (2).docx") == "dir/report.docx")
+        #expect(Versions.restorePath("dir/report.docx") == "dir/report.docx")
+    }
 }

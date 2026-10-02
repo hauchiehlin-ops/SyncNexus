@@ -16,7 +16,7 @@ public enum Versions {
         return f
     }()
 
-    private static func stamps(_ dir: URL) -> [(url: URL, date: Date)] {
+    static func stamps(_ dir: URL) -> [(url: URL, date: Date)] {
         let names = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
         return names.compactMap { n in stampFormat.date(from: n).map { (dir.appendingPathComponent(n), $0) } }
             .sorted { $0.date < $1.date }
@@ -76,5 +76,42 @@ public enum Versions {
             if (try? FileManager.default.removeItem(at: s.url)) != nil { f += sz.files; b += sz.bytes }
         }
         return (f, b)
+    }
+}
+
+public struct VersionItem: Sendable, Identifiable, Equatable {
+    public var id: String { url.path }
+    public var stamp: Date
+    public var endpoint: String
+    /// Path inside the endpoint, with any " (2)" collision suffix of the archive removed.
+    public var path: String
+    public var size: Int64
+    public var url: URL
+}
+
+extension Versions {
+    /// The archived versions, newest first (at most `limit`). Layout: `<UTC stamp>/<endpoint>/<path>`.
+    public static func list(_ dir: URL, limit: Int = 300) -> [VersionItem] {
+        var out: [VersionItem] = []
+        for s in stamps(dir).reversed() {
+            guard let eps = try? FileManager.default.contentsOfDirectory(atPath: s.url.path) else { continue }
+            for ep in eps.sorted() {
+                let epDir = s.url.appendingPathComponent(ep).resolvingSymlinksInPath()    // enumerator reports resolved paths (/private/var…)
+                guard let en = FileManager.default.enumerator(at: epDir, includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey]) else { continue }
+                for case let u as URL in en {
+                    let v = try? u.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey])
+                    guard v?.isRegularFile == true else { continue }
+                    let rel = String(u.resolvingSymlinksInPath().path.dropFirst(epDir.path.count + 1))
+                    out.append(VersionItem(stamp: s.date, endpoint: ep, path: restorePath(rel), size: Int64(v?.fileSize ?? 0), url: u))
+                    if out.count >= limit { return out }
+                }
+            }
+        }
+        return out
+    }
+
+    /// `report (2).docx` -> `report.docx` (archive names get " (n)" appended when two versions share a second).
+    static func restorePath(_ rel: String) -> String {
+        rel.replacingOccurrences(of: #" \(\d+\)(\.[^./]*)?$"#, with: "$1", options: .regularExpression)
     }
 }

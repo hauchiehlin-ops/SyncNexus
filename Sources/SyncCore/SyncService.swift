@@ -22,6 +22,15 @@ public final class SyncService: @unchecked Sendable {
         public var mainModified: Date?, extraModified: Date?
     }
 
+    public struct Activity: Sendable, Identifiable {
+        public var id: Int64
+        public var time: Date
+        public var op: String
+        public var endpoint: String
+        public var path: String
+        public var ok: Bool
+    }
+
     public struct Confirmation: Sendable {
         public var reason: String
         public var preview: [String]
@@ -35,7 +44,7 @@ public final class SyncService: @unchecked Sendable {
         public var trackedFiles = 0
         public var confirmation: Confirmation?
         public var skipped: [String] = []
-        public var recent: [String] = []
+        public var recent: [Activity] = []
         public var conflicts: [ConflictItem] = []
         public var versions = VersionsUsage()
         public var versionsRetentionDays = 30
@@ -250,7 +259,10 @@ public final class SyncService: @unchecked Sendable {
             snapshot.trackedFiles = try engine.store.liveConsensusCount()
             snapshot.conflictPolicy = ConflictPolicy(rawValue: try engine.store.meta("conflictPolicy") ?? "") ?? .keepBoth
             snapshot.conflicts = try currentConflicts(engine, cfgs)
-            snapshot.recent = try engine.store.recentJournal(limit: 8).map { "\($0.time.suffix(9).prefix(8)) \($0.op) [\($0.endpoint)] \($0.path)" }
+            let iso = ISO8601DateFormatter()
+            snapshot.recent = try engine.store.recentJournal(limit: 12).map {
+                Activity(id: $0.id, time: iso.date(from: $0.time) ?? Date(), op: $0.op, endpoint: $0.endpoint, path: $0.path, ok: $0.status == "done")
+            }
             ensureWatching(cfgs.map(\.root))
         } catch is SyncBusy {
             writeLog("另一個同步正在進行（App 或指令列），5 秒後重試")
@@ -306,6 +318,18 @@ public final class SyncService: @unchecked Sendable {
             self.refreshVersionsSnapshot(engine)
             self.publish()
             completion(freed.files, freed.bytes)
+        }
+    }
+
+    public func listVersions(limit: Int = 300, completion: @escaping @Sendable ([VersionItem]) -> Void) {
+        queue.async { completion(Versions.list(self.versionsDir, limit: limit)) }
+    }
+
+    public func restoreVersion(_ item: VersionItem, completion: @escaping @Sendable (Error?) -> Void) {
+        queue.async {
+            guard let engine = self.engine else { completion(DBError(description: "服務尚未啟動")); return }
+            do { try engine.restoreVersion(item); completion(nil) } catch { completion(error) }
+            self.runIfNeeded(confirmed: false)     // spreads the restored file
         }
     }
 

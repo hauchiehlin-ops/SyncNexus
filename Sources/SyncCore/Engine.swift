@@ -706,6 +706,26 @@ public final class Engine {
         note(&report, "[\(cfg.id)] 衝突 \(path)：本端版本保留為「\(name)」，只留在此端點")
     }
 
+    /// Puts an archived version back at its original place on its endpoint. The file it replaces is archived first, and the
+    /// restored file counts as an ordinary edit there, so the next sync spreads it to the other endpoints.
+    public func restoreVersion(_ item: VersionItem) throws {
+        let lock = try SyncLock.acquire(path: store.path + ".lock")
+        defer { _ = lock }
+        guard let cfg = try store.endpoints().first(where: { $0.id == item.endpoint }) else {
+            throw DBError(description: "端點「\(item.endpoint)」已不存在")
+        }
+        if case .offline(let why) = try checkIdentity(cfg) { throw DBError(description: "端點「\(cfg.id)」目前離線：\(why)") }
+        let dst = URL(fileURLWithPath: cfg.root).appendingPathComponent(item.path)
+        if let why = portableProblem(cfg, item.path) { throw DBError(description: why) }
+        let hash = try FileOps.sha256(of: item.url)
+        try perform("restore", cfg.id, item.path, detail: "from \(item.url.lastPathComponent)") {
+            if let st = FileOps.statInfo(dst) {
+                try archiveVersion(ScannedFile(rel: item.path, url: dst, size: st.size, mtimeNs: st.mtimeNs, mtime: Date(), isPlaceholder: false), endpoint: cfg.id)
+            }
+            try FileOps.copyAtomically(from: item.url, to: dst, expectHash: hash, mtime: nil, durable: cfg.removable)
+        }
+    }
+
     /// Resolve one recorded conflict on its endpoint. `.main` keeps the file that is in sync with the other
     /// endpoints and trashes the extra copy; `.conflict` makes the extra copy the real file (the previous
     /// version goes to Versions) and the next sync spreads it to every endpoint.

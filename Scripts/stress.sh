@@ -6,7 +6,8 @@ cd "${0:A:h}/.."
 N=${1:-30000}; BIG=${2:-400}; W=${3:-/private/tmp/syncnexus-stress}
 swift build -c release --product syncnexus 2>&1 | tail -1
 S=$(swift build -c release --show-bin-path)/syncnexus
-rm -rf "$W"; mkdir -p "$W"/{A,B,C,D}; DB="$W/state.db"
+rm -rf "$W"; mkdir -p "$W"/{A,B,C,D,home}; DB="$W/state.db"
+export HOME="$W/home"      # the CLI keeps its Versions archive under HOME: never touch the real app data
 t() { local label=$1; shift; local s=$(python3 -c 'import time;print(time.time())'); "$@" > "$W/last.log" 2>&1 || { cat "$W/last.log"; exit 1; }
       printf '%-42s %7.1fs   %s\n' "$label" "$(python3 -c "import time;print(time.time()-$s)")" "$(tail -1 "$W/last.log")"; }
 echo "generating $N small files + 3 x ${BIG} MB..."

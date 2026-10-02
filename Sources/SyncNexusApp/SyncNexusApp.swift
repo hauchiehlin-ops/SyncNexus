@@ -24,21 +24,26 @@ struct SyncNexusApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            MenuContent(model: model)
+            PopoverView(model: model)
         } label: {
             MenuBarIcon(name: model.iconName)
         }
-        .menuBarExtraStyle(.menu)
+        .menuBarExtraStyle(.window)
 
         Window("歡迎使用 Sync-Nexus", id: "welcome") {
             OnboardingView(model: model)
         }
         .windowResizability(.contentSize)
 
-        Window("Sync-Nexus 設定", id: "settings") {
-            SettingsView(model: model)
+        Window("彈出視窗預覽", id: "popover-preview") {
+            PopoverView(model: model)
         }
         .windowResizability(.contentSize)
+
+        Window("Sync-Nexus", id: "settings") {
+            MainWindowView(model: model)
+        }
+        .windowResizability(.contentMinSize)
     }
 }
 
@@ -52,6 +57,9 @@ struct MenuBarIcon: View {
             if CommandLine.arguments.contains("--open-settings") {
                 openWindow(id: "settings"); NSApp.activate(ignoringOtherApps: true)
             }
+            if CommandLine.arguments.contains("--open-popover-preview") {
+                openWindow(id: "popover-preview"); NSApp.activate(ignoringOtherApps: true)
+            }
             if CommandLine.arguments.contains("--open-welcome") || !UserDefaults.standard.bool(forKey: "onboardingDone") {
                 openWindow(id: "welcome"); NSApp.activate(ignoringOtherApps: true)
             }
@@ -59,56 +67,3 @@ struct MenuBarIcon: View {
     }
 }
 
-struct MenuContent: View {
-    @ObservedObject var model: AppModel
-    @Environment(\.openWindow) private var openWindow
-
-    var body: some View {
-        Text(model.headline)
-        if model.snap.trackedFiles > 0 { Text("追蹤中 \(model.snap.trackedFiles) 個檔案") }
-        if let t = model.snap.lastCleanSync {
-            Text("最近一次完全無誤：\(t.formatted(.relative(presentation: .named)))")
-        }
-        if !model.snap.integrityIssues.isEmpty {
-            Text("‼︎ \(model.snap.integrityIssues.count) 個檔案內容與紀錄不符（疑似損壞，已隔離不傳播）")
-        }
-        if !model.snap.conflicts.isEmpty {
-            Button("⚠︎ \(model.snap.conflicts.count) 個衝突待處理…") { openWindow(id: "settings"); NSApp.activate(ignoringOtherApps: true) }
-        }
-        if model.snap.confirmation != nil {
-            Button("查看預覽並確認…") { model.reviewConfirmation() }
-        }
-        Divider()
-
-        ForEach(model.snap.endpoints, id: \.id) { ep in
-            Text("\(ep.online ? "●" : "○") \(ep.id)\(ep.online ? "" : "　\(ep.detail)")")
-        }
-        if model.snap.endpoints.count < 2 { Text("需要至少兩個端點才會開始同步") }
-
-        if !model.snap.skipped.isEmpty {
-            Menu("略過 \(model.snap.skipped.count) 項") {
-                ForEach(model.snap.skipped.prefix(12), id: \.self) { Text($0) }
-            }
-        }
-        Menu("最近活動") {
-            if model.snap.recent.isEmpty { Text("尚無") }
-            ForEach(model.snap.recent, id: \.self) { Text($0) }
-        }
-        Divider()
-
-        Button("設定端點…") { openWindow(id: "settings"); NSApp.activate(ignoringOtherApps: true) }.keyboardShortcut(",")
-        Button("立即同步") { model.syncNow() }.keyboardShortcut("r")
-        Button("立即完整驗證（重新讀取每個檔案）") { model.verifyNow() }
-        Button(model.snap.phase == .paused ? "繼續同步" : "暫停同步") { model.togglePause() }
-        Divider()
-
-        Toggle("開機自動啟動", isOn: Binding(get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) }))
-        if let note = model.loginNote { Text(note) }
-        Button("使用說明與授權檢查…") { openWindow(id: "welcome"); NSApp.activate(ignoringOtherApps: true) }
-        Button("開啟紀錄檔") { model.openLog() }
-        Button("開啟舊版本資料夾") { model.revealVersions() }
-        Divider()
-        Text("版本 \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?")（build \(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?")）")
-        Button("結束 Sync-Nexus") { model.quit() }.keyboardShortcut("q")
-    }
-}

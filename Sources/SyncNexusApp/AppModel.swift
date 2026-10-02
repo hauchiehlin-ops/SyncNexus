@@ -4,11 +4,41 @@ import SwiftUI
 import SyncCore
 import UserNotifications
 
+enum MainSection: String, CaseIterable, Identifiable {
+    case overview, folders, conflicts, versions, verification, settings
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .overview: "概覽"
+        case .folders: "資料夾"
+        case .conflicts: "衝突"
+        case .versions: "舊版本"
+        case .verification: "驗證紀錄"
+        case .settings: "設定"
+        }
+    }
+    var symbol: String {
+        switch self {
+        case .overview: "house"
+        case .folders: "folder"
+        case .conflicts: "exclamationmark.triangle"
+        case .versions: "clock.arrow.circlepath"
+        case .verification: "checkmark.shield"
+        case .settings: "gearshape"
+        }
+    }
+}
+
+/// The one-line truth shown at the top of the popover and the overview.
+enum Overall { case starting, ok, partial, attention, syncing, paused }
+
 @MainActor
 final class AppModel: ObservableObject {
     @Published var snap = SyncService.Snapshot.initial
     @Published var launchAtLogin = false
     @Published var loginNote: String?
+    @Published var section: MainSection = .overview
+    @Published var versionItems: [VersionItem] = []
 
     private var service: SyncService!
     private var lastNotifiedConfirmation: String?
@@ -25,6 +55,8 @@ final class AppModel: ObservableObject {
                               logURL: Self.logURL) { [weak self] snapshot in
             Task { @MainActor in self?.apply(snapshot) }
         }
+        if let i = CommandLine.arguments.firstIndex(of: "--section"), i + 1 < CommandLine.arguments.count,
+           let sec = MainSection(rawValue: CommandLine.arguments[i + 1]) { section = sec }     // debugging aid
         service.start()
         refreshLoginState()
         setupLoginItemOnce()
@@ -48,6 +80,47 @@ final class AppModel: ObservableObject {
             notify("有 \(n) 個同步衝突待處理", "同一個檔案在兩個地方被修改。原檔已與其他資料夾一致，另一份保留在發生衝突的資料夾，請到「設定端點」選擇要留哪一份。")
         }
         lastNotifiedConflicts = s.conflicts.count
+    }
+
+    var overall: Overall {
+        if snap.phase == .paused { return .paused }
+        if snap.error != nil || snap.confirmation != nil || !snap.conflicts.isEmpty || !snap.integrityIssues.isEmpty { return .attention }
+        if snap.phase == .syncing { return .syncing }
+        if snap.lastRun == nil { return .starting }
+        if snap.endpoints.contains(where: { !$0.online }) { return .partial }
+        return .ok
+    }
+
+    var overallTitle: String {
+        switch overall {
+        case .starting: return "正在啟動…"
+        case .ok: return "全部已同步"
+        case .partial: return "部分資料夾離線"
+        case .attention:
+            if snap.error != nil { return "同步發生錯誤" }
+            if snap.confirmation != nil { return "需要你確認" }
+            if !snap.conflicts.isEmpty { return "\(snap.conflicts.count) 個衝突等你決定" }
+            return "有檔案需要檢查"
+        case .syncing: return "同步中…"
+        case .paused: return "已暫停"
+        }
+    }
+
+    var overallDetail: String {
+        switch overall {
+        case .ok, .partial:
+            if let t = snap.lastDeepVerify { return "最近一次完整驗證　\(t.formatted(date: .omitted, time: .shortened))" }
+            if let t = snap.lastRun { return "最近同步　\(t.formatted(date: .omitted, time: .shortened))" }
+            return ""
+        case .attention:
+            if let e = snap.error { return e }
+            if let c = snap.confirmation { return c.reason }
+            if !snap.integrityIssues.isEmpty { return "\(snap.integrityIssues.count) 個檔案內容與紀錄不符，已隔離、不會傳播" }
+            return snap.conflicts.first.map { "\($0.path)　兩邊都被修改" } ?? ""
+        case .syncing: return "正在比對並更新各個資料夾"
+        case .paused: return "按「繼續」恢復自動同步"
+        case .starting: return ""
+        }
     }
 
     var iconName: String {
@@ -171,6 +244,21 @@ final class AppModel: ObservableObject {
     }
 
     func reveal(_ path: String) { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)]) }
+
+    // MARK: versions
+
+    func loadVersions() {
+        service.listVersions { [weak self] items in Task { @MainActor in self?.versionItems = items } }
+    }
+
+    func restore(_ item: VersionItem) {
+        service.restoreVersion(item) { [weak self] err in
+            Task { @MainActor in
+                self?.settingsMessage = err.map { "還原失敗：\($0)" } ?? "已還原「\((item.path as NSString).lastPathComponent)」，正在同步到其他資料夾"
+                self?.loadVersions()
+            }
+        }
+    }
 
     func quit() { service.stop(); NSApp.terminate(nil) }
 
