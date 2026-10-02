@@ -135,7 +135,7 @@ struct PopoverView: View {
                 .background(Theme.tile, in: RoundedRectangle(cornerRadius: 9))
             VStack(alignment: .leading, spacing: 2) {
                 Text(ep.id).font(.system(size: 14, weight: .semibold))
-                Text(ep.online ? (model.pendingCloud(ep.id) > 0 ? loc("popover_reading_cloud", model.pendingCloud(ep.id)) : shortPath(ep.root)) : (ep.removable ? loc("popover_unplugged_sub") : ep.detail))
+                Text(ep.online ? (model.pendingCloud(ep.id) > 0 ? loc("popover_reading_cloud", model.pendingCloud(ep.id)) : shortPath(ep.root)) : ((ep.removable && !FileManager.default.fileExists(atPath: ep.root)) ? loc("popover_unplugged_sub") : ep.detail))
                     .font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }
             Spacer(minLength: 0)

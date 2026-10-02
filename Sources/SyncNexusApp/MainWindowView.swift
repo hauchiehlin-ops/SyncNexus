@@ -202,7 +202,7 @@ struct EndpointCard: View {
                 }
                 Text(shortPath(ep.root)).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(2).truncationMode(.middle)
                 Text(ep.online ? (model.pendingCloud(ep.id) > 0 ? loc("endpoint_reading_cloud", model.pendingCloud(ep.id)) : kind.label + (ep.portableNames ? loc("endpoint_portable_suffix") : "") + (ep.role == .archive ? loc("endpoint_archive_suffix") : ""))
-                     : (ep.removable ? loc("endpoint_unplugged_sub") : ep.detail))
+                     : ((ep.removable && !FileManager.default.fileExists(atPath: ep.root)) ? loc("endpoint_unplugged_sub") : ep.detail))
                     .font(.system(size: 13)).foregroundStyle(ep.online ? Color.primary : Theme.warn).fixedSize(horizontal: false, vertical: true)
             }
         }
