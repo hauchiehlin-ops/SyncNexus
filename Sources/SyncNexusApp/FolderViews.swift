@@ -80,7 +80,18 @@ struct FolderRow: View {
                         if ep.portableNames { Chip(text: loc("portable_badge"), kind: .neutral) }
                     }
                     Text(shortPath(ep.root)).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
-                    if !ep.online { Text(ep.detail).font(.system(size: 12)).foregroundStyle(Theme.warn).fixedSize(horizontal: false, vertical: true) }
+                    if !ep.online {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(ep.detail).font(.system(size: 12)).foregroundStyle(Theme.warn).fixedSize(horizontal: false, vertical: true)
+                            if ep.detail.contains("標記檔") || ep.detail.contains("UUID") {
+                                Text(loc("folder_marker_help"))
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .padding(.top, 2)
+                            }
+                        }
+                    }
                 }
                 Spacer()
                 if ep.role == .archive { Button(loc("show_history")) { model.reveal(ep.root + "/.syncnexus-history") }.buttonStyle(QuietButton(kind: .plain)) }
