@@ -98,8 +98,62 @@ fun SyncNexusScreen(
 
     Scaffold(
         topBar = {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            var showLangMenu by remember { mutableStateOf(false) }
+
             TopAppBar(
                 title = { Text(stringResource(R.string.app_name), fontWeight = FontWeight.Bold) },
+                actions = {
+                    // 介面語系下拉選單按鈕
+                    IconButton(onClick = { showLangMenu = true }) {
+                        Text("🌐", fontSize = 18.sp)
+                    }
+                    DropdownMenu(
+                        expanded = showLangMenu,
+                        onDismissRequest = { showLangMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("繁體中文") },
+                            onClick = { showLangMenu = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("简体中文") },
+                            onClick = { showLangMenu = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("English") },
+                            onClick = { showLangMenu = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("日本語") },
+                            onClick = { showLangMenu = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("한국어") },
+                            onClick = { showLangMenu = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("ภาษาไทย") },
+                            onClick = { showLangMenu = false }
+                        )
+                    }
+
+                    // 操作說明手冊按鈕
+                    IconButton(onClick = {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/hauchiehlin-ops/SyncNexus/blob/main/docs/manual/android/MANUAL_android_zh-Hant.md"))
+                        context.startActivity(intent)
+                    }) {
+                        Text("📖", fontSize = 18.sp)
+                    }
+
+                    // 隱私權政策按鈕
+                    IconButton(onClick = {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/hauchiehlin-ops/SyncNexus/blob/main/docs/privacy/android/PRIVACY_android_zh-Hant.md"))
+                        context.startActivity(intent)
+                    }) {
+                        Text("🛡️", fontSize = 18.sp)
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 )

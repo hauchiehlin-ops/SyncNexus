@@ -118,7 +118,52 @@ struct OverviewSection: View {
     @ObservedObject private var l10n = L10n.shared
 
     var body: some View {
-        sectionHeader(model.overall == .ok ? loc("status_all_normal") : model.overallTitle, overviewSubtitle)
+        HStack(alignment: .top) {
+            sectionHeader(model.overall == .ok ? loc("status_all_normal") : model.overallTitle, overviewSubtitle)
+            Spacer(minLength: 16)
+            HStack(spacing: 8) {
+                // 語系選單
+                Picker("", selection: Binding(
+                    get: { L10n.shared.currentLanguage },
+                    set: { L10n.shared.currentLanguage = $0 }
+                )) {
+                    ForEach(AppLanguage.allCases) { lang in
+                        Text(lang.displayName).tag(lang)
+                    }
+                }
+                .frame(width: 130)
+
+                // 操作說明手冊入口圖示按鈕
+                Button {
+                    let langCode = L10n.shared.currentLanguage.rawValue
+                    if let url = URL(string: "https://github.com/hauchiehlin-ops/SyncNexus/blob/main/docs/manual/apple/MANUAL_apple_\(langCode).md") {
+                        NSWorkspace.shared.open(url)
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "book.pages")
+                        Text(loc("menu_user_manual"))
+                    }
+                }
+                .buttonStyle(QuietButton(kind: .secondary, compact: true))
+                .help(loc("menu_user_manual"))
+
+                // 隱私權政策入口圖示按鈕
+                Button {
+                    let langCode = L10n.shared.currentLanguage.rawValue
+                    if let url = URL(string: "https://github.com/hauchiehlin-ops/SyncNexus/blob/main/docs/privacy/apple/PRIVACY_apple_\(langCode).md") {
+                        NSWorkspace.shared.open(url)
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "hand.raised.shield")
+                        Text(loc("privacy_policy_title"))
+                    }
+                }
+                .buttonStyle(QuietButton(kind: .secondary, compact: true))
+                .help(loc("privacy_policy_title"))
+            }
+        }
         if model.snap.confirmation != nil {
             Card {
                 HStack(spacing: 12) {

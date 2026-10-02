@@ -9,6 +9,22 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .th: "Sync-Nexus",
         .ko: "Sync-Nexus"
     ],
+    "menu_user_manual": [
+        .en: "Manual",
+        .zhHant: "操作手冊",
+        .zhHans: "操作手册",
+        .ja: "説明書",
+        .th: "คู่มือ",
+        .ko: "설명서"
+    ],
+    "privacy_policy_title": [
+        .en: "Privacy",
+        .zhHant: "隱私政策",
+        .zhHans: "隐私政策",
+        .ja: "プライバシー",
+        .th: "ความเป็นส่วนตัว",
+        .ko: "개인정보"
+    ],
     "app_version_build": [
         .en: "Version %1$@ (build %2$@)",
         .zhHant: "版本 %1$@（build %2$@）",

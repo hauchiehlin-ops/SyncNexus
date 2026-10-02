@@ -96,6 +96,45 @@ public partial class MainWindow : Window
         };
     }
 
+    private void BtnManual_Click(object sender, RoutedEventArgs e)
+    {
+        var lang = LocalizationService.Instance.CurrentLanguage switch
+        {
+            AppLanguage.ZhHant => "zh-Hant",
+            AppLanguage.ZhHans => "zh-Hant", // fallback or specific
+            _ => "en"
+        };
+        var url = $"https://github.com/hauchiehlin-ops/SyncNexus/blob/main/docs/manual/windows/MANUAL_windows_{lang}.md";
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = url,
+                UseShellExecute = true
+            });
+        }
+        catch { }
+    }
+
+    private void BtnPrivacy_Click(object sender, RoutedEventArgs e)
+    {
+        var lang = LocalizationService.Instance.CurrentLanguage switch
+        {
+            AppLanguage.ZhHant => "zh-Hant",
+            _ => "en"
+        };
+        var url = $"https://github.com/hauchiehlin-ops/SyncNexus/blob/main/docs/privacy/windows/PRIVACY_windows_{lang}.md";
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = url,
+                UseShellExecute = true
+            });
+        }
+        catch { }
+    }
+
     #region System Tray & Close-to-Tray
 
     private bool _isRealExit;

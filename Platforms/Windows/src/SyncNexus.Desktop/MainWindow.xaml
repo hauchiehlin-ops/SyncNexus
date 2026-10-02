@@ -42,6 +42,24 @@
                 </StackPanel>
             </StackPanel>
             <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <!-- 介面語系下拉式選單 -->
+                <ComboBox x:Name="CmbLanguage" Width="95" Height="28" Margin="0,0,8,0" SelectionChanged="CmbLanguage_SelectionChanged">
+                    <ComboBoxItem Content="繁體中文" IsSelected="True"/>
+                    <ComboBoxItem Content="简体中文"/>
+                    <ComboBoxItem Content="English"/>
+                    <ComboBoxItem Content="日本語"/>
+                    <ComboBoxItem Content="한국어"/>
+                    <ComboBoxItem Content="ภาษาไทย"/>
+                </ComboBox>
+
+                <!-- 操作手冊入口 -->
+                <Button Content="📖 操作手冊" ToolTip="查閱 Windows 操作手冊" Padding="9,5" Margin="0,0,8,0"
+                        Background="#FFFFFF" BorderBrush="#CCCCCC" Click="BtnManual_Click"/>
+
+                <!-- 隱私權政策入口 -->
+                <Button Content="🛡️ 隱私政策" ToolTip="查閱微軟應用程式商店審查隱私政策" Padding="9,5" Margin="0,0,12,0"
+                        Background="#FFFFFF" BorderBrush="#CCCCCC" Click="BtnPrivacy_Click"/>
+
                 <Button Content="+ 新增端點" Padding="12,6" Margin="0,0,8,0" Background="#FFFFFF" BorderBrush="#CCCCCC"
                         FontWeight="SemiBold" Click="BtnAddEndpoint_Click"/>
                 <Button Content="⚡ 衝突管理" Padding="12,6" Margin="0,0,8,0" Background="#FFFFFF" BorderBrush="#CCCCCC"
@@ -125,17 +143,7 @@
             <DockPanel>
                 <CheckBox x:Name="ChkAutoStart" Content="開機時自動於背景啟動 SyncNexus" VerticalAlignment="Center"
                           Click="ChkAutoStart_Click"/>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                    <TextBlock Text="介面語系：" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="#555"/>
-                    <ComboBox x:Name="CmbLanguage" Width="110" Height="26" SelectionChanged="CmbLanguage_SelectionChanged">
-                        <ComboBoxItem Content="繁體中文" IsSelected="True"/>
-                        <ComboBoxItem Content="简体中文"/>
-                        <ComboBoxItem Content="English"/>
-                        <ComboBoxItem Content="日本語"/>
-                        <ComboBoxItem Content="한국어"/>
-                        <ComboBoxItem Content="ภาษาไทย"/>
-                    </ComboBox>
-                </StackPanel>
+                <TextBlock Text="守護行程常駐運行中" HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="12" Foreground="#888"/>
             </DockPanel>
         </Border>
 

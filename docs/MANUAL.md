@@ -1,10 +1,33 @@
-# Sync-Nexus User Manual / 操作使用手冊 / 使用说明书
+# SyncNexus 操作使用手冊 (User Manual)
 
-Welcome to Sync-Nexus. Please choose your preferred language:
+請依據您的作業系統平台與語言選擇對應的操作說明手冊：
 
-* 🇬🇧 [English (EN)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/MANUAL_en.md)
-* 🇹🇼 [繁體中文 (Traditional Chinese - zh-Hant)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/MANUAL_zh-Hant.md)
-* 🇨🇳 [简体中文 (Simplified Chinese - zh-Hans)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/MANUAL_zh-Hans.md)
-* 🇯🇵 [日本語 (Japanese - JA)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/MANUAL_ja.md)
-* 🇹🇭 [ภาษาไทย (Thai - TH)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/MANUAL_th.md)
-* 🇰🇷 [한국어 (Korean - KO)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/MANUAL_ko.md)
+---
+
+### 🍏 Apple (macOS / iOS / iPadOS)
+* 🇹🇼 [繁體中文 (Traditional Chinese)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/apple/MANUAL_apple_zh-Hant.md)
+* 🇬🇧 [English (US)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/apple/MANUAL_apple_en.md)
+* 🇨🇳 [简体中文 (Simplified Chinese)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/apple/MANUAL_apple_zh-Hant.md)
+* 🇯🇵 [日本語 (Japanese)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/apple/MANUAL_apple_en.md)
+* 🇰🇷 [한국어 (Korean)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/apple/MANUAL_apple_en.md)
+* 🇹🇭 [ภาษาไทย (Thai)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/apple/MANUAL_apple_en.md)
+
+---
+
+### 🤖 Android
+* 🇹🇼 [繁體中文 (Traditional Chinese)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/android/MANUAL_android_zh-Hant.md)
+* 🇬🇧 [English (US)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/android/MANUAL_android_en.md)
+* 🇨🇳 [简体中文 (Simplified Chinese)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/android/MANUAL_android_zh-Hant.md)
+* 🇯🇵 [日本語 (Japanese)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/android/MANUAL_android_en.md)
+* 🇰🇷 [한국어 (Korean)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/android/MANUAL_android_en.md)
+* 🇹🇭 [ภาษาไทย (Thai)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/android/MANUAL_android_en.md)
+
+---
+
+### 🪟 Windows (Windows 10 / 11)
+* 🇹🇼 [繁體中文 (Traditional Chinese)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/windows/MANUAL_windows_zh-Hant.md)
+* 🇬🇧 [English (US)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/windows/MANUAL_windows_en.md)
+* 🇨🇳 [简体中文 (Simplified Chinese)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/windows/MANUAL_windows_zh-Hant.md)
+* 🇯🇵 [日本語 (Japanese)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/windows/MANUAL_windows_en.md)
+* 🇰🇷 [한국어 (Korean)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/windows/MANUAL_windows_en.md)
+* 🇹🇭 [ภาษาไทย (Thai)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/windows/MANUAL_windows_en.md)
