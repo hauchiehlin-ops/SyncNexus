@@ -25,7 +25,7 @@ public partial class App : Application
         _syncService = new BackgroundSyncService(_store, _engine);
 
         var viewModel = new MainViewModel(_store, _engine);
-        var mainWindow = new MainWindow(viewModel, _syncService);
+        var mainWindow = new MainWindow(viewModel, _syncService, _store);
         mainWindow.Show();
     }
 

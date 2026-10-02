@@ -1,0 +1,51 @@
+<Window x:Class="SyncNexus.Desktop.Views.AddEndpointDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="新增同步端點" Height="420" Width="520"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#F9F9F9">
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <TextBlock Grid.Row="0" Text="設定新同步資料夾" FontSize="18" FontWeight="Bold" Margin="0,0,0,16"/>
+
+        <!-- Form -->
+        <StackPanel Grid.Row="1">
+            <TextBlock Text="端點名稱 (識別代號)：" FontWeight="SemiBold" Margin="0,0,0,6"/>
+            <TextBox x:Name="TxtEndpointId" Height="32" VerticalContentAlignment="Center" Margin="0,0,0,12" Text="my-folder"/>
+
+            <TextBlock Text="資料夾路徑：" FontWeight="SemiBold" Margin="0,0,0,6"/>
+            <Grid Margin="0,0,0,12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="TxtPath" Height="32" VerticalContentAlignment="Center" Grid.Column="0" Margin="0,0,8,0"/>
+                <Button Content="瀏覽..." Width="70" Height="32" Grid.Column="1" Click="BtnBrowse_Click"/>
+            </Grid>
+
+            <!-- Quick Suggestions -->
+            <TextBlock Text="快速選取探測到的雲端路徑：" FontSize="12" Foreground="#666" Margin="0,0,0,4"/>
+            <ComboBox x:Name="CmbDiscovered" Height="28" Margin="0,0,0,16" SelectionChanged="CmbDiscovered_SelectionChanged"/>
+
+            <!-- Options -->
+            <CheckBox x:Name="ChkRemovable" Content="可移除式磁碟（USB 隨身碟 / 外接硬碟）" Margin="0,0,0,8"/>
+            <CheckBox x:Name="ChkPortable" Content="嚴格相容命名規範（遵循 ExFAT/Windows 命名規則）" IsChecked="True" Margin="0,0,0,8"/>
+
+            <TextBlock x:Name="TxtNotice" Text="" Foreground="#0078D4" FontSize="12" Margin="0,6,0,0" TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <!-- Actions -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="取消" Width="80" Height="32" Margin="0,0,10,0" Click="BtnCancel_Click"/>
+            <Button Content="確認加入" Width="90" Height="32" Background="#0078D4" Foreground="White" FontWeight="SemiBold" Click="BtnConfirm_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

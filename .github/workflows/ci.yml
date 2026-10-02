@@ -46,3 +46,34 @@ jobs:
           test -f Platforms/Android/app/src/main/AndroidManifest.xml
           test -f Platforms/Android/app/build.gradle.kts
           echo "Android project structure verified."
+
+  test-windows:
+    name: Windows .NET Build & Tests
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore Platforms/Windows/SyncNexus.sln
+
+      - name: Build Solution
+        run: dotnet build Platforms/Windows/SyncNexus.sln --no-restore -c Release
+
+      - name: Run Core Tests
+        run: dotnet test Platforms/Windows/tests/SyncNexus.Core.Tests/ --no-build -c Release --verbosity normal
+
+      - name: Publish Desktop App (win-x64)
+        run: dotnet publish Platforms/Windows/src/SyncNexus.Desktop/SyncNexus.Desktop.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/win-x64
+
+      - name: Upload Windows Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: SyncNexus-Windows-x64
+          path: publish/win-x64/
+
