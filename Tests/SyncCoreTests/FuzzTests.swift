@@ -27,6 +27,8 @@ private final class World {
     var calls = 0
     var crashes = 0
     var lastReport = SyncReport()
+    var dirty = Set<String>()          // what FSEvents would have reported since the last sync
+    var needFull = true
 
     init(seed: UInt64, caseVariants: Bool) throws {
         rng = Rng(s: seed &* 7919 &+ 17)
@@ -78,30 +80,30 @@ private final class World {
         try FileManager.default.createDirectory(at: u.deletingLastPathComponent(), withIntermediateDirectories: true)
         if let old = try? String(contentsOf: u, encoding: .utf8) { userDestroys(old) }
         try c.write(to: u, atomically: false, encoding: .utf8)
-        created.insert(c); log.append("write \(e):\(p)=\(c.prefix(8))")
+        created.insert(c); dirty.insert(p); log.append("write \(e):\(p)=\(c.prefix(8))")
     }
 
     func step() throws {
         let e = names[rng.next(4)], p = paths[rng.next(paths.count)]
         switch rng.next(12) {
         case 0, 1, 2, 3: try write(e, p)
-        case 4: if let s = try? String(contentsOf: url(e, p), encoding: .utf8) { userDestroys(s); try FileManager.default.removeItem(at: url(e, p)); log.append("delete \(e):\(p)") }
+        case 4: if let s = try? String(contentsOf: url(e, p), encoding: .utf8) { userDestroys(s); try FileManager.default.removeItem(at: url(e, p)); dirty.insert(p); log.append("delete \(e):\(p)") }
         case 5:
             let q = paths[rng.next(paths.count)]
             if FileManager.default.fileExists(atPath: url(e, p).path), !FileManager.default.fileExists(atPath: url(e, q).path), p != q,
                (try? url(e, p).resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true {
                 try FileManager.default.createDirectory(at: url(e, q).deletingLastPathComponent(), withIntermediateDirectories: true)
-                try FileManager.default.moveItem(at: url(e, p), to: url(e, q)); log.append("move \(e):\(p)->\(q)")
+                try FileManager.default.moveItem(at: url(e, p), to: url(e, q)); dirty.insert(p); dirty.insert(q); log.append("move \(e):\(p)->\(q)")
             }
         case 6:
             let d = ["d1", "d2"][rng.next(2)]
             if FileManager.default.fileExists(atPath: url(e, d).path) {
                 for (c, n) in allContents(in: [url(e, d)]) where n > 0 { userDestroys(c) }
-                try FileManager.default.removeItem(at: url(e, d)); log.append("rmdir \(e):\(d)")
+                try FileManager.default.removeItem(at: url(e, d)); dirty.insert(d); log.append("rmdir \(e):\(d)")
             }
-        case 7: try FileManager.default.createDirectory(at: url(e, ["d3", "d3/inner", "d2"][rng.next(3)]), withIntermediateDirectories: true); log.append("mkdir \(e)")
+        case 7: let d = ["d3", "d3/inner", "d2"][rng.next(3)]; try FileManager.default.createDirectory(at: url(e, d), withIntermediateDirectories: true); dirty.insert(d); log.append("mkdir \(e)")
         case 8:
-            if offline.contains("D") { try FileManager.default.moveItem(at: root("D"), to: base.appendingPathComponent("D")); offline.remove("D"); log.append("reattach D") }
+            if offline.contains("D") { try FileManager.default.moveItem(at: root("D"), to: base.appendingPathComponent("D")); offline.remove("D"); needFull = true; log.append("reattach D") }
             else { try FileManager.default.moveItem(at: base.appendingPathComponent("D"), to: base.appendingPathComponent("_away-D")); offline.insert("D"); log.append("eject D") }
         default: try sync(allowCrash: true)
         }
@@ -110,8 +112,12 @@ private final class World {
     func sync(allowCrash: Bool) throws {
         calls = 0
         crashAt = (allowCrash && rng.next(3) == 0) ? 1 + rng.next(12) : nil
-        do { lastReport = try engine.sync(confirmed: true); log.append("sync") }
-        catch is SimulatedCrash { crashes += 1; log.append("CRASH@\(calls)") }
+        let incremental = !needFull && !dirty.isEmpty && rng.next(3) != 0 && allowCrash   // a third of the runs are periodic full scans
+        let scope: SyncScope = incremental ? .paths(dirty) : .full
+        dirty = []
+        if !incremental { needFull = false }
+        do { lastReport = try engine.sync(confirmed: true, scope: scope); log.append(incremental ? "sync(inc)" : "sync") }
+        catch is SimulatedCrash { crashes += 1; needFull = true; log.append("CRASH@\(calls)") }
         crashAt = nil
     }
 

@@ -74,6 +74,12 @@ public final class SyncService: @unchecked Sendable {
     private var rerunConfirmed = false
     private var lastMaintenance = Date.distantPast
     private var forceDeepVerify = false
+    /// Incremental mode: endpoint-relative paths reported by FSEvents since the last run. Anything doubtful sets `needFull`.
+    private var dirty = Set<String>()
+    private var needFull = true
+    private var rerunFull = false
+    private var rootMap: [(root: String, resolved: String)] = []
+    private var eventIdTimer: DispatchSourceTimer?
 
     public init(dbPath: String, versionsDir: URL, logURL: URL?, periodicSeconds: TimeInterval = 300,
                 onUpdate: @escaping @Sendable (Snapshot) -> Void) {
@@ -94,7 +100,9 @@ public final class SyncService: @unchecked Sendable {
                 var opts = EngineOptions()
                 opts.versionsDir = self.versionsDir
                 opts.log = { [weak self] in self?.writeLog($0) }
-                self.engine = Engine(store: try self.openStoreRecovering(), options: opts)
+                let engine = Engine(store: try self.openStoreRecovering(), options: opts)
+                engine.onContentReady = { [weak self] url in self?.queue.async { self?.markDirty(absolute: url.path); self?.runIfNeeded(confirmed: false, incremental: true) } }
+                self.engine = engine
             } catch {
                 self.snapshot.error = "無法開啟資料庫：\(error)"
                 self.publish()
@@ -105,8 +113,27 @@ public final class SyncService: @unchecked Sendable {
             t.setEventHandler { [weak self] in self?.runIfNeeded(confirmed: false) }
             t.resume()
             self.timer = t
-            self.runIfNeeded(confirmed: false)
+            // Persist the newest FSEvents id regularly: after a restart, the changes made while the app was off are replayed
+            // and synced within seconds (a full scan follows later as the safety net).
+            let it = DispatchSource.makeTimerSource(queue: self.queue)
+            it.schedule(deadline: .now() + 60, repeating: 60)
+            it.setEventHandler { [weak self] in self?.saveEventId() }
+            it.resume()
+            self.eventIdTimer = it
+            if let engine = self.engine, let cfgs = try? engine.store.endpoints(), cfgs.count >= 2,
+               let saved = (try? engine.store.meta("fsEventId")).flatMap({ $0 }).flatMap(UInt64.init) {
+                self.needFull = false
+                self.startWatcher(cfgs.map(\.root), since: saved)
+                self.queue.asyncAfter(deadline: .now() + 90) { [weak self] in self?.runIfNeeded(confirmed: false) }
+            } else {
+                self.runIfNeeded(confirmed: false)
+            }
         }
+    }
+
+    private func saveEventId() {
+        guard let engine, let id = watcher?.lastEventId, id > 0 else { return }
+        try? engine.store.setMeta("fsEventId", String(id))
     }
 
     /// Opens the state database; if it is damaged, keeps the damaged file for inspection and restores the newest daily backup.
@@ -154,6 +181,8 @@ public final class SyncService: @unchecked Sendable {
 
     public func stop() {
         queue.sync {
+            saveEventId()
+            eventIdTimer?.cancel(); eventIdTimer = nil
             watcher?.stop(); watcher = nil
             timer?.cancel(); timer = nil
         }
@@ -219,9 +248,40 @@ public final class SyncService: @unchecked Sendable {
 
     // MARK: running
 
-    private func runIfNeeded(confirmed: Bool) {
+    /// Maps an absolute path from FSEvents to the path relative to its endpoint, shared by all endpoints. A change of the root itself means "everything".
+    private func markDirty(absolute path: String) {
+        for r in rootMap {
+            for root in [r.root, r.resolved] where path == root || path.hasPrefix(root + "/") {
+                let rel = PortableName.canonical(String(path.dropFirst(root.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/")))
+                if rel.isEmpty { needFull = true } else { dirty.insert(rel) }
+                return
+            }
+        }
+    }
+
+    private func ingest(_ batch: WatchBatch) {
+        if batch.replayDone, snapshot.lastRun == nil, let engine, let cfgs = try? engine.store.endpoints() {
+            // Started from stored history: show the real state now instead of "starting…" until the delayed full scan.
+            try? fillStatus(engine, cfgs); snapshot.lastRun = Date(); publish()
+        }
+        if batch.full { needFull = true }
+        for p in batch.paths { markDirty(absolute: p) }
+        runIfNeeded(confirmed: false, incremental: true)
+    }
+
+    private func runIfNeeded(confirmed: Bool, incremental: Bool = false) {
         guard snapshot.phase != .paused, let engine else { return }
-        if running { rerun = true; rerunConfirmed = rerunConfirmed || confirmed; return }
+        if running {
+            rerun = true; rerunConfirmed = rerunConfirmed || confirmed
+            if !incremental { rerunFull = true }
+            return
+        }
+        // Incremental only when asked for by the watcher and nothing doubtful is pending; every other trigger (start, wake,
+        // timer, "sync now", confirmation) looks at everything.
+        let wantFull = !incremental || needFull || confirmed || forceDeepVerify || rerunFull
+        let taken = dirty; dirty = []; rerunFull = false
+        if !wantFull && taken.isEmpty { return }
+        let scope: SyncScope = wantFull ? .full : .paths(taken)
         running = true
         snapshot.phase = .syncing
         snapshot.error = nil
@@ -234,7 +294,12 @@ public final class SyncService: @unchecked Sendable {
             let deep = cfgs.count >= 2 && deepVerifyDue(engine)
             engine.options.deepVerify = deep
             defer { engine.options.deepVerify = false }
-            let report = cfgs.count >= 2 ? try engine.sync(confirmed: confirmed) : SyncReport()
+            let report = cfgs.count >= 2 ? try engine.sync(confirmed: confirmed, scope: scope) : SyncReport()
+            if report.coveredFullScan { needFull = false }
+            if !report.retry.isEmpty {
+                let again = report.retry
+                queue.asyncAfter(deadline: .now() + 5) { [weak self] in self?.dirty.formUnion(again); self?.runIfNeeded(confirmed: false, incremental: true) }
+            }
             if deep && cfgs.count >= 2 && report.needsConfirmation == nil {
                 forceDeepVerify = false
                 try? engine.store.setMeta("lastDeepVerify", ISO8601DateFormatter().string(from: Date()))
@@ -250,24 +315,14 @@ public final class SyncService: @unchecked Sendable {
             for o in report.offline where !snapshot.endpoints.contains(where: { !$0.online && o.hasPrefix($0.id) }) { writeLog("離線 \(o)") }
             snapshot.skipped = skipped
             snapshot.confirmation = report.needsConfirmation.map { Confirmation(reason: $0, preview: report.preview) }
-            snapshot.endpoints = try cfgs.map { cfg in
-                if case .offline(let why) = try engine.checkIdentity(cfg) {
-                    return EndpointStatus(id: cfg.id, root: cfg.root, online: false, detail: why, removable: cfg.removable, portableNames: cfg.portableNames)
-                }
-                return EndpointStatus(id: cfg.id, root: cfg.root, online: true, detail: "在線", removable: cfg.removable, portableNames: cfg.portableNames)
-            }
-            snapshot.trackedFiles = try engine.store.liveConsensusCount()
-            snapshot.conflictPolicy = ConflictPolicy(rawValue: try engine.store.meta("conflictPolicy") ?? "") ?? .keepBoth
-            snapshot.conflicts = try currentConflicts(engine, cfgs)
-            let iso = ISO8601DateFormatter()
-            snapshot.recent = try engine.store.recentJournal(limit: 12).map {
-                Activity(id: $0.id, time: iso.date(from: $0.time) ?? Date(), op: $0.op, endpoint: $0.endpoint, path: $0.path, ok: $0.status == "done")
-            }
+            try fillStatus(engine, cfgs)
             ensureWatching(cfgs.map(\.root))
         } catch is SyncBusy {
+            needFull = true
             writeLog("另一個同步正在進行（App 或指令列），5 秒後重試")
             queue.asyncAfter(deadline: .now() + 5) { self.runIfNeeded(confirmed: confirmed) }
         } catch {
+            needFull = true
             snapshot.error = "\(error)"
             writeLog("錯誤：\(error)")
         }
@@ -278,7 +333,23 @@ public final class SyncService: @unchecked Sendable {
         if rerun {
             let c = rerunConfirmed
             rerun = false; rerunConfirmed = false
-            queue.async { self.runIfNeeded(confirmed: c) }
+            queue.async { self.runIfNeeded(confirmed: c, incremental: !(c || self.rerunFull)) }
+        }
+    }
+
+    private func fillStatus(_ engine: Engine, _ cfgs: [EndpointConfig]) throws {
+        snapshot.endpoints = try cfgs.map { cfg in
+            if case .offline(let why) = try engine.checkIdentity(cfg) {
+                return EndpointStatus(id: cfg.id, root: cfg.root, online: false, detail: why, removable: cfg.removable, portableNames: cfg.portableNames)
+            }
+            return EndpointStatus(id: cfg.id, root: cfg.root, online: true, detail: "在線", removable: cfg.removable, portableNames: cfg.portableNames)
+        }
+        snapshot.trackedFiles = try engine.store.liveConsensusCount()
+        snapshot.conflictPolicy = ConflictPolicy(rawValue: try engine.store.meta("conflictPolicy") ?? "") ?? .keepBoth
+        snapshot.conflicts = try currentConflicts(engine, cfgs)
+        let iso = ISO8601DateFormatter()
+        snapshot.recent = try engine.store.recentJournal(limit: 12).map {
+            Activity(id: $0.id, time: iso.date(from: $0.time) ?? Date(), op: $0.op, endpoint: $0.endpoint, path: $0.path, ok: $0.status == "done")
         }
     }
 
@@ -370,10 +441,15 @@ public final class SyncService: @unchecked Sendable {
     }
 
     private func ensureWatching(_ roots: [String]) {
+        rootMap = roots.map { ($0, URL(fileURLWithPath: $0).resolvingSymlinksInPath().path) }
         guard roots != watchedRoots, snapshot.phase != .paused else { return }
+        startWatcher(roots, since: nil)
+    }
+
+    private func startWatcher(_ roots: [String], since: UInt64?) {
+        rootMap = roots.map { ($0, URL(fileURLWithPath: $0).resolvingSymlinksInPath().path) }
         watcher?.stop()
-        let w = Watcher(roots: roots) { [weak self] in self?.queue.async { self?.runIfNeeded(confirmed: false) } }
-        w.setVolumeRoots(roots)
+        let w = Watcher(roots: roots, sinceEventId: since) { [weak self] batch in self?.queue.async { self?.ingest(batch) } }
         w.start()
         watcher = w
         watchedRoots = roots

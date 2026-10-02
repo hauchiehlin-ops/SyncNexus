@@ -22,7 +22,7 @@ public enum FileOps {
     static let SF_DATALESS_FLAG: UInt32 = 0x4000_0000
 
     /// `placeholder` lets tests mark files as not-downloaded; real runs use the file's SF_DATALESS flag.
-    public static func scan(root: URL, ignore: IgnoreRules, placeholder: ((URL) -> Bool)? = nil) throws -> ScanResult {
+    public static func scan(root: URL, ignore: IgnoreRules, placeholder: ((URL) -> Bool)? = nil, only prefixes: [String]? = nil) throws -> ScanResult {
         var result = ScanResult()
         let fm = FileManager.default
         func walk(_ dir: URL, _ prefix: String) throws {
@@ -49,6 +49,27 @@ public enum FileOps {
                 default: continue   // symlinks, sockets, ...: never followed
                 }
             }
+        }
+        if let prefixes {
+            // Incremental: only these paths (a file, or a folder with everything below it), as reported by FSEvents.
+            for p in prefixes where !p.isEmpty {
+                if p.split(separator: "/").contains(where: { ignore.isIgnored(component: String($0)) }) { continue }
+                let url = root.appendingPathComponent(p)
+                var st = Darwin.stat()
+                guard lstat(url.path, &st) == 0 else { continue }          // gone: the engine sees it as absent
+                let ns = Int64(st.st_mtimespec.tv_sec) * 1_000_000_000 + Int64(st.st_mtimespec.tv_nsec)
+                let rel = PortableName.canonical(p)
+                switch st.st_mode & S_IFMT {
+                case S_IFDIR:
+                    result.files[rel] = ScannedFile(rel: rel, url: url, size: 0, mtimeNs: ns, mtime: Date(timeIntervalSince1970: Double(ns) / 1e9), isPlaceholder: false, isDirectory: true)
+                    try walk(url, rel + "/")
+                case S_IFREG:
+                    result.files[rel] = ScannedFile(rel: rel, url: url, size: Int64(st.st_size), mtimeNs: ns, mtime: Date(timeIntervalSince1970: Double(ns) / 1e9),
+                                                    isPlaceholder: placeholder?(url) ?? (st.st_flags & SF_DATALESS_FLAG != 0))
+                default: continue
+                }
+            }
+            return result
         }
         try walk(root, "")
         return result

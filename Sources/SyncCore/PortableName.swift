@@ -43,6 +43,10 @@ public enum PortableName {
         return out
     }
 
+    /// Identity of a path on case-insensitive volumes: NFC and lower case. Stored next to every path so that incremental
+    /// runs can find all spellings of a path with an index lookup.
+    public static func fold(_ path: String) -> String { canonical(path).lowercased() }
+
     /// Canonical form used for comparing names across endpoints (macOS may hand back NFD).
     public static func canonical(_ name: String) -> String {
         name.precomposedStringWithCanonicalMapping

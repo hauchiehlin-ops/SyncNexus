@@ -59,6 +59,24 @@ public final class Store {
         try addColumnIfMissing("consensus", "kind", "INTEGER NOT NULL DEFAULT 0")
         try addColumnIfMissing("consensus", "moved_from", "TEXT")
         try addColumnIfMissing("ep_state", "kind", "INTEGER NOT NULL DEFAULT 0")
+        // `fold` = case-folded path, indexed: incremental runs must find every spelling of a path, not just the exact one.
+        try addColumnIfMissing("consensus", "fold", "TEXT NOT NULL DEFAULT ''")
+        try addColumnIfMissing("ep_state", "fold", "TEXT NOT NULL DEFAULT ''")
+        try backfillFold(table: "consensus", keyColumns: "path")
+        try backfillFold(table: "ep_state", keyColumns: "endpoint, path")
+        try db.exec("CREATE INDEX IF NOT EXISTS consensus_fold ON consensus(fold); CREATE INDEX IF NOT EXISTS ep_state_fold ON ep_state(endpoint, fold);")
+    }
+
+    private func backfillFold(table: String, keyColumns: String) throws {
+        let missing = try db.query("SELECT \(keyColumns) FROM \(table) WHERE fold = ''")
+        guard !missing.isEmpty else { return }
+        try db.transaction {
+            for r in missing {
+                let path = r.last!.textValue!
+                if table == "consensus" { try db.exec("UPDATE consensus SET fold=? WHERE path=?", [.text(PortableName.fold(path)), .text(path)]) }
+                else { try db.exec("UPDATE ep_state SET fold=? WHERE endpoint=? AND path=?", [.text(PortableName.fold(path)), r[0], .text(path)]) }
+            }
+        }
     }
 
     private func addColumnIfMissing(_ table: String, _ column: String, _ ddl: String) throws {
@@ -137,9 +155,9 @@ public final class Store {
     }
 
     public func setConsensus(_ path: String, state: FileState?, rev: Int, movedFrom: String? = nil) throws {
-        try db.exec("INSERT OR REPLACE INTO consensus(path, hash, size, rev, kind, moved_from) VALUES(?,?,?,?,?,?)",
+        try db.exec("INSERT OR REPLACE INTO consensus(path, hash, size, rev, kind, moved_from, fold) VALUES(?,?,?,?,?,?,?)",
                     [.text(path), state.map { .text($0.hash) } ?? .null, .int(state?.size ?? 0), .int(Int64(rev)),
-                     .int(state?.kind == .directory ? 1 : 0), movedFrom.map { .text($0) } ?? .null])
+                     .int(state?.kind == .directory ? 1 : 0), movedFrom.map { .text($0) } ?? .null, .text(PortableName.fold(path))])
         try wrote()
     }
 
@@ -152,6 +170,35 @@ public final class Store {
 
     public func consensusPaths() throws -> [String] {
         try db.query("SELECT path FROM consensus").map { $0[0].textValue! }
+    }
+
+    /// `path` itself and everything below it, for each prefix (index range scan, not a table scan).
+    private static func prefixClause(_ column: String, _ prefixes: [String]) -> (sql: String, params: [SQLValue]) {
+        var parts: [String] = [], params: [SQLValue] = []
+        for raw in prefixes {
+            let p = PortableName.fold(raw)
+            parts.append("(\(column) = ? OR (\(column) >= ? AND \(column) < ?))")
+            params += [.text(p), .text(p + "/"), .text(p + "0")]       // '0' is the character after '/'
+        }
+        return (parts.isEmpty ? "0" : parts.joined(separator: " OR "), params)
+    }
+
+    public func consensusPaths(under prefixes: [String]) throws -> [String] {
+        let c = Store.prefixClause("fold", prefixes)
+        return try db.query("SELECT path FROM consensus WHERE " + c.sql, c.params).map { $0[0].textValue! }
+    }
+
+    public func rows(_ endpoint: String, under prefixes: [String]) throws -> [String: EndpointRow] {
+        let c = Store.prefixClause("fold", prefixes)
+        var out: [String: EndpointRow] = [:]
+        for r in try db.query("SELECT path, hash, size, mtime_ns, seen_rev, kind FROM ep_state WHERE endpoint=? AND (" + c.sql + ")", [.text(endpoint)] + c.params) {
+            out[r[0].textValue!] = Store.decode(Array(r.dropFirst()))
+        }
+        return out
+    }
+
+    public func trackedFileCount(_ endpoint: String) throws -> Int {
+        Int(try db.query("SELECT COUNT(*) FROM ep_state WHERE endpoint=? AND hash IS NOT NULL AND kind=0", [.text(endpoint)])[0][0].intValue!)
     }
 
     public func consensusCount() throws -> Int {
@@ -182,9 +229,9 @@ public final class Store {
     }
 
     public func setRow(_ endpoint: String, _ path: String, state: FileState?, mtimeNs: Int64, seenRev: Int) throws {
-        try db.exec("INSERT OR REPLACE INTO ep_state(endpoint, path, hash, size, mtime_ns, seen_rev, kind) VALUES(?,?,?,?,?,?,?)",
+        try db.exec("INSERT OR REPLACE INTO ep_state(endpoint, path, hash, size, mtime_ns, seen_rev, kind, fold) VALUES(?,?,?,?,?,?,?,?)",
                     [.text(endpoint), .text(path), state.map { .text($0.hash) } ?? .null,
-                     .int(state?.size ?? 0), .int(mtimeNs), .int(Int64(seenRev)), .int(state?.kind == .directory ? 1 : 0)])
+                     .int(state?.size ?? 0), .int(mtimeNs), .int(Int64(seenRev)), .int(state?.kind == .directory ? 1 : 0), .text(PortableName.fold(path))])
         try wrote()
     }
 

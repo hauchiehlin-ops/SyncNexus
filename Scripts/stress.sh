@@ -36,6 +36,10 @@ for i in range(0, min(10000, int(sys.argv[2])), 100):
     with open(p, "ab") as f: f.write(b"edit")
 PY
 sleep 3; t "100 files edited on B" $S sync --db "$DB"
+echo "edited" >> "$W/B/dir0003/file000300.dat"; sleep 3
+t "1 file edited, incremental (--paths)" $S sync --db "$DB" --paths dir0003/file000300.dat
+echo "edited again" >> "$W/B/dir0003/file000300.dat"; sleep 3
+t "1 file edited, full scan" $S sync --db "$DB"
 mv "$W/C/big/video0.bin" "$W/C/big/renamed-video.bin"; sleep 3
 t "rename ${BIG} MB file on C" $S sync --db "$DB"
 mv "$W/C/dir0001" "$W/C/dir0001-renamed"; sleep 3

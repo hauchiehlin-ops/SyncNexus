@@ -48,6 +48,9 @@ private final class Env2 {
         engine.options.requestDownload = { [unowned self] in self.downloads.append($0) }
         return try engine.sync(confirmed: true)
     }
+    @discardableResult func syncPaths(_ ps: Set<String>) throws -> SyncReport {
+        try engine.sync(confirmed: true, scope: .paths(ps))
+    }
     func ops(_ op: String) -> [String] {
         ((try? store.recentJournal(limit: 1000)) ?? []).filter { $0.op == op }.map { "\($0.endpoint):\($0.path)" }
     }
@@ -384,5 +387,64 @@ struct HardeningTests {
         #expect(e.read("a", "doc.txt") == "first" && e.read("b", "doc.txt") == "first")    // the restore spread like any edit
         #expect(Versions.restorePath("dir/report (2).docx") == "dir/report.docx")
         #expect(Versions.restorePath("dir/report.docx") == "dir/report.docx")
+    }
+}
+
+@Suite("Incremental sync")
+struct IncrementalTests {
+    @Test func onlyTheReportedPathsAreLookedAt() throws {
+        let e = try Env2(["a", "b", "c"])
+        try e.write("a", "x.txt", "1"); try e.write("a", "y.txt", "1"); try e.sync()
+        try e.write("b", "x.txt", "x changed"); try e.write("c", "y.txt", "y changed")
+        let r = try e.syncPaths(["x.txt"])                       // FSEvents only told us about x.txt
+        #expect(r.coveredFullScan == false)
+        #expect(e.read("a", "x.txt") == "x changed" && e.read("c", "x.txt") == "x changed")
+        #expect(e.read("a", "y.txt") == "1")                      // y.txt was not part of this run …
+        try e.sync()                                              // … the periodic full scan catches it
+        #expect(e.read("a", "y.txt") == "y changed" && e.read("b", "y.txt") == "y changed")
+    }
+
+    @Test func incrementalHandlesDeleteRenameAndFolders() throws {
+        let e = try Env2(["a", "b"])
+        try e.write("a", "d/one.txt", "11111"); try e.write("a", "d/two.txt", "22222"); try e.write("a", "gone.txt", "33333"); try e.sync()
+        try FileManager.default.removeItem(at: e.url("a", "gone.txt"))
+        try e.move("a", "d/one.txt", "d/uno.txt")
+        try e.mkdir("a", "fresh/inner")
+        try e.clearJournal()
+        try e.syncPaths(["gone.txt", "d/one.txt", "d/uno.txt", "fresh"])
+        #expect(!e.exists("b", "gone.txt") && !e.exists("b", "d/one.txt"))
+        #expect(e.read("b", "d/uno.txt") == "11111" && e.exists("b", "fresh/inner"))
+        #expect(e.ops("copy").isEmpty)                            // the rename was a rename here too
+    }
+
+    @Test func incrementalConflictStillKeepsBothVersions() throws {
+        let e = try Env2(["a", "b"])
+        try e.write("a", "r.txt", "base"); try e.sync()
+        try e.write("a", "r.txt", "from a"); try e.write("b", "r.txt", "from b")
+        try e.syncPaths(["r.txt"])
+        let open = try e.store.openConflicts()
+        #expect(open.count == 1)
+        #expect(e.read("a", "r.txt") == e.read("b", "r.txt"))
+    }
+
+    @Test func firstRunAndNewcomersAlwaysScanEverything() throws {
+        let e = try Env2(["a", "b"])
+        try e.write("a", "x.txt", "1"); try e.write("a", "other.txt", "2")
+        let r = try e.syncPaths(["x.txt"])                       // nothing is established yet
+        #expect(r.coveredFullScan == true)
+        #expect(e.read("b", "other.txt") == "2")
+    }
+
+    @Test func manyPathsFallBackToAFullScan() throws {
+        let e = try Env2(["a", "b"])
+        try e.write("a", "x.txt", "1"); try e.sync()
+        let r = try e.syncPaths(Set((0..<250).map { "p\($0).txt" }))
+        #expect(r.coveredFullScan == true)
+    }
+
+    @Test func transientSkipsAreReportedForAQuickRetry() {
+        let r = Engine.retryPaths(from: ["[a] docs/f.txt：仍在寫入（穩定窗口）", "[b] x.txt：先前失敗 2 次，稍後自動重試", "[c] y.txt：大小寫衝突，暫不處理"])
+        #expect(r == ["docs/f.txt", "x.txt"])
+        #expect(Engine.collapse(["a", "a/b", "a/b/c", "z"]) == ["a", "z"])
     }
 }

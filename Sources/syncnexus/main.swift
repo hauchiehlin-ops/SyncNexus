@@ -116,9 +116,11 @@ do {
 
     case "sync":
         let dry = flag("--dry-run"), yes = flag("--yes"), deep = flag("--deep")
+        let only = option("--paths")      // incremental: comma-separated paths relative to the folders
         let engine = try openEngine()
         engine.options.deepVerify = deep
-        printReport(try engine.sync(dryRun: dry, confirmed: yes), dryRun: dry)
+        let scope: SyncScope = only.map { .paths(Set($0.split(separator: ",").map(String.init))) } ?? .full
+        printReport(try engine.sync(dryRun: dry, confirmed: yes, scope: scope), dryRun: dry)
 
     case "status":
         let engine = try openEngine()
@@ -146,11 +148,20 @@ do {
                 } catch { print("錯誤：\(error)") }
             }
         }
-        let watcher = Watcher(roots: roots, onChange: run)
-        watcher.setVolumeRoots(roots)
+        let watcher = Watcher(roots: roots) { _ in run() }
         watcher.start()
         print("監看中（Ctrl-C 結束）：\(roots.joined(separator: ", "))")
         run()
+        RunLoop.main.run()
+
+    case "serve":
+        // Runs the same service as the menu bar app, headless (for tests and servers). Ctrl-C to stop.
+        let logPath = option("--log") ?? appSupport.appendingPathComponent("serve.log").path
+        let service = SyncService(dbPath: dbPath, versionsDir: appSupport.appendingPathComponent("Versions"), logURL: URL(fileURLWithPath: logPath)) { snap in
+            print("[\(Date().formatted(date: .omitted, time: .standard))] phase=\(snap.phase) work=\(snap.lastWork) tracked=\(snap.trackedFiles) conflicts=\(snap.conflicts.count) skipped=\(snap.skipped.count)")
+        }
+        service.start()
+        print("serving; log: \(logPath)")
         RunLoop.main.run()
 
     case "probe-placeholders":
@@ -195,7 +206,7 @@ do {
           policy [keep-both|newer-wins]
           conflicts
           resolve <編號> main|copy
-          sync  [--dry-run] [--yes] [--deep] [--db file]    (--deep: 重新讀取每個檔案驗證內容)
+          sync  [--dry-run] [--yes] [--deep] [--paths a,b] [--db file]    (--deep: 重新讀取每個檔案驗證內容)
           status [--db file]
           watch [--db file]
           check-name <relative-path>...

@@ -11,6 +11,13 @@ public enum ConflictPolicy: String, Sendable, CaseIterable {
 /// Thrown by test failpoints to emulate the process dying mid-sync (never thrown in production).
 public struct SimulatedCrash: Error {}
 
+/// What a sync looks at. `.paths` is the incremental mode: only these endpoint-relative paths (files, or folders with everything
+/// below them) are scanned and compared, as reported by FSEvents. A full sync stays as the safety net.
+public enum SyncScope: Sendable, Equatable {
+    case full
+    case paths(Set<String>)
+}
+
 public enum ConflictChoice: Sendable, Equatable { case main, conflict }
 
 public struct EngineOptions {
@@ -53,6 +60,10 @@ public struct SyncReport {
     /// Set when the run was stopped before doing anything and needs the user's go-ahead.
     public var needsConfirmation: String?
     public var preview: [String] = []
+    /// Endpoint-relative paths that were postponed for a transient reason and should be looked at again shortly.
+    public var retry: Set<String> = []
+    /// What this run actually covered (an incremental request falls back to full when a newcomer, a first run or a deep verify is involved).
+    public var coveredFullScan = true
     /// Files whose content differs from what was recorded although size and mtime are unchanged (possible silent corruption).
     public var integrity: [String] = []
 }
@@ -67,6 +78,9 @@ public final class Engine {
     }
 
     private var policy: ConflictPolicy = .keepBoth
+    private var prefixes: [String]?           // nil = full scan
+    /// Called (on a background queue) when the content of a cloud placeholder has been read, so the caller can re-check that path.
+    public var onContentReady: ((URL) -> Void)?
 
     public static let markerName = ".syncnexus-endpoint"
 
@@ -117,7 +131,7 @@ public final class Engine {
                 report.offline.append("\(cfg.id)：\(why)")
             case .online:
                 let scan: ScanResult
-                do { scan = try FileOps.scan(root: URL(fileURLWithPath: cfg.root), ignore: options.ignore, placeholder: options.placeholderCheck) }
+                do { scan = try FileOps.scan(root: URL(fileURLWithPath: cfg.root), ignore: options.ignore, placeholder: options.placeholderCheck, only: prefixes) }
                 catch {
                     // Unreadable (missing permission, I/O error): never treat a partial listing as "files are gone".
                     report.offline.append("\(cfg.id)：無法完整讀取，已停止此端點（請檢查「系統設定 > 隱私權與安全性」的檔案存取授權）。\(error.localizedDescription)")
@@ -129,7 +143,7 @@ public final class Engine {
                 }
                 ctx.online.append(cfg)
                 ctx.files[cfg.id] = scan.files
-                ctx.rows[cfg.id] = try store.rows(cfg.id)
+                ctx.rows[cfg.id] = try prefixes.map { try store.rows(cfg.id, under: $0) } ?? store.rows(cfg.id)
             }
         }
         try canonicalizeCase(ctx, &report)
@@ -138,7 +152,7 @@ public final class Engine {
 
     // MARK: case-insensitive identity
 
-    static func fold(_ path: String) -> String { PortableName.canonical(path).lowercased() }
+    static func fold(_ path: String) -> String { PortableName.fold(path) }
 
     /// macOS (APFS default), exFAT, iCloud and Google Drive folders are case-insensitive, so "Report.docx" and
     /// "report.docx" are ONE file there. Without this, two spellings become two sync entries that overwrite each other
@@ -148,7 +162,7 @@ public final class Engine {
     private func canonicalizeCase(_ ctx: Context, _ report: inout SyncReport) throws {
         var canon: [String: String] = [:]
         var ambiguous = Set<String>()
-        for p in try store.consensusPaths().sorted() {
+        for p in (try consensusPathsInScope()).sorted() {
             let f = Engine.fold(p)
             if let ex = canon[f], ex != p { ambiguous.insert(f) } else { canon[f] = p }
         }
@@ -233,7 +247,7 @@ public final class Engine {
     }
 
     private var observedFuture: [String: (size: Int64, mtimeNs: Int64, at: Date)] = [:]
-    private lazy var materializer = Materializer()
+    private lazy var materializer: Materializer = { let m = Materializer(); m.onFinish = { [weak self] url in self?.onContentReady?(url) }; return m }()
     /// True while building a preview: a preview must not trigger downloads (or anything else).
     private var previewing = false
     private func requestDownload(_ f: ScannedFile) {
@@ -246,8 +260,12 @@ public final class Engine {
         return materializer.result(for: f.url, size: f.size, mtimeNs: f.mtimeNs)
     }
 
+    private func consensusPathsInScope() throws -> [String] {
+        try prefixes.map { try store.consensusPaths(under: $0) } ?? store.consensusPaths()
+    }
+
     private func allPaths(_ ctx: Context) throws -> [String] {
-        var set = Set(try store.consensusPaths())
+        var set = Set(try consensusPathsInScope())
         for cfg in ctx.online {
             set.formUnion(ctx.files[cfg.id]!.keys)
             set.formUnion(ctx.rows[cfg.id]!.keys)
@@ -257,7 +275,7 @@ public final class Engine {
 
     // MARK: public entry
 
-    public func sync(dryRun: Bool = false, confirmed: Bool = false) throws -> SyncReport {
+    public func sync(dryRun: Bool = false, confirmed: Bool = false, scope: SyncScope = .full) throws -> SyncReport {
         var report = SyncReport()
         let interrupted = try store.interruptPending()
         if !interrupted.isEmpty {
@@ -266,6 +284,15 @@ public final class Engine {
         policy = ConflictPolicy(rawValue: try store.meta("conflictPolicy") ?? "") ?? .keepBoth
         let cfgs = try store.endpoints()
         let firstRun = try store.consensusCount() == 0
+        let newcomersExist = try cfgs.contains { try !store.endpointHasHistory($0.id) }
+        // Incremental only when the group is established, no deep verify is wanted, and the change set is small.
+        var effective = scope
+        if case .paths(let raw) = scope {
+            let collapsed = Engine.collapse(raw)
+            effective = (firstRun || newcomersExist || options.deepVerify || collapsed.isEmpty || collapsed.count > 200) ? .full : .paths(Set(collapsed))
+        }
+        if case .paths(let ps) = effective { prefixes = ps.sorted(); report.coveredFullScan = false } else { prefixes = nil }
+        defer { prefixes = nil }
 
         // Preview on the current state; also drives the confirmation gates.
         var previewReport = SyncReport()
@@ -308,6 +335,7 @@ public final class Engine {
             do { try runPass(ctx, &report) }
             catch let c as SimulatedCrash { store.rollbackBatch(); throw c }   // a real crash would lose the uncommitted writes
             report.passes = pass
+            report.retry.formUnion(Engine.retryPaths(from: report.skipped))
             if report.work == before {
                 if report.skipped.contains(where: { $0.contains("穩定窗口") }) && pass < 6 {
                     report.skipped.removeAll(where: { $0.contains("穩定窗口") })
@@ -318,6 +346,26 @@ public final class Engine {
             }
         }
         return report
+    }
+
+    /// Drops paths that lie below another path of the set (scanning the parent already covers them).
+    static func collapse(_ paths: Set<String>) -> [String] {
+        let sorted = paths.filter { !$0.isEmpty }.sorted()
+        var out: [String] = []
+        for p in sorted { if let last = out.last, p == last || p.hasPrefix(last + "/") { continue }; out.append(p) }
+        return out
+    }
+
+    /// Skip reasons that go away by themselves: look at those paths again soon instead of waiting for the next full scan.
+    static func retryPaths(from skipped: [String]) -> Set<String> {
+        let keywords = ["稍後", "重新評估", "穩定窗口", "讀取雲端", "空間不足", "失敗", "又被改動"]
+        var out = Set<String>()
+        for line in skipped where keywords.contains(where: { line.contains($0) }) {
+            guard let close = line.firstIndex(of: "]"), let colon = line.firstIndex(of: "：") else { continue }
+            let path = line[line.index(after: close)..<colon].trimmingCharacters(in: .whitespaces)
+            if !path.isEmpty { out.insert(path.components(separatedBy: " → ").last ?? path) }
+        }
+        return out
     }
 
     // MARK: planning (no mutation)
@@ -361,7 +409,7 @@ public final class Engine {
             }
         }
         let wipes = ctx.online.compactMap { cfg -> (ep: String, deleted: Int, tracked: Int)? in
-            let tracked = (ctx.rows[cfg.id] ?? [:]).values.filter { $0.state?.kind == .file }.count
+            let tracked = (try? store.trackedFileCount(cfg.id)) ?? 0
             let d = deletedAt[cfg.id] ?? 0
             return (d >= 3 && d * 2 >= tracked) ? (cfg.id, d, tracked) : nil
         }
