@@ -1225,6 +1225,14 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .th: "ออกจาก Sync-Nexus",
         .ko: "Sync-Nexus 종료"
     ],
+    "popover_quitting": [
+        .en: "Quitting…",
+        .zhHant: "正在結束…",
+        .zhHans: "正在退出…",
+        .ja: "終了しています…",
+        .th: "กำลังออก…",
+        .ko: "종료 중…"
+    ],
     "popover_reading_cloud": [
         .en: "Reading %d cloud files",
         .zhHant: "正在讀取 %d 個雲端檔案",
@@ -1594,12 +1602,12 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .ko: "제외된 항목은 모든 폴더에 그대로 유지됩니다. 기존 동기화된 파일은 삭제되지 않으며 이후 동기화에서 제외됩니다."
     ],
     "settings_exclude_desc": [
-        .en: "Recommended safety rules to prevent database or repository corruption. Toggles can be customized for specific development workflows.",
-        .zhHant: "建議的安全排除原則，避免資料庫鎖檔或版本庫損壞；若有特殊工作需求可個別切換調整。",
-        .zhHans: "建议的安全排除原则，避免数据库锁档或版本库损坏；若有特殊工作需求可个别切换调整。",
-        .ja: "データベースのロックやリポジトリの破損を防ぐ推奨安全原則です。特別な開発要件がある場合は個別に切り替え可能です。",
-        .th: "หลักความปลอดภัยที่แนะนำเพื่อป้องกันฐานข้อมูลหรือที่เก็บโค้ดเสียหาย สามารถปรับเปลี่ยนได้หากมีความต้องการพิเศษ",
-        .ko: "데이터베이스 잠금 오류나 저장소 손상을 방지하는 권장 안전 원칙입니다. 특수한 작업 요구 시 개별 조정할 수 있습니다."
+        .en: "Mandatory safety rules that prevent database, photo library, or repository corruption. They cannot be disabled.",
+        .zhHant: "這些是強制安全原則，用來避免資料庫、照片圖庫或版本庫損壞，因此無法停用。",
+        .zhHans: "这些是强制安全原则，用来避免数据库、照片图库或版本库损坏，因此无法停用。",
+        .ja: "データベース、写真ライブラリ、リポジトリの破損を防ぐ必須の安全規則です。無効にはできません。",
+        .th: "กฎความปลอดภัยเหล่านี้บังคับใช้เพื่อป้องกันฐานข้อมูล คลังรูปภาพ หรือที่เก็บโค้ดเสียหาย และไม่สามารถปิดได้",
+        .ko: "데이터베이스, 사진 보관함 또는 저장소 손상을 방지하기 위한 필수 안전 규칙이며 비활성화할 수 없습니다."
     ],
     "settings_exclude_title": [
         .en: "Do Not Sync These Items",
@@ -1704,6 +1712,102 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .ja: "追跡対象ファイル",
         .th: "ไฟล์ที่ติดตาม",
         .ko: "추적 중인 파일"
+    ],
+    "operation_stopping_group": [
+        .en: "Safely stopping this sync group…",
+        .zhHant: "正在安全停止此同步群組…",
+        .zhHans: "正在安全停止此同步群组…",
+        .ja: "同期グループを安全に停止中…",
+        .th: "กำลังหยุดกลุ่มซิงค์อย่างปลอดภัย…",
+        .ko: "동기화 그룹을 안전하게 중지 중…"
+    ],
+    "operation_stopping_services": [
+        .en: "Safely stopping active sync operations…",
+        .zhHant: "正在安全停止目前的同步作業…",
+        .zhHans: "正在安全停止当前同步任务…",
+        .ja: "実行中の同期を安全に停止中…",
+        .th: "กำลังหยุดการซิงค์ที่ทำงานอยู่อย่างปลอดภัย…",
+        .ko: "실행 중인 동기화를 안전하게 중지 중…"
+    ],
+    "operation_importing_settings": [
+        .en: "Importing settings in the background…",
+        .zhHant: "正在背景匯入設定…",
+        .zhHans: "正在后台导入设置…",
+        .ja: "バックグラウンドで設定を読み込み中…",
+        .th: "กำลังนำเข้าการตั้งค่าในเบื้องหลัง…",
+        .ko: "백그라운드에서 설정 가져오는 중…"
+    ],
+    "operation_creating_snapshot": [
+        .en: "Creating an APFS safety snapshot…",
+        .zhHant: "正在建立 APFS 安全快照…",
+        .zhHans: "正在创建 APFS 安全快照…",
+        .ja: "APFS セーフティスナップショットを作成中…",
+        .th: "กำลังสร้างสแนปช็อตความปลอดภัย APFS…",
+        .ko: "APFS 안전 스냅샷 생성 중…"
+    ],
+    "progress_cancel": [
+        .en: "Cancel",
+        .zhHant: "取消作業",
+        .zhHans: "取消任务",
+        .ja: "キャンセル",
+        .th: "ยกเลิก",
+        .ko: "취소"
+    ],
+    "progress_preparing": [
+        .en: "Preparing",
+        .zhHant: "正在準備",
+        .zhHans: "正在准备",
+        .ja: "準備中",
+        .th: "กำลังเตรียม",
+        .ko: "준비 중"
+    ],
+    "progress_scanning": [
+        .en: "Scanning folders",
+        .zhHant: "正在掃描資料夾",
+        .zhHans: "正在扫描文件夹",
+        .ja: "フォルダをスキャン中",
+        .th: "กำลังสแกนโฟลเดอร์",
+        .ko: "폴더 스캔 중"
+    ],
+    "progress_comparing": [
+        .en: "Comparing files",
+        .zhHant: "正在比對檔案",
+        .zhHans: "正在比对文件",
+        .ja: "ファイルを比較中",
+        .th: "กำลังเปรียบเทียบไฟล์",
+        .ko: "파일 비교 중"
+    ],
+    "progress_transferring": [
+        .en: "Applying changes",
+        .zhHant: "正在套用變更",
+        .zhHans: "正在应用更改",
+        .ja: "変更を適用中",
+        .th: "กำลังใช้การเปลี่ยนแปลง",
+        .ko: "변경 사항 적용 중"
+    ],
+    "progress_verifying": [
+        .en: "Verifying file contents",
+        .zhHant: "正在驗證檔案內容",
+        .zhHans: "正在验证文件内容",
+        .ja: "ファイル内容を検証中",
+        .th: "กำลังตรวจสอบเนื้อหาไฟล์",
+        .ko: "파일 내용 확인 중"
+    ],
+    "progress_finalizing": [
+        .en: "Finishing",
+        .zhHant: "正在完成作業",
+        .zhHans: "正在完成任务",
+        .ja: "完了処理中",
+        .th: "กำลังดำเนินการให้เสร็จ",
+        .ko: "마무리 중"
+    ],
+    "progress_cancelling": [
+        .en: "Cancelling safely",
+        .zhHant: "正在安全取消",
+        .zhHans: "正在安全取消",
+        .ja: "安全にキャンセル中",
+        .th: "กำลังยกเลิกอย่างปลอดภัย",
+        .ko: "안전하게 취소 중"
     ],
     "status_all_normal": [
         .en: "Everything is normal",

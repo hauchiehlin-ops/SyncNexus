@@ -4,6 +4,7 @@ import Combine
 import SwiftUI
 import SyncCore
 import UserNotifications
+import Darwin
 
 enum MainSection: String, CaseIterable, Identifiable {
     case overview, diffPreview, folders, conflicts, versions, verification, settings
@@ -46,9 +47,12 @@ final class AppModel: ObservableObject {
     @Published var versionItems: [VersionItem] = []
     @Published var trialRunReport: SyncReport?
     @Published var isRunningTrialRun = false
+    @Published var isQuitting = false
+    @Published var isCancellingRuns = false
     @Published var isRestoringBackup = false
     @Published var canCancelBackupRestore = false
     @Published var backupRestoreStatus: String?
+    @Published var appOperationStatus: String?
     private var backupRestoreTask: Task<Void, Never>?
 
     public let registry: SyncGroupRegistry
@@ -164,6 +168,7 @@ final class AppModel: ObservableObject {
 
     private func apply(groupId: String, snapshot s: SyncService.Snapshot) {
         snapshots[groupId] = s
+        if isCancellingRuns && snapshots.values.allSatisfy({ $0.progress == nil }) { isCancellingRuns = false }
         objectWillChange.send()   // the menu bar shows every group, not only the active one
         refreshFolderIcons()      // diff-based: does nothing unless a folder or a group icon changed
         if groupId == activeGroupId {
@@ -264,11 +269,45 @@ final class AppModel: ObservableObject {
         return Self.title(of: w.snap, popoverOverall == .paused ? .paused : w.overall)
     }
     var popoverDetail: String {
+        if let live = primaryProgress { return progressDetail(live.progress) }
         guard let w = worstGroup else { return overallDetail }
         let text = Self.detail(of: w.snap, popoverOverall == .paused ? .paused : w.overall)
         // with several groups, say which one the message is about
         if groups.count > 1, w.overall == .attention, !text.isEmpty { return "\(groupName(w.group))：\(text)" }
         return text
+    }
+
+    var primaryProgress: (groupName: String, progress: SyncProgress)? {
+        let active = groups.first { $0.id == activeGroupId }
+        if let active, let progress = snapshots[active.id]?.progress {
+            return (groupName(active), progress)
+        }
+        for group in groups {
+            if let progress = snapshots[group.id]?.progress { return (groupName(group), progress) }
+        }
+        return nil
+    }
+
+    var activeProgressCount: Int { snapshots.values.filter { $0.progress != nil }.count }
+
+    var aggregateProgressFraction: Double {
+        let values = snapshots.values.compactMap { $0.progress?.fraction }
+        guard !values.isEmpty else { return 0 }
+        return values.reduce(0, +) / Double(values.count)
+    }
+
+    func progressStage(_ progress: SyncProgress) -> String {
+        if isCancellingRuns { return loc("progress_cancelling") }
+        return loc("progress_\(progress.stage.rawValue)")
+    }
+
+    func progressDetail(_ progress: SyncProgress) -> String {
+        let stage = progressStage(progress)
+        let percent = Int((progress.fraction * 100).rounded())
+        if let path = progress.currentPath, !path.isEmpty {
+            return "\(stage) \(percent)% · \(path)"
+        }
+        return "\(stage) \(percent)%"
     }
 
     var allPaused: Bool { !groupStates.isEmpty && groupStates.allSatisfy { $0.overall == .paused } }
@@ -307,6 +346,11 @@ final class AppModel: ObservableObject {
     }
 
     func syncAllNow() { services.values.forEach { $0.syncNow() } }
+
+    func cancelAllCurrentRuns() {
+        isCancellingRuns = true
+        services.values.forEach { $0.cancelCurrentRun() }
+    }
 
     func reviewConfirmation(group: String? = nil) {
         if let group { selectGroup(id: group) }   // the confirmation belongs to that group's service
@@ -352,33 +396,45 @@ final class AppModel: ObservableObject {
     }
 
     func deleteGroup(id: String) {
+        guard appOperationStatus == nil else { return }
         guard groups.count > 1 else {
             settingsMessage = loc("group_cannot_delete_last")
             return
         }
         guard let group = registry.group(id: id) else { return }
-        services[id]?.stop()
+        let stopping = services[id]
         services.removeValue(forKey: id)
-        snapshots.removeValue(forKey: id)
+        appOperationStatus = loc("operation_stopping_group")
 
-        if id != "default" {
-            let groupDir = Self.appSupport.appendingPathComponent("Groups/\(id)")
-            try? FileManager.default.removeItem(at: groupDir)
-        }
+        Task { [weak self] in
+            if let stopping { await stopping.stopAndWait() }
+            guard let self else { return }
+            self.snapshots.removeValue(forKey: id)
 
-        if registry.removeGroup(id: id) {
-            groups = registry.allGroups()
-            refreshFolderIcons()   // the deleted group's folders get their normal icon back
-            if activeGroupId == id {
-                selectGroup(id: groups.first?.id ?? "default")
+            if id != "default" {
+                let groupDir = Self.appSupport.appendingPathComponent("Groups/\(id)")
+                await withCheckedContinuation { continuation in
+                    DispatchQueue.global(qos: .utility).async {
+                        try? FileManager.default.removeItem(at: groupDir)
+                        continuation.resume()
+                    }
+                }
             }
-            settingsMessage = loc("group_deleted_toast", groupName(group))
+
+            if self.registry.removeGroup(id: id) {
+                self.groups = self.registry.allGroups()
+                self.refreshFolderIcons()
+                if self.activeGroupId == id { self.selectGroup(id: self.groups.first?.id ?? "default") }
+                self.settingsMessage = loc("group_deleted_toast", self.groupName(group))
+            }
+            self.appOperationStatus = nil
         }
     }
 
     /// Lets the user pick an old (e.g. non-sandboxed) SyncNexus settings folder and merges it in.
     /// Sandbox-safe: access to the folder is granted by the user via the open panel.
     func importLegacySettings() {
+        guard appOperationStatus == nil else { return }
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.allowsMultipleSelection = false
         panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
@@ -387,29 +443,47 @@ final class AppModel: ObservableObject {
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
         let scoped = url.startAccessingSecurityScopedResource()
-        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        let stopping = Array(services.values)
+        appOperationStatus = loc("operation_stopping_services")
 
-        // Release databases before they may be replaced.
-        for s in services.values { s.stop() }
-        services.removeAll()
-        snapshots.removeAll()
+        Task { [weak self] in
+            await withTaskGroup(of: Void.self) { group in
+                for service in stopping { group.addTask { await service.stopAndWait() } }
+            }
+            guard let self else {
+                if scoped { url.stopAccessingSecurityScopedResource() }
+                return
+            }
+            self.services.removeAll()
+            self.snapshots.removeAll()
+            self.appOperationStatus = loc("operation_importing_settings")
 
-        var message: String
-        do {
-            let r = try registry.importLegacySettings(from: url)
-            message = r.imported.isEmpty ? loc("import_legacy_nothing_new")
-                                         : loc("import_legacy_ok", r.imported.count, r.endpointCount)
-        } catch SyncGroupRegistry.LegacyImportError.nothingFound {
-            message = loc("import_legacy_not_found")
-        } catch {
-            message = loc("import_legacy_failed", "\(error)")
+            let registry = self.registry
+            let result: Result<SyncGroupRegistry.LegacyImportResult, Error> = await withCheckedContinuation { continuation in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    continuation.resume(returning: Result { try registry.importLegacySettings(from: url) })
+                }
+            }
+            if scoped { url.stopAccessingSecurityScopedResource() }
+
+            let message: String
+            switch result {
+            case .success(let imported):
+                message = imported.imported.isEmpty ? loc("import_legacy_nothing_new")
+                    : loc("import_legacy_ok", imported.imported.count, imported.endpointCount)
+            case .failure(SyncGroupRegistry.LegacyImportError.nothingFound):
+                message = loc("import_legacy_not_found")
+            case .failure(let error):
+                message = loc("import_legacy_failed", "\(error)")
+            }
+
+            self.groups = registry.allGroups()
+            for group in self.groups { self.startService(for: group) }
+            if !self.groups.contains(where: { $0.id == self.activeGroupId }) { self.activeGroupId = self.groups.first?.id ?? "default" }
+            self.snap = Self.localized(self.snapshots[self.activeGroupId] ?? .initial)
+            self.settingsMessage = message
+            self.appOperationStatus = nil
         }
-
-        groups = registry.allGroups()
-        for g in groups { startService(for: g) }
-        if !groups.contains(where: { $0.id == activeGroupId }) { activeGroupId = groups.first?.id ?? "default" }
-        snap = Self.localized(snapshots[activeGroupId] ?? .initial)
-        settingsMessage = message
     }
 
     func restoreBackup(_ backup: SyncGroupRegistry.BackupInfo) {
@@ -595,13 +669,23 @@ final class AppModel: ObservableObject {
     }
 
     func createAPFSSnapshot() {
-        let res = APFSSnapshotManager.shared.createLocalSnapshot()
-        if res.isSandbox {
-            settingsMessage = loc("msg_apfs_sandbox_active")
-        } else if res.success {
-            settingsMessage = loc("msg_apfs_success")
-        } else {
-            settingsMessage = loc("msg_apfs_failed_fallback")
+        guard appOperationStatus == nil else { return }
+        appOperationStatus = loc("operation_creating_snapshot")
+        Task { [weak self] in
+            let result = await withCheckedContinuation { continuation in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    continuation.resume(returning: APFSSnapshotManager.shared.createLocalSnapshot())
+                }
+            }
+            guard let self else { return }
+            self.appOperationStatus = nil
+            if result.isSandbox {
+                self.settingsMessage = loc("msg_apfs_sandbox_active")
+            } else if result.success {
+                self.settingsMessage = loc("msg_apfs_success")
+            } else {
+                self.settingsMessage = loc("msg_apfs_failed_fallback")
+            }
         }
     }
 
@@ -615,27 +699,6 @@ final class AppModel: ObservableObject {
 
     /// How many cloud files of this folder are still being read in the background (iCloud / Drive placeholders).
     func pendingCloud(_ id: String, group: String? = nil) -> Int { (snapshots[group ?? activeGroupId]?.skipped ?? []).filter { $0.hasPrefix("[\(id)]") && $0.contains("讀取雲端") }.count }
-
-    func setExclude(_ preset: ExcludePreset, on: Bool) {
-        var p = snap.excludePresets
-        if on { p.insert(preset) } else { p.remove(preset) }
-        snap.excludePresets = p
-        if snapshots[activeGroupId] != nil {
-            snapshots[activeGroupId]?.excludePresets = p
-        }
-        service.setExcludePresets(p) { [weak self] err in
-            Task { @MainActor in
-                if let err {
-                    self?.settingsMessage = loc("msg_add_failed", CoreMessages.localize(err))
-                    if let cur = self?.snapshots[self?.activeGroupId ?? ""]?.excludePresets {
-                        self?.snap.excludePresets = cur
-                    }
-                } else {
-                    self?.settingsMessage = loc("msg_excludes_updated")
-                }
-            }
-        }
-    }
 
     func setCloudSpaceSaving(_ enabled: Bool) {
         service.setCloudSpaceSaving(enabled) { [weak self] error in
@@ -702,8 +765,24 @@ final class AppModel: ObservableObject {
     }
 
     func quit() {
-        for s in services.values { s.stop() }
-        NSApp.terminate(nil)
+        guard !isQuitting else { return }
+        isQuitting = true
+        let stopping = Array(services.values)
+
+        Task { [weak self] in
+            await withTaskGroup(of: Void.self) { group in
+                for service in stopping { group.addTask { await service.stopAndWait() } }
+            }
+            guard self != nil else { return }
+            NSApp.terminate(nil)
+        }
+
+        // Copies use verified temp files and atomic renames; the journal recovers interrupted
+        // operations. A menu-bar-only process must never remain trapped by a cloud provider.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 12) { [weak self] in
+            guard self?.isQuitting == true else { return }
+            Darwin.exit(0)
+        }
     }
 
     // MARK: launch at login

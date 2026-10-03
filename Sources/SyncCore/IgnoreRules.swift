@@ -41,11 +41,11 @@ public struct IgnoreRules: Sendable {
     }
 }
 
-/// Things people rarely want synced. Chosen in the settings; excluded paths are simply left alone everywhere (never deleted).
+/// Unsafe live data that is always excluded and left untouched everywhere (never deleted).
 public enum ExcludePreset: String, CaseIterable, Sendable, Identifiable {
     case nodeModules, git, databases, photosLibraries
     public var id: String { rawValue }
-    public static let defaults: Set<ExcludePreset> = [.nodeModules, .databases, .photosLibraries]
+    public static let defaults = Set(ExcludePreset.allCases)
 
     public var title: String {
         switch self {
@@ -59,7 +59,7 @@ public enum ExcludePreset: String, CaseIterable, Sendable, Identifiable {
     public var why: String {
         switch self {
         case .nodeModules: "檔案又多又瑣碎，可以隨時重新安裝。"
-        case .git: "同步到一半的 .git 會損壞版本庫；預設不排除，請自行決定。"
+        case .git: "同步到一半的 .git 可能損壞版本庫，請直接使用 Git 管理。"
         case .databases: "使用中的資料庫會得到不一致的複本。"
         case .photosLibraries: "照片圖庫是一個正在使用的資料庫，同步它會損壞圖庫。"
         }
@@ -81,7 +81,8 @@ extension IgnoreRules {
     }
 
     public static func parsePresets(_ raw: String?) -> Set<ExcludePreset> {
-        guard let raw else { return ExcludePreset.defaults }
-        return Set(raw.split(separator: ",").compactMap { ExcludePreset(rawValue: String($0)) })
+        // Migrate every legacy selection (including an empty value) to mandatory protection.
+        _ = raw
+        return ExcludePreset.defaults
     }
 }

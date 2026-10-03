@@ -20,6 +20,32 @@ struct PopoverView: View {
         VStack(spacing: 0) {
             header
             Divider()
+            if model.isRestoringBackup {
+                HStack(spacing: 10) {
+                    ProgressView().controlSize(.small)
+                    Text(model.backupRestoreStatus ?? loc("backup_restore_stopping"))
+                        .font(.system(size: 12, weight: .medium)).lineLimit(2)
+                    Spacer(minLength: 0)
+                    Button(loc("cancel")) { model.cancelBackupRestore() }
+                        .buttonStyle(QuietButton(kind: .secondary, compact: true))
+                        .disabled(!model.canCancelBackupRestore)
+                }
+                .padding(.horizontal, 20).padding(.vertical, 12)
+                .background(Color.accentColor.opacity(0.06))
+                Divider()
+            } else if let status = model.appOperationStatus {
+                HStack(spacing: 10) {
+                    ProgressView().controlSize(.small)
+                    Text(status).font(.system(size: 12, weight: .medium)).lineLimit(2)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 20).padding(.vertical, 12)
+                .background(Color.accentColor.opacity(0.06))
+                Divider()
+            } else if let live = model.primaryProgress {
+                liveProgress(live)
+                Divider()
+            }
             scrolling {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(model.groupStates, id: \.group.id) { state in banners(for: state) }
@@ -36,6 +62,31 @@ struct PopoverView: View {
         }
         .frame(width: 380)
         .id(l10n.currentLanguage)
+    }
+
+    private func liveProgress(_ live: (groupName: String, progress: SyncProgress)) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text(model.progressStage(live.progress)).font(.system(size: 13, weight: .semibold))
+                if model.groups.count > 1 {
+                    Text(live.groupName).font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                Text("\(Int((model.aggregateProgressFraction * 100).rounded()))%")
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                Button(loc("progress_cancel")) { model.cancelAllCurrentRuns() }
+                    .buttonStyle(QuietButton(kind: .secondary, compact: true))
+                    .disabled(model.isCancellingRuns)
+            }
+            ProgressView(value: model.aggregateProgressFraction)
+                .progressViewStyle(.linear)
+            if let path = live.progress.currentPath, !path.isEmpty {
+                Text(path).font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
+                    .lineLimit(1).truncationMode(.middle)
+            }
+        }
+        .padding(.horizontal, 20).padding(.vertical, 12)
+        .background(Color.accentColor.opacity(0.06))
     }
 
     /// Natural height for the usual case; scrolls only when there are unusually many rows.
@@ -245,7 +296,9 @@ struct PopoverView: View {
                 Button(loc("settings_btn_open_log")) { model.openLog() }
                 Button(loc("popover_instructions")) { openWindow(id: "welcome"); NSApp.activate(ignoringOtherApps: true) }
                 Divider()
-                Button(loc("popover_quit")) { model.quit() }.keyboardShortcut("q")
+                Button(model.isQuitting ? loc("popover_quitting") : loc("popover_quit")) { model.quit() }
+                    .keyboardShortcut("q")
+                    .disabled(model.isQuitting)
             } label: { Image(systemName: "ellipsis").frame(width: 24, height: 24) }
             .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
             .accessibilityLabel(loc("popover_more"))

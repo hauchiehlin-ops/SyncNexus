@@ -294,3 +294,21 @@
   - 「總覽」頁面群組標籤新增右鍵選單（編輯／刪除）。
   - 「設定」頁面新增「同步群組」卡片，集中管理所有群組並提供切換、編輯與刪除入口。
 * 測試：Swift 全套 109 項單元測試通過。
+
+### [2026-10-04] 即時同步進度回報、協同取消作業、強制安全排除防護與生命週期強化（v1.6.0 Build 30）
+* **版本號升級**：v1.6.0（Build 30），`VERSION`、`BUILD_NUMBER`、`Scripts/Info.plist`、`packaging/homebrew/syncnexus.rb`、`Platforms/Android/app/build.gradle.kts` 一致同步。
+* **即時同步進度與協同取消**：
+  - `Engine` 支援即時狀態發佈 `SyncProgress`（準備、掃描、比對、傳輸、驗證、完成、取消），包含傳輸檔案位元組進度、當前檔案路徑與所屬端點。
+  - `SyncService` 支援非阻塞式取消當前同步任務 `cancelCurrentRun()`，並以最高 10Hz 節流發佈快照，階段轉換零遺漏。
+  - `FileOps.copyAtomically` 與 `sha256` 支援協同中斷 `shouldCancel`，傳輸中斷時立即清除 `.nexus-part` 暫存檔，確保目標端點不留破碎檔案。
+  - 主視窗與選單列 Popover 均常駐即時進度條、當前處理檔案路徑、總體百分比與「取消作業」按鈕。
+* **強制安全排除原則（Hardened Exclusion Rules）**：
+  - 將容易因同步造成損壞的活體資料（`.git` 版本庫、使用中的 SQLite 資料庫、macOS 照片圖庫、`node_modules`）固化為「強制安全排除原則」（`ExcludePreset.defaults = allCases`），杜絕因誤關閉開關導致版本庫或資料庫損毀。
+  - 設定頁改以安全盾牌標章呈現，並更新六國語言說明；加入舊版設定遷移相容邏輯與單元測試。
+* **異步生命週期與長耗時作業防護**：
+  - 匯入舊設定（`importLegacySettings`）、建立 APFS 快照（`createAPFSSnapshot`）、還原備份與刪除群組等作業加入全域狀態指示橫幅（`appOperationStatus`），防止重複觸發。
+  - 應用程式結束（`quit`）改用非同步優雅停止 `stopAndWait()` 確保 SQLite 與佇列安全收尾，並具備 12 秒緊急退出保護，避免遭雲端冷檔案卡死。
+* **多語系完整覆蓋與測試驗證**：
+  - `StringsTable.swift` 補充繁中、簡中、英文、日文、泰文、韓文六國語言之取消、進度階段、強制排除原則說明及狀態橫幅字串。
+  - Swift 單元測試增至 111 項全數通過（新增進度單調性與中斷清理等單元測試）；Android 單元測試及 Release 打包驗證均成功。
+

@@ -39,6 +39,7 @@ public final class SyncService: @unchecked Sendable {
 
     public struct Snapshot: Sendable {
         public var phase: Phase = .idle
+        public var progress: SyncProgress?
         public var lastRun: Date?
         public var lastWork = 0
         public var endpoints: [EndpointStatus] = []
@@ -87,14 +88,26 @@ public final class SyncService: @unchecked Sendable {
     private var eventIdTimer: DispatchSourceTimer?
     private let stopLock = NSLock()
     private var stopRequested = false
+    private var cancelRequested = false
+    private var lastProgressPublish = Date.distantPast
+    private var lastProgressStage: SyncProgress.Stage?
 
     private var shouldStop: Bool {
         stopLock.lock(); defer { stopLock.unlock() }
         return stopRequested
     }
 
+    private var shouldCancel: Bool {
+        stopLock.lock(); defer { stopLock.unlock() }
+        return stopRequested || cancelRequested
+    }
+
     private func setStopRequested(_ requested: Bool) {
         stopLock.lock(); stopRequested = requested; stopLock.unlock()
+    }
+
+    private func setCancelRequested(_ requested: Bool) {
+        stopLock.lock(); cancelRequested = requested; stopLock.unlock()
     }
 
     public init(dbPath: String, versionsDir: URL, logURL: URL?, periodicSeconds: TimeInterval = 300,
@@ -110,6 +123,7 @@ public final class SyncService: @unchecked Sendable {
 
     public func start() {
         setStopRequested(false)
+        setCancelRequested(false)
         queue.async { [self] in
             do {
                 try FileManager.default.createDirectory(atPath: (self.dbPath as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
@@ -117,7 +131,8 @@ public final class SyncService: @unchecked Sendable {
                 var opts = EngineOptions()
                 opts.versionsDir = self.versionsDir
                 opts.log = { [weak self] in self?.writeLog($0) }
-                opts.shouldCancel = { [weak self] in self?.shouldStop ?? true }
+                opts.shouldCancel = { [weak self] in self?.shouldCancel ?? true }
+                opts.progress = { [weak self] progress in self?.receive(progress) }
                 opts.releaseCloudContent = { @Sendable url, completion in
                     CloudSpaceReclaimer.releaseLocalContent(of: url, completion: completion)
                 }
@@ -222,6 +237,7 @@ public final class SyncService: @unchecked Sendable {
 
     public func stop() {
         setStopRequested(true)
+        setCancelRequested(true)
         queue.sync {
             finishStopping()
         }
@@ -231,6 +247,7 @@ public final class SyncService: @unchecked Sendable {
     /// blocking the caller (notably the main actor). The database is closed before this returns.
     public func stopAndWait() async {
         setStopRequested(true)
+        setCancelRequested(true)
         await withCheckedContinuation { continuation in
             queue.async {
                 self.finishStopping()
@@ -249,11 +266,17 @@ public final class SyncService: @unchecked Sendable {
 
     public func syncNow(confirmed: Bool = false) { queue.async { self.runIfNeeded(confirmed: confirmed) } }
 
+    /// Immediately requests cooperative cancellation. It is lock-only, so it is not trapped
+    /// behind the long-running work on the service queue.
+    public func cancelCurrentRun() { setCancelRequested(true) }
+
     public func pause() {
+        setCancelRequested(true)
         queue.async { self.snapshot.phase = .paused; self.watcher?.stop(); self.watcher = nil; self.watchedRoots = []; self.publish() }
     }
 
     public func resume() {
+        setCancelRequested(false)
         queue.async { self.snapshot.phase = .idle; self.runIfNeeded(confirmed: false) }
     }
 
@@ -304,11 +327,13 @@ public final class SyncService: @unchecked Sendable {
     }
 
     public func setExcludePresets(_ presets: Set<ExcludePreset>, completion: @escaping @Sendable (Error?) -> Void) {
+        _ = presets
+        let mandatory = ExcludePreset.defaults
         queue.async {
             guard let engine = self.engine else { completion(DBError(description: "服務尚未啟動")); return }
             do {
-                try engine.store.setMeta("excludePresets", presets.map(\.rawValue).sorted().joined(separator: ","))
-                self.snapshot.excludePresets = presets
+                try engine.store.setMeta("excludePresets", mandatory.map(\.rawValue).sorted().joined(separator: ","))
+                self.snapshot.excludePresets = mandatory
                 self.publish()
                 self.needFull = true
                 self.watchedRoots = []
@@ -338,6 +363,15 @@ public final class SyncService: @unchecked Sendable {
     public func trialRun(completion: @escaping @Sendable (SyncReport?) -> Void) {
         queue.async {
             guard let engine = self.engine else { completion(nil); return }
+            self.setCancelRequested(false)
+            self.snapshot.phase = .syncing
+            self.snapshot.progress = SyncProgress(stage: .preparing, fraction: 0)
+            self.publish()
+            defer {
+                self.snapshot.progress = nil
+                self.snapshot.phase = .idle
+                self.publish()
+            }
             do {
                 let report = try engine.sync(dryRun: true)
                 completion(report)
@@ -401,7 +435,9 @@ public final class SyncService: @unchecked Sendable {
         if !wantFull && taken.isEmpty { return }
         let scope: SyncScope = wantFull ? .full : .paths(taken)
         running = true
+        setCancelRequested(false)
         snapshot.phase = .syncing
+        snapshot.progress = SyncProgress(stage: .preparing, fraction: 0)
         snapshot.error = nil
         publish()
 
@@ -439,6 +475,10 @@ public final class SyncService: @unchecked Sendable {
         } catch is ScanCancelled {
             // Lifecycle operation (restore/import/quit) requested a clean stop. This is neither
             // an endpoint failure nor a reason to retry the interrupted scan.
+            needFull = true
+            rerun = false
+            rerunConfirmed = false
+            rerunFull = false
         } catch is SyncBusy {
             needFull = true
             writeLog("另一個同步正在進行（App 或指令列），5 秒後重試")
@@ -450,6 +490,7 @@ public final class SyncService: @unchecked Sendable {
         }
 
         running = false
+        snapshot.progress = nil
         snapshot.phase = snapshot.phase == .paused ? .paused : .idle
         publish()
         if rerun && !shouldStop {
@@ -458,6 +499,18 @@ public final class SyncService: @unchecked Sendable {
             queue.async { self.runIfNeeded(confirmed: c, incremental: !(c || self.rerunFull)) }
         } else if shouldStop {
             rerun = false; rerunConfirmed = false; rerunFull = false
+        }
+    }
+
+    /// Engine callbacks arrive on this service's serial queue. Publish at most ten times a
+    /// second, but never hide a stage transition or completion.
+    private func receive(_ progress: SyncProgress) {
+        snapshot.progress = progress
+        let now = Date()
+        if lastProgressStage != progress.stage || progress.fraction >= 1 || now.timeIntervalSince(lastProgressPublish) >= 0.1 {
+            lastProgressStage = progress.stage
+            lastProgressPublish = now
+            publish()
         }
     }
 

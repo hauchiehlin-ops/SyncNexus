@@ -126,6 +126,54 @@ struct MainWindowView: View {
                 .padding(.horizontal, 40)
                 .frame(maxWidth: 680)
                 .zIndex(1000)
+            } else if let status = model.appOperationStatus {
+                HStack(alignment: .center, spacing: 12) {
+                    ProgressView().controlSize(.small)
+                    Text(status).font(.system(size: 13, weight: .medium))
+                    Spacer(minLength: 8)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(.ultraThickMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.primary.opacity(0.12), lineWidth: 1))
+                .shadow(color: Color.black.opacity(0.18), radius: 16, x: 0, y: 8)
+                .padding(.top, 16)
+                .padding(.horizontal, 40)
+                .frame(maxWidth: 680)
+                .zIndex(1000)
+            } else if let live = model.primaryProgress {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 10) {
+                        ProgressView().controlSize(.small)
+                        Text(model.progressStage(live.progress))
+                            .font(.system(size: 13, weight: .semibold))
+                        if model.groups.count > 1 {
+                            Text(live.groupName).font(.system(size: 12)).foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 8)
+                        Text("\(Int((model.aggregateProgressFraction * 100).rounded()))%")
+                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        Button(loc("progress_cancel")) { model.cancelAllCurrentRuns() }
+                            .buttonStyle(QuietButton(kind: .secondary, compact: true))
+                            .disabled(model.isCancellingRuns)
+                    }
+                    ProgressView(value: model.aggregateProgressFraction).progressViewStyle(.linear)
+                    if let path = live.progress.currentPath, !path.isEmpty {
+                        Text(path).font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
+                            .lineLimit(1).truncationMode(.middle)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(.ultraThickMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.primary.opacity(0.12), lineWidth: 1))
+                .shadow(color: Color.black.opacity(0.18), radius: 16, x: 0, y: 8)
+                .padding(.top, 16)
+                .padding(.horizontal, 40)
+                .frame(maxWidth: 680)
+                .zIndex(1000)
             } else if let m = model.settingsMessage {
                 HStack(alignment: .center, spacing: 12) {
                     Image(systemName: "info.circle.fill")
@@ -697,13 +745,15 @@ struct SettingsSection: View {
                 Text(loc("settings_exclude_title")).font(.system(size: 15, weight: .bold))
                 Text(loc("settings_exclude_desc")).font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 ForEach(ExcludePreset.allCases) { p in
-                    Toggle(isOn: Binding(get: { model.snap.excludePresets.contains(p) }, set: { model.setExclude(p, on: $0) })) {
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "checkmark.shield.fill")
+                            .foregroundStyle(Theme.ok)
+                            .frame(width: 18)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(p.localizedTitle).font(.system(size: 13, weight: .semibold))
                             Text(p.localizedWhy).font(.system(size: 12)).foregroundStyle(.secondary)
                         }
                     }
-                    .toggleStyle(.switch)
                 }
                 Text(loc("settings_exclude_footer")).font(.system(size: 12)).foregroundStyle(.secondary)
             }

@@ -615,20 +615,21 @@ struct ExcludeTests {
         try e.sync()
         #expect(e.read("b", "app/main.js") == "m")
         #expect(!e.exists("b", "app/node_modules") && !e.exists("b", "data.sqlite-wal") && !e.exists("b", "Pics.photoslibrary"))
-        #expect(e.read("b", "repo/.git/HEAD") == "ref")           // .git is not excluded by default
+        #expect(!e.exists("b", "repo/.git"))
     }
 
-    @Test func excludingSomethingAlreadySyncedNeverDeletesIt() throws {
+    @Test func legacyPreferencesMigrateToMandatoryProtectionWithoutDeletingExistingFiles() throws {
         let e = try Env2(["a", "b"])
-        try e.store.setMeta("excludePresets", "")                  // nothing excluded yet
-        try e.write("a", "repo/.git/HEAD", "ref"); try e.write("a", "keep.txt", "k"); try e.sync()
-        #expect(e.read("b", "repo/.git/HEAD") == "ref")
-        try e.store.setMeta("excludePresets", "git")               // now exclude .git
+        try e.store.setMeta("excludePresets", "")                  // legacy setting with all switches off
+        try e.write("a", "repo/.git/HEAD", "from-a")
+        try e.write("b", "repo/.git/HEAD", "from-b")               // pre-existing data is never touched
+        try e.write("a", "keep.txt", "k")
         try e.sync()
-        #expect(e.read("a", "repo/.git/HEAD") == "ref" && e.read("b", "repo/.git/HEAD") == "ref")   // untouched on both sides
+        #expect(e.read("a", "repo/.git/HEAD") == "from-a" && e.read("b", "repo/.git/HEAD") == "from-b")
+        #expect(e.read("b", "keep.txt") == "k")
         try FileManager.default.removeItem(at: e.url("a", "repo/.git"))
         try e.sync()
-        #expect(e.read("b", "repo/.git/HEAD") == "ref")            // and changes there are no longer propagated either
+        #expect(e.read("b", "repo/.git/HEAD") == "from-b")
     }
 
     @Test func serviceExcludePresetsAndConflictPolicyPersistAndPublish() async throws {
@@ -649,7 +650,7 @@ struct ExcludeTests {
                 continuation.resume(returning: latestSnapshot.excludePresets)
             }
         }
-        #expect(expExclude == [.git, .nodeModules])
+        #expect(expExclude == ExcludePreset.defaults)
 
         let expPolicy = await withCheckedContinuation { (continuation: CheckedContinuation<ConflictPolicy, Never>) in
             svc.setConflictPolicy(.newerWins) { _ in
@@ -667,7 +668,7 @@ struct ExcludeTests {
         }
         svc2.start()
         try await Task.sleep(nanoseconds: 100_000_000)
-        #expect(reloadedSnapshot.excludePresets == [.git, .nodeModules])
+        #expect(reloadedSnapshot.excludePresets == ExcludePreset.defaults)
         #expect(reloadedSnapshot.conflictPolicy == .newerWins)
         await svc2.stopAndWait()
     }

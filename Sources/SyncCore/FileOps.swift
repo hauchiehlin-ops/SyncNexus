@@ -61,8 +61,10 @@ public enum FileOps {
 
     /// `placeholder` lets tests mark files as not-downloaded; real runs use the file's dataless flag.
     public static func scan(root: URL, ignore: IgnoreRules, placeholder: ((URL) -> Bool)? = nil,
-                            only prefixes: [String]? = nil, shouldCancel: (() -> Bool)? = nil) throws -> ScanResult {
+                            only prefixes: [String]? = nil, shouldCancel: (() -> Bool)? = nil,
+                            progress: ((String, Int) -> Void)? = nil) throws -> ScanResult {
         var result = ScanResult()
+        var discovered = 0
         let fm = FileManager.default
         func walk(_ dir: URL, _ prefix: String) throws {
             if shouldCancel?() == true { throw ScanCancelled() }
@@ -75,6 +77,8 @@ public enum FileOps {
                 if ignore.isIgnored(component: name) { continue }
                 guard let st = getStat(path: url.path) else { continue }
                 let rel = prefix + PortableName.canonical(name)
+                discovered += 1
+                progress?(rel, discovered)
                 if st.isDir {
                     result.files[rel] = ScannedFile(rel: rel, url: url, size: 0, mtimeNs: st.mtimeNs,
                                                     mtime: Date(timeIntervalSince1970: Double(st.mtimeNs) / 1e9),
@@ -96,6 +100,8 @@ public enum FileOps {
                 let url = root.appendingPathComponent(p)
                 guard let st = getStat(path: url.path) else { continue }
                 let rel = PortableName.canonical(p)
+                discovered += 1
+                progress?(rel, discovered)
                 if st.isDir {
                     result.files[rel] = ScannedFile(rel: rel, url: url, size: 0, mtimeNs: st.mtimeNs,
                                                     mtime: Date(timeIntervalSince1970: Double(st.mtimeNs) / 1e9),
@@ -113,14 +119,21 @@ public enum FileOps {
         return result
     }
 
-    public static func sha256(of url: URL) throws -> String {
+    public static func sha256(of url: URL, shouldCancel: (() -> Bool)? = nil,
+                              progress: ((Int64) -> Void)? = nil) throws -> String {
         let h = try FileHandle(forReadingFrom: url)
         defer { try? h.close() }
         var hasher = SHA256()
         var more = true
+        var read: Int64 = 0
         while more {
+            if shouldCancel?() == true { throw ScanCancelled() }
             try autoreleasepool {
-                if let chunk = try h.read(upToCount: 1 << 20), !chunk.isEmpty { hasher.update(data: chunk) } else { more = false }
+                if let chunk = try h.read(upToCount: 1 << 20), !chunk.isEmpty {
+                    hasher.update(data: chunk)
+                    read += Int64(chunk.count)
+                    progress?(read)
+                } else { more = false }
             }
         }
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()
@@ -130,8 +143,9 @@ public enum FileOps {
 
     /// SHA-256 of a file, or nil if it was modified while being read (size / mtime differ before and after):
     /// such a hash describes a torn read and must never become a sync state.
-    public static func hashIfStable(_ url: URL, size: Int64, mtimeNs: Int64) throws -> String? {
-        let h = try sha256(of: url)
+    public static func hashIfStable(_ url: URL, size: Int64, mtimeNs: Int64,
+                                    shouldCancel: (() -> Bool)? = nil, progress: ((Int64) -> Void)? = nil) throws -> String? {
+        let h = try sha256(of: url, shouldCancel: shouldCancel, progress: progress)
         guard let after = statInfo(url), after.size == size, after.mtimeNs == mtimeNs else { return nil }
         return h
     }
@@ -177,13 +191,16 @@ public enum FileOps {
 
     /// Copy `src` to `dst` through a temp file in the same directory; verifies the SHA-256 of what was read,
     /// then renames over the destination (atomic on the same volume). A failure never touches `dst`.
-    public static func copyAtomically(from src: URL, to dst: URL, expectHash: String, mtime: Date?, durable: Bool = false) throws {
+    public static func copyAtomically(from src: URL, to dst: URL, expectHash: String, mtime: Date?, durable: Bool = false,
+                                      shouldCancel: (() -> Bool)? = nil,
+                                      progress: ((Int64, Int64) -> Void)? = nil) throws {
         let fm = FileManager.default
         try fm.createDirectory(at: dst.deletingLastPathComponent(), withIntermediateDirectories: true)
         var isDir: ObjCBool = false
         if fm.fileExists(atPath: dst.path, isDirectory: &isDir), isDir.boolValue { throw CopyError.targetIsDirectory }
 
         var written: Int64 = 0
+        let totalBytes = max(1, statInfo(src)?.size ?? 1)
         let tmp = dst.deletingLastPathComponent().appendingPathComponent(".nexus-\(UUID().uuidString).nexus-part")
         guard fm.createFile(atPath: tmp.path, contents: nil) else { throw CocoaError(.fileWriteUnknown) }
         do {
@@ -193,11 +210,13 @@ public enum FileOps {
             var hasher = SHA256()
             var more = true
             while more {
+                if shouldCancel?() == true { throw ScanCancelled() }
                 try autoreleasepool {
                     if let chunk = try input.read(upToCount: 1 << 20), !chunk.isEmpty {
                         hasher.update(data: chunk)
                         try output.write(contentsOf: chunk)
                         written += Int64(chunk.count)
+                        progress?(written, totalBytes)
                     } else { more = false }
                 }
             }

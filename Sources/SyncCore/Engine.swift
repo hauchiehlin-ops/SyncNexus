@@ -39,6 +39,27 @@ public enum IntegrityAction: Sendable { case restoreFromOthers, acceptCurrent }
 
 public enum ConflictChoice: Sendable, Equatable { case main, conflict }
 
+/// Live, user-visible progress for every potentially long engine run.
+public struct SyncProgress: Sendable, Equatable {
+    public enum Stage: String, Sendable { case preparing, scanning, comparing, transferring, verifying, finalizing, cancelling }
+    public var stage: Stage
+    public var fraction: Double
+    public var currentPath: String?
+    public var endpoint: String?
+    public var completed: Int
+    public var total: Int?
+
+    public init(stage: Stage, fraction: Double, currentPath: String? = nil, endpoint: String? = nil,
+                completed: Int = 0, total: Int? = nil) {
+        self.stage = stage
+        self.fraction = min(1, max(0, fraction))
+        self.currentPath = currentPath
+        self.endpoint = endpoint
+        self.completed = completed
+        self.total = total
+    }
+}
+
 public struct EngineOptions {
     public var ignore = IgnoreRules.default
     /// A file modified less than this many seconds ago is considered still being written and skipped for now.
@@ -73,6 +94,8 @@ public struct EngineOptions {
     /// Cooperative cancellation checked while scanning directory trees. This keeps lifecycle
     /// operations such as backup restore from waiting for an entire cloud-folder scan.
     public var shouldCancel: (() -> Bool)?
+    /// Called frequently from the engine's background queue. The owner should throttle UI publication.
+    public var progress: (@Sendable (SyncProgress) -> Void)?
 
     public init() {}
 }
@@ -111,6 +134,7 @@ public final class Engine {
     private var cfgByID: [String: EndpointConfig] = [:]
     private var cloudKindCache: [String: Bool] = [:]
     private var effectiveIgnore = IgnoreRules.default
+    private var progressFloor = 0.0
     /// Called (on a background queue) when the content of a cloud placeholder has been read, so the caller can re-check that path.
     public var onContentReady: ((URL) -> Void)?
 
@@ -155,9 +179,23 @@ public final class Engine {
         var blocked: [String: Set<String>] = [:]      // paths that must not be touched on an endpoint (case collisions)
     }
 
-    private func buildContext(_ cfgs: [EndpointConfig], writeMarker: Bool, into report: inout SyncReport) throws -> Context {
+    private func emit(_ stage: SyncProgress.Stage, _ fraction: Double, path: String? = nil,
+                      endpoint: String? = nil, completed: Int = 0, total: Int? = nil) {
+        progressFloor = max(progressFloor, min(1, fraction))
+        options.progress?(SyncProgress(stage: stage, fraction: progressFloor, currentPath: path,
+                                       endpoint: endpoint, completed: completed, total: total))
+    }
+
+    private func checkCancellation() throws {
+        if options.shouldCancel?() == true { throw ScanCancelled() }
+    }
+
+    private func buildContext(_ cfgs: [EndpointConfig], writeMarker: Bool, into report: inout SyncReport,
+                              progressRange: ClosedRange<Double> = 0.05...0.30) throws -> Context {
         let ctx = Context()
-        for cfg in cfgs {
+        let count = max(1, cfgs.count)
+        for (index, cfg) in cfgs.enumerated() {
+            try checkCancellation()
             switch try checkIdentity(cfg, writeMarker: writeMarker) {
             case .offline(let why):
                 report.offline.append("\(cfg.id)：\(why)")
@@ -166,7 +204,15 @@ public final class Engine {
                 do {
                     scan = try FileOps.scan(root: URL(fileURLWithPath: cfg.root), ignore: effectiveIgnore,
                                             placeholder: options.placeholderCheck, only: prefixes,
-                                            shouldCancel: options.shouldCancel)
+                                            shouldCancel: options.shouldCancel) { [weak self] path, discovered in
+                        guard let self else { return }
+                        // A tree has no cheap known total. Move asymptotically within this endpoint's share;
+                        // later comparison/execution phases have exact totals.
+                        let within = 0.9 * (1 - exp(-Double(discovered) / 800.0))
+                        let endpointFraction = (Double(index) + within) / Double(count)
+                        let f = progressRange.lowerBound + endpointFraction * (progressRange.upperBound - progressRange.lowerBound)
+                        self.emit(.scanning, f, path: path, endpoint: cfg.id, completed: discovered)
+                    }
                 } catch is ScanCancelled {
                     throw ScanCancelled()
                 }
@@ -183,6 +229,8 @@ public final class Engine {
                 ctx.files[cfg.id] = scan.files
                 ctx.rows[cfg.id] = try prefixes.map { try store.rows(cfg.id, under: $0) } ?? store.rows(cfg.id)
             }
+            let f = progressRange.lowerBound + Double(index + 1) / Double(count) * (progressRange.upperBound - progressRange.lowerBound)
+            emit(.scanning, f, endpoint: cfg.id)
         }
         try canonicalizeCase(ctx, &report)
         return ctx
@@ -239,7 +287,8 @@ public final class Engine {
         let key = "\(ep)\u{0}\(path)"
         if let row = ctx.rows[ep]?[path], let st = row.state, st.kind == .file, st.size == f.size, row.mtimeNs == f.mtimeNs {
             if options.deepVerify && !f.isPlaceholder {
-                guard let h = try FileOps.hashIfStable(f.url, size: f.size, mtimeNs: f.mtimeNs) else { return .skip("仍在寫入（穩定窗口）") }
+                guard let h = try FileOps.hashIfStable(f.url, size: f.size, mtimeNs: f.mtimeNs,
+                                                       shouldCancel: options.shouldCancel) else { return .skip("仍在寫入（穩定窗口）") }
                 if h != st.hash {
                     ctx.integrity.insert(IntegrityIssue(endpoint: ep, path: path))
                     return .skip("內容與紀錄不符，但修改時間與大小沒變（疑似損壞）。已略過，不會傳播；其他端點仍持有正確版本")
@@ -278,7 +327,8 @@ public final class Engine {
             }
         }
         if let s = ctx.hashes[key], s.size == f.size { return .present(s, f) }
-        guard let h = try FileOps.hashIfStable(f.url, size: f.size, mtimeNs: f.mtimeNs) else { return .skip("仍在寫入（穩定窗口）") }
+        guard let h = try FileOps.hashIfStable(f.url, size: f.size, mtimeNs: f.mtimeNs,
+                                               shouldCancel: options.shouldCancel) else { return .skip("仍在寫入（穩定窗口）") }
         let st = FileState(hash: h, size: f.size)
         ctx.hashes[key] = st
         return .present(st, f)
@@ -315,6 +365,9 @@ public final class Engine {
     // MARK: public entry
 
     public func sync(dryRun: Bool = false, confirmed: Bool = false, scope: SyncScope = .full) throws -> SyncReport {
+        progressFloor = 0
+        emit(.preparing, 0.01)
+        defer { emit(.finalizing, 1) }
         cloudEvictionCandidates.removeAll()
         defer { releaseMaterializedCloudContent() }
         var report = SyncReport()
@@ -339,7 +392,7 @@ public final class Engine {
 
         // Preview on the current state; also drives the confirmation gates.
         var previewReport = SyncReport()
-        let pctx = try buildContext(cfgs, writeMarker: false, into: &previewReport)
+        let pctx = try buildContext(cfgs, writeMarker: false, into: &previewReport, progressRange: 0.05...0.30)
         report.offline = previewReport.offline
         report.notes += previewReport.notes
         previewing = true
@@ -372,7 +425,7 @@ public final class Engine {
         defer { try? store.endBatch() }
         for pass in 1...6 {
             var scratch = SyncReport()
-            let ctx = try buildContext(cfgs, writeMarker: true, into: &scratch)
+            let ctx = try buildContext(cfgs, writeMarker: true, into: &scratch, progressRange: 0.50...0.60)
             options.afterScan?()
             let before = report.work
             do { try runPass(ctx, &report) }
@@ -414,6 +467,7 @@ public final class Engine {
     // MARK: planning (no mutation)
 
     private func plan(_ ctx: Context) throws -> ([String], Int, [(ep: String, deleted: Int, tracked: Int)]) {
+        emit(options.deepVerify ? .verifying : .comparing, 0.32)
         prehash(ctx)
         var lines: [String] = [], deleted = Set<String>()
         var deletedAt: [String: Int] = [:]
@@ -424,7 +478,12 @@ public final class Engine {
                 lines.append("[\(cfg.id)] 重新命名 \(m.from) → \(m.to)（其他端點直接改名，不重新傳輸）")
             }
         }
-        for path in try allPaths(ctx) {
+        let paths = try allPaths(ctx)
+        for (pathIndex, path) in paths.enumerated() {
+            try checkCancellation()
+            emit(options.deepVerify ? .verifying : .comparing,
+                 0.34 + 0.14 * Double(pathIndex + 1) / Double(max(1, paths.count)),
+                 path: path, completed: pathIndex + 1, total: paths.count)
             let cons = try store.consensus(path)
             for cfg in ctx.online {
                 if skipPaths[cfg.id]?.contains(path) == true { continue }
@@ -525,8 +584,10 @@ public final class Engine {
         var results: [String: FileState] = [:]
         DispatchQueue.concurrentPerform(iterations: workers) { w in
             for i in stride(from: w, to: jobs.count, by: workers) {
+                if self.options.shouldCancel?() == true { break }
                 let j = jobs[i]
-                if let h = try? FileOps.hashIfStable(j.url, size: j.size, mtimeNs: j.mtimeNs) {
+                if let h = try? FileOps.hashIfStable(j.url, size: j.size, mtimeNs: j.mtimeNs,
+                                                     shouldCancel: self.options.shouldCancel) {
                     lock.lock(); results[j.key] = FileState(hash: h, size: j.size); lock.unlock()
                 }
             }
@@ -535,7 +596,10 @@ public final class Engine {
     }
 
     private func runPass(_ ctx: Context, _ report: inout SyncReport) throws {
+        try checkCancellation()
+        emit(.transferring, 0.61)
         prehash(ctx)
+        try checkCancellation()
         // 1) Renames made on an endpoint are adopted as one move, not as "delete + new file".
         for cfg in ctx.online { try adoptMoves(ctx, cfg, &report) }
         // 2) The other endpoints repeat the rename locally, so nothing is transferred again.
@@ -543,8 +607,13 @@ public final class Engine {
 
         // 3) Everything else, parents before children.
         var removedDirs: [(cfg: EndpointConfig, path: String, file: ScannedFile, rev: Int)] = []
-        for path in try allPaths(ctx) {
+        let paths = try allPaths(ctx)
+        for (pathIndex, path) in paths.enumerated() {
+            try checkCancellation()
+            emit(.transferring, 0.62 + 0.32 * Double(pathIndex + 1) / Double(max(1, paths.count)),
+                 path: path, completed: pathIndex + 1, total: paths.count)
             for cfg in ctx.online {
+                try checkCancellation()
                 let l = try live(ctx, cfg.id, path)
                 if case .skip(let why) = l { report.skipped.append("[\(cfg.id)] \(path)：\(why)"); continue }
                 let cur = state(of: l)
@@ -559,6 +628,7 @@ public final class Engine {
                 }
                 do {
                     try applyDecision(decision, ctx, cfg, path, cur, file, row, cons, &report)
+                } catch is ScanCancelled { throw ScanCancelled()
                 } catch let c as SimulatedCrash { throw c
                 } catch {
                     // One failing file (permission, I/O) must not stop the rest of the sync.
@@ -574,6 +644,7 @@ public final class Engine {
         // 4) Folders removed elsewhere: last, deepest first, and only once nothing but litter is left inside.
         for d in removedDirs.sorted(by: { $0.path > $1.path }) {
             do { try removeDirectory(ctx, d.cfg, d.path, d.file, d.rev, &report) }
+            catch is ScanCancelled { throw ScanCancelled() }
             catch let c as SimulatedCrash { throw c }
             catch { report.skipped.append("[\(d.cfg.id)] \(d.path)：刪除資料夾失敗，稍後重試（\(error.localizedDescription)）") }
         }
@@ -648,6 +719,7 @@ public final class Engine {
                         try FileManager.default.createDirectory(at: dst.deletingLastPathComponent(), withIntermediateDirectories: true)
                         guard rename(fp.url.path, dst.path) == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
                     }
+                } catch is ScanCancelled { throw ScanCancelled()
                 } catch let c as SimulatedCrash { throw c
                 } catch {
                     report.skipped.append("[\(cfg.id)] \(p) → \(q)：改名失敗，改用一般流程（\(error.localizedDescription)）"); continue
@@ -720,6 +792,8 @@ public final class Engine {
     }
 
     private func perform(_ op: String, _ ep: String, _ path: String, detail: String = "", _ body: () throws -> Void) throws {
+        try checkCancellation()
+        emit(.transferring, max(progressFloor, 0.62), path: path, endpoint: ep)
         let id = try store.journalBegin(op: op, endpoint: ep, path: path, detail: detail)
         do {
             try options.failpoint?("\(op):before")
@@ -794,12 +868,17 @@ public final class Engine {
         do {
             try perform("copy", cfg.id, path, detail: "from \(src.url.path)") {
                 if let file { try archiveVersion(file, endpoint: cfg.id) }
-                try FileOps.copyAtomically(from: src.url, to: dst, expectHash: want.hash, mtime: src.mtime, durable: cfg.removable)
+                try FileOps.copyAtomically(from: src.url, to: dst, expectHash: want.hash, mtime: src.mtime,
+                                           durable: cfg.removable, shouldCancel: options.shouldCancel) { [weak self] done, total in
+                    self?.emit(.transferring, self?.progressFloor ?? 0.62, path: path, endpoint: cfg.id,
+                               completed: Int(clamping: done), total: Int(clamping: total))
+                }
             }
             failures[failKey] = nil
             if src.isPlaceholder { cloudEvictionCandidates[src.url.path] = src.url }
             spaceUsed[cfg.root, default: 0] += want.size
             if cfg.removable { ctx.wroteToRemovable.insert(cfg.root) }
+        } catch is ScanCancelled { throw ScanCancelled()
         } catch FileOps.CopyError.sourceChanged {
             report.skipped.append("[\(cfg.id)] \(path)：來源在複製途中改變，稍後重試"); return
         } catch let c as SimulatedCrash { throw c
@@ -892,6 +971,9 @@ public final class Engine {
     /// Puts an archived version back at its original place on its endpoint. The file it replaces is archived first, and the
     /// restored file counts as an ordinary edit there, so the next sync spreads it to the other endpoints.
     public func restoreVersion(_ item: VersionItem) throws {
+        progressFloor = 0
+        emit(.preparing, 0.02, path: item.path, endpoint: item.endpoint)
+        defer { emit(.finalizing, 1, path: item.path, endpoint: item.endpoint) }
         let lock = try SyncLock.acquire(path: store.path + ".lock")
         defer { _ = lock }
         guard let cfg = try store.endpoints().first(where: { $0.id == item.endpoint }) else {
@@ -900,18 +982,22 @@ public final class Engine {
         if case .offline(let why) = try checkIdentity(cfg) { throw DBError(description: "端點「\(cfg.id)」目前離線：\(why)") }
         let dst = URL(fileURLWithPath: cfg.root).appendingPathComponent(item.path)
         if let why = portableProblem(cfg, item.path) { throw DBError(description: why) }
-        let hash = try FileOps.sha256(of: item.url)
+        let hash = try FileOps.sha256(of: item.url, shouldCancel: options.shouldCancel)
         try perform("restore", cfg.id, item.path, detail: "from \(item.url.lastPathComponent)") {
             if let st = FileOps.statInfo(dst) {
                 try archiveVersion(ScannedFile(rel: item.path, url: dst, size: st.size, mtimeNs: st.mtimeNs, mtime: Date(), isPlaceholder: false), endpoint: cfg.id)
             }
-            try FileOps.copyAtomically(from: item.url, to: dst, expectHash: hash, mtime: nil, durable: cfg.removable)
+            try FileOps.copyAtomically(from: item.url, to: dst, expectHash: hash, mtime: nil,
+                                       durable: cfg.removable, shouldCancel: options.shouldCancel)
         }
     }
 
     /// A file that failed the deep verification: either put the group's good version back (the damaged one is kept in the
     /// archive), or accept what is there now as the real content (it then spreads like any edit).
     public func resolveIntegrity(_ issue: IntegrityIssue, action: IntegrityAction) throws {
+        progressFloor = 0
+        emit(.preparing, 0.02, path: issue.path, endpoint: issue.endpoint)
+        defer { emit(.finalizing, 1, path: issue.path, endpoint: issue.endpoint) }
         let lock = try SyncLock.acquire(path: store.path + ".lock")
         defer { _ = lock }
         let cfgs = try store.endpoints()
@@ -925,7 +1011,7 @@ public final class Engine {
 
         switch action {
         case .acceptCurrent:
-            let hash = try FileOps.sha256(of: url)
+            let hash = try FileOps.sha256(of: url, shouldCancel: options.shouldCancel)
             let state = FileState(hash: hash, size: st.size)
             let rev = (try store.consensus(path)?.rev ?? 0) + 1
             try store.setConsensus(path, state: state, rev: rev)
@@ -939,7 +1025,8 @@ public final class Engine {
             guard let src = try holder(ctx, excluding: cfg.id, path, want) else { throw DBError(description: "目前沒有其他在線的資料夾持有正確版本") }
             try perform("repair", cfg.id, path, detail: "from \(src.url.path)") {
                 try archiveVersion(scanned, endpoint: cfg.id)
-                try FileOps.copyAtomically(from: src.url, to: url, expectHash: want.hash, mtime: src.mtime, durable: cfg.removable)
+                try FileOps.copyAtomically(from: src.url, to: url, expectHash: want.hash, mtime: src.mtime,
+                                           durable: cfg.removable, shouldCancel: options.shouldCancel)
             }
             let after = FileOps.statInfo(url)
             try store.setRow(cfg.id, path, state: want, mtimeNs: after?.mtimeNs ?? 0, seenRev: cons.rev)
@@ -950,6 +1037,9 @@ public final class Engine {
     /// endpoints and trashes the extra copy; `.conflict` makes the extra copy the real file (the previous
     /// version goes to Versions) and the next sync spreads it to every endpoint.
     public func resolveConflictRecord(_ id: Int64, keep: ConflictChoice) throws {
+        progressFloor = 0
+        emit(.preparing, 0.02)
+        defer { emit(.finalizing, 1) }
         let lock = try SyncLock.acquire(path: store.path + ".lock")
         defer { _ = lock }
         guard let c = try store.conflict(id: id) else { throw DBError(description: "找不到這個衝突紀錄") }
@@ -966,14 +1056,15 @@ public final class Engine {
         case .main:
             try perform("conflict-keep-main", c.endpoint, c.path) { try options.trash(extraURL) }
         case .conflict:
-            let hash = try FileOps.sha256(of: extraURL)
+            let hash = try FileOps.sha256(of: extraURL, shouldCancel: options.shouldCancel)
             let mtime = (try? extraURL.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
             try perform("conflict-keep-copy", c.endpoint, c.path) {
                 if let st = FileOps.statInfo(mainURL) {
                     try archiveVersion(ScannedFile(rel: c.path, url: mainURL, size: st.size, mtimeNs: st.mtimeNs, mtime: Date(), isPlaceholder: false),
                                        endpoint: c.endpoint)
                 }
-                try FileOps.copyAtomically(from: extraURL, to: mainURL, expectHash: hash, mtime: mtime)
+                try FileOps.copyAtomically(from: extraURL, to: mainURL, expectHash: hash, mtime: mtime,
+                                           shouldCancel: options.shouldCancel)
                 try options.trash(extraURL)
             }
         }
