@@ -45,7 +45,7 @@ struct FoldersSection: View {
         if let g = model.activeGroup {
             HStack(spacing: 8) {
                 Image(systemName: g.icon).font(.system(size: 14)).foregroundStyle(Color.accentColor)
-                Text(loc("group_active_banner", DisplayNames.group(g), model.snap.endpoints.count))
+                Text(loc("group_active_banner", model.groupName(g), model.snap.endpoints.count))
                     .font(.system(size: 13, weight: .semibold))
                 Spacer()
                 Button(action: { editingGroup = g }) {
@@ -56,6 +56,17 @@ struct FoldersSection: View {
                     .font(.system(size: 11))
                 }
                 .buttonStyle(QuietButton(kind: .plain, compact: true))
+                if model.groups.count > 1 {
+                    Button(action: { model.confirmAndDeleteGroup(g) }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "trash")
+                            Text(loc("group_delete_button"))
+                        }
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.bad)
+                    }
+                    .buttonStyle(QuietButton(kind: .plain, compact: true))
+                }
             }
             .padding(.horizontal, 4)
         }
@@ -151,7 +162,7 @@ struct SyncGroupTabBar: View {
                             HStack(spacing: 6) {
                                 Image(systemName: group.icon)
                                     .font(.system(size: 13))
-                                Text(DisplayNames.group(group))
+                                Text(model.groupName(group))
                                     .font(.system(size: 13, weight: isActive ? .bold : .medium))
                                 Text("\(epCount)")
                                     .font(.system(size: 10, weight: .semibold))
@@ -189,7 +200,7 @@ struct SyncGroupTabBar: View {
 
     private func confirmDelete(group: SyncGroup) {
         let alert = NSAlert()
-        alert.messageText = loc("group_delete_confirm_title", DisplayNames.group(group))
+        alert.messageText = loc("group_delete_confirm_title", model.groupName(group))
         alert.informativeText = loc("group_delete_confirm_desc")
         alert.addButton(withTitle: loc("group_delete_button"))
         alert.addButton(withTitle: loc("cancel"))
@@ -329,7 +340,7 @@ struct EditGroupSheet: View {
                 }
                 .buttonStyle(QuietButton(kind: .primary))
                 .keyboardShortcut(.defaultAction)
-                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty && !group.name.isEmpty)
             }
         }
         .padding(22)
@@ -339,7 +350,7 @@ struct EditGroupSheet: View {
 
     private func confirmDelete() {
         let alert = NSAlert()
-        alert.messageText = loc("group_delete_confirm_title", DisplayNames.group(group))
+        alert.messageText = loc("group_delete_confirm_title", model.groupName(group))
         alert.informativeText = loc("group_delete_confirm_desc")
         alert.addButton(withTitle: loc("group_delete_button"))
         alert.addButton(withTitle: loc("cancel"))

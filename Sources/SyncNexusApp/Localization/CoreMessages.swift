@@ -46,8 +46,14 @@ enum DisplayNames {
         return id
     }
 
-    static func group(_ g: SyncGroup) -> String {
+    /// Groups the user never named have an empty name and are shown as "New Group", "New Group 2"… in the current language.
+    static func group(_ g: SyncGroup, among all: [SyncGroup]) -> String {
         if g.id == "default", variants("group_default_name").contains(g.name) { return loc("group_default_name") }
+        if g.name.isEmpty {
+            let unnamed = all.filter { $0.name.isEmpty }
+            let n = (unnamed.firstIndex { $0.id == g.id } ?? 0) + 1
+            return loc("group_new_default_name") + (n > 1 ? " \(n)" : "")
+        }
         return g.name
     }
 }

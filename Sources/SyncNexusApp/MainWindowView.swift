@@ -220,7 +220,7 @@ struct OverviewSection: View {
                             Button(action: { model.selectGroup(id: group.id) }) {
                                 HStack(spacing: 4) {
                                     Image(systemName: group.icon).font(.system(size: 11))
-                                    Text(DisplayNames.group(group)).font(.system(size: 12, weight: isActive ? .bold : .regular))
+                                    Text(model.groupName(group)).font(.system(size: 12, weight: isActive ? .bold : .regular))
                                 }
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 4)

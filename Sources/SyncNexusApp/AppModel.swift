@@ -249,21 +249,20 @@ final class AppModel: ObservableObject {
     }
 
     func createGroup(name: String, icon: String = "folder") {
-        let trimmed = name.trimmingCharacters(in: .whitespaces)
-        let finalName = trimmed.isEmpty ? loc("group_default_name") : trimmed
-        let newGroup = registry.addGroup(name: finalName, icon: icon)
+        // An unnamed group stores no text; its name is chosen per language when shown.
+        let newGroup = registry.addGroup(name: name.trimmingCharacters(in: .whitespaces), icon: icon)
         groups = registry.allGroups()
         startService(for: newGroup)
         selectGroup(id: newGroup.id)
-        settingsMessage = loc("group_created_toast", finalName)
+        settingsMessage = loc("group_created_toast", groupName(newGroup))
     }
 
     func updateGroup(id: String, name: String, icon: String) {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { return }
+        guard !trimmed.isEmpty || groups.first(where: { $0.id == id })?.name.isEmpty == true else { return }
         if registry.updateGroup(id: id, name: trimmed, icon: icon) {
             groups = registry.allGroups()
-            settingsMessage = loc("group_updated_toast", trimmed)
+            settingsMessage = loc("group_updated_toast", trimmed.isEmpty ? (groups.first { $0.id == id }.map(groupName) ?? "") : trimmed)
         }
     }
 
@@ -287,7 +286,7 @@ final class AppModel: ObservableObject {
             if activeGroupId == id {
                 selectGroup(id: groups.first?.id ?? "default")
             }
-            settingsMessage = loc("group_deleted_toast", DisplayNames.group(group))
+            settingsMessage = loc("group_deleted_toast", groupName(group))
         }
     }
 
@@ -350,6 +349,18 @@ final class AppModel: ObservableObject {
         snap = Self.localized(snapshots[activeGroupId] ?? .initial)
     }
 
+    func confirmAndDeleteGroup(_ group: SyncGroup) {
+        let alert = NSAlert()
+        alert.messageText = loc("group_delete_confirm_title", groupName(group))
+        alert.informativeText = loc("group_delete_confirm_desc")
+        alert.addButton(withTitle: loc("group_delete_button"))
+        alert.addButton(withTitle: loc("cancel"))
+        NSApp.activate(ignoringOtherApps: true)
+        if alert.runModal() == .alertFirstButtonReturn { deleteGroup(id: group.id) }
+    }
+
+    func groupName(_ g: SyncGroup) -> String { DisplayNames.group(g, among: groups) }
+
     func endpointCount(for groupId: String) -> Int {
         snapshots[groupId]?.endpoints.count ?? 0
     }
@@ -381,7 +392,7 @@ final class AppModel: ObservableObject {
         let resPath = EndpointValidator.resolved(path)
         for (gid, s) in snapshots where gid != activeGroupId {
             if let ep = s.endpoints.first(where: { EndpointValidator.resolved($0.root) == resPath }) {
-                let gName = groups.first(where: { $0.id == gid }).map(DisplayNames.group) ?? gid
+                let gName = groups.first(where: { $0.id == gid }).map(groupName) ?? gid
                 issues.append(ValidationIssue(isError: true, message: loc("folders_used_in_other_group", gName, DisplayNames.endpoint(ep.id))))
             }
         }

@@ -3823,6 +3823,14 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .th: "ล้างเวอร์ชันเก่าด้วยตนเอง (หมดอายุ): ลบ %@ ไฟล์ ปล่อยพื้นที่ %@",
         .ko: "이전 버전 수동 정리(만료): %@개 파일 제거, %@ 확보"
     ],
+    "group_new_default_name": [
+        .en: "New Group",
+        .zhHant: "新增群組",
+        .zhHans: "新增群组",
+        .ja: "新規グループ",
+        .th: "กลุ่มใหม่",
+        .ko: "새 그룹"
+    ],
     "group_deleted_toast": [
         .en: "Sync group '%@' deleted.",
         .zhHant: "已刪除同步群組「%@」",

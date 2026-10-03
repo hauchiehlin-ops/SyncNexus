@@ -142,4 +142,12 @@ struct SyncGroupTests {
         let d = try Database(path: reg.dbPath(for: "default"))
         #expect(try d.query("SELECT COUNT(*) FROM endpoints")[0][0].intValue == 3)
     }
+
+    @Test func unnamedGroupKeepsEmptyNameOnDisk() throws {
+        let dir = try tmpDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let reg = SyncGroupRegistry(baseAppSupportURL: dir)
+        let g = reg.addGroup(name: "")
+        #expect(SyncGroupRegistry(baseAppSupportURL: dir).group(id: g.id)?.name == "")   // survives reload, not frozen to a language
+    }
 }
