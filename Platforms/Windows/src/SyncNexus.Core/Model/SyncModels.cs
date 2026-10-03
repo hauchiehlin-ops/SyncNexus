@@ -66,3 +66,12 @@ public class SyncReport
 
     public bool IsSuccess => Offline.Count == 0;
 }
+
+public record SyncGroup(
+    string Id,
+    string Name,
+    string Icon = "folder",
+    DateTime? CreatedAt = null,
+    int RetentionDays = 30
+);
+

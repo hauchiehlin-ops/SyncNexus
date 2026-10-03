@@ -14,10 +14,15 @@ public struct VolumeDescription: Sendable {
 public struct ValidationIssue: Sendable, Equatable {
     public var isError: Bool
     public var message: String
+
+    public init(isError: Bool, message: String) {
+        self.isError = isError
+        self.message = message
+    }
 }
 
 public enum EndpointValidator {
-    static func resolved(_ path: String) -> String {
+    public static func resolved(_ path: String) -> String {
         var p = URL(fileURLWithPath: path).resolvingSymlinksInPath().standardized.path
         while p.count > 1 && p.hasSuffix("/") { p.removeLast() }
         return p

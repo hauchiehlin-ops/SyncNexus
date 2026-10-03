@@ -2584,12 +2584,12 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .ko: "엔드포인트 조작 및 4가지 저장 위치 추가 안내"
     ],
     "manual_topic_folders_ops_desc": [
-        .en: "Click 'Add Folder...' at the bottom and pick directories in Finder (at least 2 required):\n1. Local Mac: Open Finder ➔ click 'Documents' or personal folder on the sidebar.\n2. iCloud Drive: Open Finder ➔ click 'iCloud Drive' on the sidebar ➔ select target folder.\n3. Google Drive: Open Finder ➔ click 'Google Drive' ➔ 'My Drive' ➔ select target folder.\n4. External USB Drive: Plug in USB drive, open Finder ➔ click drive name under 'Locations' ➔ select folder. Formatting as ExFAT is strongly recommended for seamless compatibility across Mac and Windows!\n• 'Change Folder...': Re-links path when directory is moved or remounted.\n• 'Remove...': Unbinds folder without deleting physical files.",
-        .zhHant: "點擊底部「加入資料夾...」，在訪達（Finder）中選取目錄（至少需 2 個）：\n1. 電腦本機：點開 Finder ➔ 側邊欄「文件」或個人專屬目錄。\n2. iCloud 雲碟：點開 Finder ➔ 側邊欄「iCloud 雲碟」➔ 選取目標資料夾。\n3. Google Drive：點開 Finder ➔ 側邊欄「Google Drive」➔「我的雲端硬碟」➔ 選取目標資料夾。\n4. 外接隨身碟：插上隨身碟，點開 Finder ➔ 側邊欄「位置」選取隨身碟目錄。強烈建議格式化為 ExFAT，方便在 Mac 與 Windows 之間通用！\n• 「更換資料夾...」按鈕：路徑搬移或代號變更時重新關聯。\n• 「移除...」按鈕：解除同步關係，絕不刪除資料夾內的實體檔案。",
-        .zhHans: "点击底部“加入文件夹...”，在访达（Finder）中选取目录（至少需 2 个）：\n1. 电脑本机：点开 Finder ➔ 侧边栏“文稿”或个人专属目录。\n2. iCloud 云盘：点开 Finder ➔ 侧边栏“iCloud 云盘”➔ 选取目标文件夹。\n3. Google Drive：点开 Finder ➔ 侧边栏“Google Drive”➔“我的云端硬盘”➔ 选取目标文件夹。\n4. 外接随身碟：插上随身碟，点开 Finder ➔ 侧边栏“位置”选取随身碟目录。强烈建议格式化为 ExFAT，方便在 Mac 与 Windows 之间通用！\n• “更换文件夹...”按钮：路径搬移或代号变更时重新关联。\n• “移除...”按钮：解除同步关系，绝不删除文件夹内的实体文件。",
-        .ja: "下部の「フォルダを追加...」をクリックし、Finder でフォルダを選択します (最低2つ必要):\n1. Mac ローカル: Finder を開き、左サイドバーの「書類」または個人フォルダを選択。\n2. iCloud Drive: Finder を開き、サイドバーの「iCloud Drive」を選択。\n3. Google Drive: Finder を開き、サイドバーの「Google Drive」➔「マイドライブ」を選択。\n4. 外付け USB メモリ: USB を接続し、Finder のサイドバー「場所」からドライブを選択。Mac と Windows の両方で使えるよう ExFAT 形式を強く推奨します！\n• 「フォルダ変更...」: パス変更時に再紐付け。\n• 「削除...」: 同期から除外しますが、実際のファイルは削除されません。",
-        .th: "คลิก 'เพิ่มโฟลเดอร์...' ด้านล่างและเลือกไดเรกทอรีใน Finder (ต้องมีอย่างน้อย 2 โฟลเดอร์):\n1. โฟลเดอร์ในเครื่อง Mac: เปิด Finder ➔ คลิก 'Documents' หรือโฟลเดอร์ส่วนตัวที่แถบด้านข้าง\n2. iCloud Drive: เปิด Finder ➔ คลิก 'iCloud Drive' ที่แถบด้านข้าง ➔ เลือกโฟลเดอร์เป้าหมาย\n3. Google Drive: เปิด Finder ➔ คลิก 'Google Drive' ➔ 'My Drive' ➔ เลือกโฟลเดอร์\n4. แฟลชไดรฟ์ USB: เสียบแฟลชไดรฟ์ เปิด Finder ➔ คลิกชื่อไดรฟ์ใต้ 'Locations' แนะนำให้ฟอร์แมตเป็น ExFAT เพื่อให้ใช้งานร่วมกับ Windows ได้อย่างราบรื่น!\n• 'เปลี่ยนโฟลเดอร์...': เชื่อมโยงเส้นทางใหม่เมื่อโฟลเดอร์ถูกย้าย\n• 'ลบ...': ยกเลิกการซิงค์โฟลเดอร์ โดยไม่ลบไฟล์จริงใดๆ",
-        .ko: "하단의 '폴더 추가...'를 클릭하고 Finder에서 디렉터리를 선택합니다 (최소 2개 필요):\n1. Mac 로컬: Finder 실행 ➔ 좌측 사이드바의 '문서' 또는 사용자 폴더 선택.\n2. iCloud Drive: Finder 실행 ➔ 사이드바의 'iCloud Drive' 선택.\n3. Google Drive: Finder 실행 ➔ 사이드바의 'Google Drive' ➔ '내 드라이브' 선택.\n4. 외장 USB 드라이브: USB 연결 후 Finder 사이드바 '위치' 아래 드라이브 선택. Mac과 Windows 간 원활한 호환을 위해 ExFAT 포맷을 적극 권장합니다!\n• '폴더 변경...': 경로 이동 시 다시 연결.\n• '제거...': 동기화 목록에서만 해제되며 실제 파일은 삭제되지 않습니다."
+        .en: "• Sync Groups: Manage multiple independent folder sets (e.g. Work Projects, Family Photos). Click '+ New Group' at the top to customize name and icon; click group chips to switch; right-click or edit button to rename or delete.\n• Add Folder...: Click at the bottom and pick directories in Finder (at least 2 required per group):\n1. Local Mac: Open Finder ➔ click 'Documents' or personal folder on the sidebar.\n2. iCloud Drive: Open Finder ➔ click 'iCloud Drive' on the sidebar ➔ select target folder.\n3. Google Drive: Open Finder ➔ click 'Google Drive' ➔ 'My Drive' ➔ select target folder.\n4. External USB Drive: Plug in USB drive, open Finder ➔ click drive name under 'Locations' ➔ select folder. Formatting as ExFAT is strongly recommended for seamless compatibility across Mac and Windows!\n• 'Change Folder...': Re-links path when directory is moved or remounted.\n• 'Remove...': Unbinds folder without deleting physical files.",
+        .zhHant: "• 同步群組 (Sync Groups)：支援管理多組獨立的同步群組（如工作專案、家庭相片、個人財務）。點擊頂部「＋ 新增群組」自訂專屬名稱與圖示；點擊群組標籤即可即時切換；右鍵或編輯按鈕可重新命名或刪除。\n• 加入資料夾：點擊底部「加入資料夾...」，在訪達（Finder）中選取目錄（每個群組至少需 2 個）：\n1. 電腦本機：點開 Finder ➔ 側邊欄「文件」或個人專屬目錄。\n2. iCloud 雲碟：點開 Finder ➔ 側邊欄「iCloud 雲碟」➔ 選取目標資料夾。\n3. Google Drive：點開 Finder ➔ 側邊欄「Google Drive」➔「我的雲端硬碟」➔ 選取目標資料夾。\n4. 外接隨身碟：插上隨身碟，點開 Finder ➔ 側邊欄「位置」選取隨身碟目錄。強烈建議格式化為 ExFAT，方便在 Mac 與 Windows 之間通用！\n• 「更換資料夾...」按鈕：路徑搬移或代號變更時重新關聯。\n• 「移除...」按鈕：解除同步關係，絕不刪除資料夾內的實體檔案。",
+        .zhHans: "• 同步群组 (Sync Groups)：支持管理多组独立的同步群组（如工作项目、家庭相片、个人财务）。点击顶部“＋ 新增群组”自定义专属名称与图标；点击群组标签即可即时切换；右键或编辑按钮可重新命名或删除。\n• 加入文件夹：点击底部“加入文件夹...”，在访达（Finder）中选取目录（每个群组至少需 2 个）：\n1. 电脑本机：点开 Finder ➔ 侧边栏“文稿”或个人专属目录。\n2. iCloud 云盘：点开 Finder ➔ 侧边栏“iCloud 云盘”➔ 选取目标文件夹。\n3. Google Drive：点开 Finder ➔ 侧边栏“Google Drive”➔“我的云端硬盘”➔ 选取目标文件夹。\n4. 外接随身碟：插上随身碟，点开 Finder ➔ 侧边栏“位置”选取随身碟目录。强烈建议格式化为 ExFAT，方便在 Mac 与 Windows 之间通用！\n• “更换文件夹...”按钮：路径搬移或代号变更时重新关联。\n• “移除...”按钮：解除同步关系，绝不删除文件夹内的实体文件。",
+        .ja: "• 同期グループ: 複数の独立したフォルダセット（仕事プロジェクト、家族写真など）を管理できます。上部の「＋ 新規グループ」から名前とアイコンを設定し、チップをクリックして切り替えられます。\n• フォルダ追加: 下部の「フォルダを追加...」をクリックし、Finder でフォルダを選択します (各グループ最低2つ必要):\n1. Mac ローカル: Finder を開き、左サイドバーの「書類」または個人フォルダを選択。\n2. iCloud Drive: Finder を開き、サイドバーの「iCloud Drive」を選択。\n3. Google Drive: Finder を開き、サイドバーの「Google Drive」➔「マイドライブ」を選択。\n4. 外付け USB メモリ: USB を接続し、Finder のサイドバー「場所」からドライブを選択。Mac と Windows の両方で使えるよう ExFAT 形式を強く推奨します！\n• 「フォルダ変更...」: パス変更時に再紐付け。\n• 「削除...」: 同期から除外しますが、実際のファイルは削除されません。",
+        .th: "• กลุ่มการซิงค์: จัดการชุดโฟลเดอร์ที่แยกจากกันได้หลายกลุ่ม (เช่น โปรเจกต์งาน, รูปครอบครัว) คลิก '+ กลุ่มใหม่' ที่ด้านบนเพื่อตั้งชื่อและไอคอน คลิกแท็บเพื่อสลับกลุ่ม\n• เพิ่มโฟลเดอร์...: คลิกด้านล่างและเลือกไดเรกทอรีใน Finder (ต้องมีอย่างน้อย 2 โฟลเดอร์ต่อกลุ่ม):\n1. โฟลเดอร์ในเครื่อง Mac: เปิด Finder ➔ คลิก 'Documents' หรือโฟลเดอร์ส่วนตัวที่แถบด้านข้าง\n2. iCloud Drive: เปิด Finder ➔ คลิก 'iCloud Drive' ที่แถบด้านข้าง ➔ เลือกโฟลเดอร์เป้าหมาย\n3. Google Drive: เปิด Finder ➔ คลิก 'Google Drive' ➔ 'My Drive' ➔ เลือกโฟลเดอร์\n4. แฟลชไดรฟ์ USB: เสียบแฟลชไดรฟ์ เปิด Finder ➔ คลิกชื่อไดรฟ์ใต้ 'Locations' แนะนำให้ฟอร์แมตเป็น ExFAT เพื่อให้ใช้งานร่วมกับ Windows ได้อย่างราบรื่น!\n• 'เปลี่ยนโฟลเดอร์...': เชื่อมโยงเส้นทางใหม่เมื่อโฟลเดอร์ถูกย้าย\n• 'ลบ...': ยกเลิกการซิงค์โฟลเดอร์ โดยไม่ลบไฟล์จริงใดๆ",
+        .ko: "• 동기화 그룹: 여러 개의 독립적인 동기화 그룹(예: 업무 프로젝트, 가족 사진, 재무 등)을 관리할 수 있습니다. 상단의 '+ 새 그룹'을 클릭하여 이름과 아이콘을 설정하고 탭을 클릭하여 즉시 전환할 수 있습니다.\n• 폴더 추가: 하단의 '폴더 추가...'를 클릭하고 Finder에서 디렉터리를 선택합니다 (그룹당 최소 2개 필요):\n1. Mac 로컬: Finder 실행 ➔ 좌측 사이드바의 '문서' 또는 사용자 폴더 선택.\n2. iCloud Drive: Finder 실행 ➔ 사이드바의 'iCloud Drive' 선택.\n3. Google Drive: Finder 실행 ➔ 사이드바의 'Google Drive' ➔ '내 드라이브' 선택.\n4. 외장 USB 드라이브: USB 연결 후 Finder 사이드바 '위치' 아래 드라이브 선택. Mac과 Windows 간 원활한 호환을 위해 ExFAT 포맷을 적극 권장합니다!\n• '폴더 변경...': 경로 이동 시 다시 연결.\n• '제거...': 동기화 목록에서만 해제되며 실제 파일은 삭제되지 않습니다."
     ],
     "manual_topic_folders_safe_title": [
         .en: "Marker Guard & Offline Detection",
@@ -2886,6 +2886,151 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .ja: "開発者の方は `node_modules` 除外スイッチを有効にすることを強くお勧めします。数万個の細かなファイルの転送を回避でき、同期速度が劇的に向上します。",
         .th: "สำหรับนักพัฒนา แนะนำอย่างยิ่งให้เปิดการยกเว้น `node_modules` เพื่อประหยัดเวลาส่งไฟล์ขนาดเล็กนับหมื่นไฟล์ ช่วยให้การซิงค์เร็วขึ้นอย่างมาก",
         .ko: "개발자의 경우 `node_modules` 제외 스위치를 켜두는 것을 강력히 권장합니다. 수만 개의 자잘한 파일 전송을 건너뛰어 동기화 속도가 비약적으로 향상됩니다."
+    ],
+    "group_selector_title": [
+        .en: "Sync Groups",
+        .zhHant: "同步群組",
+        .zhHans: "同步群组",
+        .ja: "同期グループ",
+        .th: "กลุ่มการซิงค์",
+        .ko: "동기화 그룹"
+    ],
+    "group_add_button": [
+        .en: "New Group",
+        .zhHant: "新增群組",
+        .zhHans: "新增群组",
+        .ja: "新規グループ",
+        .th: "กลุ่มใหม่",
+        .ko: "새 그룹"
+    ],
+    "group_add_title": [
+        .en: "Create Sync Group",
+        .zhHant: "建立同步群組",
+        .zhHans: "创建同步群组",
+        .ja: "同期グループの作成",
+        .th: "สร้างกลุ่มการซิงค์",
+        .ko: "동기화 그룹 생성"
+    ],
+    "group_add_desc": [
+        .en: "Sync groups allow you to keep separate sets of folders synchronized independently with isolated consensus and history.",
+        .zhHant: "同步群組可讓您獨立管理不同資料夾集合，各群組擁有獨立的對帳、排程與歷史版本庫。",
+        .zhHans: "同步群组可让您独立管理不同文件夹集合，各群组拥有独立的对账、排程与历史版本库。",
+        .ja: "同期グループにより、異なるフォルダの組み合わせを完全に独立して同期・管理できます。",
+        .th: "กลุ่มการซิงค์ช่วยให้คุณจัดการชุดโฟลเดอร์ที่แยกจากกันได้อย่างอิสระ พร้อมประวัติและการตรวจสอบที่แยกจากกัน",
+        .ko: "동기화 그룹을 통해 여러 폴더 세트를 독립된 대사 엔진과 히스토리로 분리하여 관리할 수 있습니다."
+    ],
+    "group_edit_title": [
+        .en: "Edit Sync Group",
+        .zhHant: "編輯同步群組",
+        .zhHans: "编辑同步群组",
+        .ja: "同期グループを編集",
+        .th: "แก้ไขกลุ่มการซิงค์",
+        .ko: "동기화 그룹 편집"
+    ],
+    "group_delete_button": [
+        .en: "Delete Group",
+        .zhHant: "刪除群組",
+        .zhHans: "删除群组",
+        .ja: "グループを削除",
+        .th: "ลบกลุ่ม",
+        .ko: "그룹 삭제"
+    ],
+    "group_delete_confirm_title": [
+        .en: "Delete sync group '%@'?",
+        .zhHant: "確定要刪除同步群組「%@」？",
+        .zhHans: "确定要删除同步群组“%@”？",
+        .ja: "同期グループ「%@」を削除しますか？",
+        .th: "ต้องการลบกลุ่มการซิงค์ '%@' หรือไม่?",
+        .ko: "'%@' 동기화 그룹을 삭제하시겠습니까?"
+    ],
+    "group_delete_confirm_desc": [
+        .en: "Files on all endpoints will remain intact on disk. Only sync schedules, consensus records, and metadata for this group will be removed.",
+        .zhHant: "本機與各端點的實體檔案均會完整保留於磁碟中，僅移除本群組的同步排程、對帳紀錄與中繼資料。",
+        .zhHans: "本机与各端点的实体文件均会完整保留于磁盘中，仅移除本群组的同步排程、对账记录与中继数据。",
+        .ja: "各エンドポイントの実体ファイルはそのまま保持されます。このグループの同期スケジュールとメタデータのみが削除されます。",
+        .th: "ไฟล์จริงในทุกปลายทางจะยังคงอยู่ในดิสก์ จะลบเฉพาะตารางเวลาและข้อมูลการซิงค์ของกลุ่มนี้เท่านั้น",
+        .ko: "모든 엔드포인트의 실제 파일은 디스크에 그대로 유지됩니다. 이 그룹의 동기화 일정과 메타데이터만 제거됩니다."
+    ],
+    "group_cannot_delete_last": [
+        .en: "Cannot delete the last remaining sync group.",
+        .zhHant: "無法刪除最後一個同步群組。",
+        .zhHans: "无法删除最后一个同步群组。",
+        .ja: "最後の同期グループは削除できません。",
+        .th: "ไม่สามารถลบกลุ่มการซิงค์สุดท้ายได้",
+        .ko: "마지막 남은 동기화 그룹은 삭제할 수 없습니다."
+    ],
+    "group_name_label": [
+        .en: "Group Name",
+        .zhHant: "群組名稱",
+        .zhHans: "群组名称",
+        .ja: "グループ名",
+        .th: "ชื่อกลุ่ม",
+        .ko: "그룹 이름"
+    ],
+    "group_name_placeholder": [
+        .en: "e.g. Work, Family Photos, Finance",
+        .zhHant: "例如：工作專案、家庭相片、個人財務",
+        .zhHans: "例如：工作项目、家庭相片、个人财务",
+        .ja: "例: 仕事プロジェクト、家族写真",
+        .th: "เช่น โปรเจกต์งาน, รูปครอบครัว, การเงิน",
+        .ko: "예: 업무 프로젝트, 가족 사진, 재무"
+    ],
+    "group_icon_label": [
+        .en: "Icon",
+        .zhHant: "代表圖示",
+        .zhHans: "代表图标",
+        .ja: "アイコン",
+        .th: "ไอคอน",
+        .ko: "아이콘"
+    ],
+    "group_endpoints_count": [
+        .en: "%d endpoints",
+        .zhHant: "%d 個端點",
+        .zhHans: "%d 个端点",
+        .ja: "%d 個のエンドポイント",
+        .th: "%d ปลายทาง",
+        .ko: "%d개 엔드포인트"
+    ],
+    "group_created_toast": [
+        .en: "Sync group '%@' created.",
+        .zhHant: "已成功建立同步群組「%@」",
+        .zhHans: "已成功建立同步群组“%@”",
+        .ja: "同期グループ「%@」を作成しました。",
+        .th: "สร้างกลุ่มการซิงค์ '%@' เรียบร้อยแล้ว",
+        .ko: "'%@' 동기화 그룹이 생성되었습니다."
+    ],
+    "group_updated_toast": [
+        .en: "Sync group '%@' updated.",
+        .zhHant: "已更新同步群組「%@」",
+        .zhHans: "已更新同步群组“%@”",
+        .ja: "同期グループ「%@」を更新しました。",
+        .th: "อัปเดตกลุ่มการซิงค์ '%@' เรียบร้อยแล้ว",
+        .ko: "'%@' 동기화 그룹이 업데이트되었습니다."
+    ],
+    "group_deleted_toast": [
+        .en: "Sync group '%@' deleted.",
+        .zhHant: "已刪除同步群組「%@」",
+        .zhHans: "已删除同步群组“%@”",
+        .ja: "同期グループ「%@」を削除しました。",
+        .th: "ลบกลุ่มการซิงค์ '%@' เรียบร้อยแล้ว",
+        .ko: "'%@' 동기화 그룹이 삭제되었습니다."
+    ],
+    "folders_used_in_other_group": [
+        .en: "Folder is already being synced by group '%@' (endpoint '%@'). Overlapping sync paths are prohibited.",
+        .zhHant: "該資料夾已被同步群組「%@」（端點「%@」）同步中，禁止重複跨群組同步相同路徑。",
+        .zhHans: "该文件夹已被同步群组“%@”（端点“%@”）同步中，禁止重复跨群组同步相同路径。",
+        .ja: "このフォルダは既にグループ「%@」（エンドポイント「%@」）で同期されています。",
+        .th: "โฟลเดอร์นี้ถูกซิงค์โดยกลุ่ม '%@' (ปลายทาง '%@') อยู่แล้ว",
+        .ko: "해당 폴더는 이미 '%@' 그룹('%@' 엔드포인트)에서 동기화 중입니다."
+    ],
+    "group_active_banner": [
+        .en: "Current Sync Group: %@ (%d endpoints)",
+        .zhHant: "目前同步群組：%@（共 %d 個端點資料夾）",
+        .zhHans: "当前同步群组：%@（共 %d 个端点文件夹）",
+        .ja: "現在の同期グループ: %@ (%d 個のエンドポイント)",
+        .th: "กลุ่มการซิงค์ปัจจุบัน: %@ (%d ปลายทาง)",
+        .ko: "현재 동기화 그룹: %@ (%d개 엔드포인트)"
     ]
 ]
+
 

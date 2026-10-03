@@ -49,7 +49,9 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _statusMessage = "就緒";
     [ObservableProperty] private int _trackedFilesCount = 0;
     [ObservableProperty] private bool _isSyncing = false;
+    [ObservableProperty] private SyncGroup? _selectedGroup;
 
+    public ObservableCollection<SyncGroup> SyncGroups { get; } = new();
     public ObservableCollection<EndpointItemViewModel> Endpoints { get; } = new();
     public ObservableCollection<string> RecentLogs { get; } = new();
 
@@ -57,7 +59,37 @@ public partial class MainViewModel : ObservableObject
     {
         _store = store;
         _engine = engine;
+
+        // Initialize default Sync Group
+        var defaultGroup = new SyncGroup("default", "預設同步群組", "folder", DateTime.UtcNow);
+        SyncGroups.Add(defaultGroup);
+        SelectedGroup = defaultGroup;
+
         LoadEndpoints();
+    }
+
+    public void CreateGroup(string name, string icon = "folder")
+    {
+        var group = new SyncGroup($"group_{Guid.NewGuid().ToString("N")[..8]}", name, icon, DateTime.UtcNow);
+        SyncGroups.Add(group);
+        SelectedGroup = group;
+        StatusMessage = $"已建立同步群組「{name}」";
+    }
+
+    public void DeleteGroup(SyncGroup group)
+    {
+        if (SyncGroups.Count <= 1)
+        {
+            StatusMessage = "無法刪除最後一個同步群組";
+            return;
+        }
+
+        SyncGroups.Remove(group);
+        if (SelectedGroup?.Id == group.Id)
+        {
+            SelectedGroup = SyncGroups[0];
+        }
+        StatusMessage = $"已刪除同步群組「{group.Name}」";
     }
 
     public void LoadEndpoints()

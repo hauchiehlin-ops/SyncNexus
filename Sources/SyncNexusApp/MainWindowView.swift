@@ -207,6 +207,34 @@ struct OverviewSection: View {
 
     var body: some View {
         sectionHeader(model.overall == .ok ? loc("status_all_normal") : model.overallTitle, overviewSubtitle)
+
+        if model.groups.count > 1 {
+            HStack(spacing: 8) {
+                Text(loc("group_selector_title") + ":")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.secondary)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(model.groups, id: \.id) { (group: SyncGroup) in
+                            let isActive: Bool = (group.id == model.activeGroupId)
+                            Button(action: { model.selectGroup(id: group.id) }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: group.icon).font(.system(size: 11))
+                                    Text(group.name).font(.system(size: 12, weight: isActive ? .bold : .regular))
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(isActive ? Theme.accent : Theme.tile, in: RoundedRectangle(cornerRadius: 6))
+                                .foregroundStyle(isActive ? Color.white : Color.primary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+            .padding(.bottom, 4)
+        }
+
         if model.snap.confirmation != nil {
             Card {
                 HStack(spacing: 12) {

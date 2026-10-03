@@ -77,8 +77,14 @@ Before committing changes to disk, **Diff Preview** provides a **Dry-Run Simulat
 
 ![Folders Management](../assets/03_folders_endpoints.png)
 
-### 3.1 Purpose and Objectives
-The **Folders** tab manages synchronization targets. SyncNexus allows you to bind **multiple storage locations** (local Mac directories, iCloud Drive, Google Drive, and external USB disks) into a unified synchronization group. A change in one folder is automatically replicated across all others.
+### 3.1 Purpose and Multi-Folder Sync Groups
+The **Folders** tab manages synchronization targets. SyncNexus adopts an industry-leading **Folder Groups architecture model**:
+- **Multi-Task Independent Sync**: You can create multiple independent Sync Groups simultaneously (e.g., "Work Projects", "Family Photos", "Personal Finance").
+- **Full Pipeline & Schedule Isolation**: Each group maintains its own set of 2~N endpoint folders, its own SQLite consensus database, file monitoring pipeline, and SyncLock. Group A syncing a 10 GB archive will never block or slow down Group B syncing small documents!
+- **Group Management Walkthrough**:
+  1. **Create Group**: Click "**+ New Group**" on the top group bar, choose a name and custom icon (e.g. briefcase or camera), and click create.
+  2. **Switch Groups**: Click on group chips to instantly view and manage endpoints belonging to that specific profile.
+  3. **Edit & Delete**: Right-click or click the edit icon on a group chip to rename, update icon, or safely remove the group (actual files on disk remain untouched).
 
 ### 3.2 Grounded Guide to Adding Storage Endpoints
 

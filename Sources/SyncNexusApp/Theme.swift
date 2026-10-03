@@ -22,6 +22,7 @@ enum Theme {
     static let tile = Color.primary.opacity(0.05)
     static let line = Color.primary.opacity(0.10)
     static let sidebar = dynamic(light: 0xF1F1F5, dark: 0x252528)
+    static let accent = Color.accentColor
 }
 
 struct Chip: View {

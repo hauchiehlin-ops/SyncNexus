@@ -31,6 +31,14 @@ data class SyncExecutionReport(
     val logs: List<SyncLogItem>
 )
 
+data class SyncGroup(
+    val id: String,
+    val name: String,
+    val icon: String = "folder",
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+
 /**
  * Android 核心雙向同步引擎
  * 完整實現 SAF 資料夾走訪、SHA-256 完整性校驗、原子寫入與多端點資料夾雙向同步

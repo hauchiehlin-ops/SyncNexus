@@ -32,9 +32,34 @@ struct FoldersSection: View {
     @ObservedObject var model: AppModel
     @ObservedObject private var l10n = L10n.shared
     @State private var draft: AddDraft?
+    @State private var showingAddGroup = false
+    @State private var editingGroup: SyncGroup?
 
     var body: some View {
         sectionHeader(loc("section_folders"), loc("folders_desc"))
+
+        // Multi-folder Sync Groups Selector Bar
+        SyncGroupTabBar(model: model, showingAddGroup: $showingAddGroup, editingGroup: $editingGroup)
+
+        // Active Group Info Banner
+        if let g = model.activeGroup {
+            HStack(spacing: 8) {
+                Image(systemName: g.icon).font(.system(size: 14)).foregroundStyle(Color.accentColor)
+                Text(loc("group_active_banner", g.name, model.snap.endpoints.count))
+                    .font(.system(size: 13, weight: .semibold))
+                Spacer()
+                Button(action: { editingGroup = g }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "pencil")
+                        Text(loc("group_edit_title"))
+                    }
+                    .font(.system(size: 11))
+                }
+                .buttonStyle(QuietButton(kind: .plain, compact: true))
+            }
+            .padding(.horizontal, 4)
+        }
+
         if model.snap.endpoints.isEmpty {
             Card { Text(loc("folders_empty_hint"))
                 .font(.system(size: 14)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
@@ -45,6 +70,8 @@ struct FoldersSection: View {
             if model.snap.endpoints.count < 2 { Text(loc("folders_minimum_warning")).font(.system(size: 13)).foregroundStyle(Theme.warn) }
         }
         .sheet(item: $draft) { d in AddSheet(model: model, draft: d) { draft = nil } }
+        .sheet(isPresented: $showingAddGroup) { AddGroupSheet(model: model) { showingAddGroup = false } }
+        .sheet(item: $editingGroup) { g in EditGroupSheet(model: model, group: g) { editingGroup = nil } }
     }
 
     private func startAdd() {
@@ -60,6 +87,239 @@ struct FoldersSection: View {
         let taken = Set(model.snap.endpoints.map(\.id))
         let name = taken.contains(base) ? ((2...9).map { "\(base)\($0)" }.first { !taken.contains($0) } ?? base) : base
         draft = AddDraft(path: picked.path, bookmarkData: picked.bookmarkData, name: name, removable: d.suggestRemovable, portable: d.suggestPortableNames, desc: d)
+    }
+}
+
+struct SyncGroupTabBar: View {
+    @ObservedObject var model: AppModel
+    @ObservedObject private var l10n = L10n.shared
+    @Binding var showingAddGroup: Bool
+    @Binding var editingGroup: SyncGroup?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "folder.badge.gearshape")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Color.accentColor)
+                Text(loc("group_selector_title"))
+                    .font(.system(size: 14, weight: .bold))
+                Spacer()
+                Button(action: { showingAddGroup = true }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus.circle.fill")
+                        Text(loc("group_add_button"))
+                    }
+                    .font(.system(size: 12, weight: .medium))
+                }
+                .buttonStyle(QuietButton(kind: .secondary, compact: true))
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(model.groups) { group in
+                        let isActive = group.id == model.activeGroupId
+                        let epCount = model.endpointCount(for: group.id)
+                        Button(action: { model.selectGroup(id: group.id) }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: group.icon)
+                                    .font(.system(size: 13))
+                                Text(group.name)
+                                    .font(.system(size: 13, weight: isActive ? .bold : .medium))
+                                Text("\(epCount)")
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(isActive ? Color.white.opacity(0.25) : Theme.line, in: Capsule())
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 7)
+                            .background(isActive ? Theme.accent : Theme.tile, in: RoundedRectangle(cornerRadius: 10))
+                            .foregroundStyle(isActive ? Color.white : Color.primary)
+                        }
+                        .buttonStyle(.plain)
+                        .contextMenu {
+                            Button(loc("group_edit_title")) {
+                                editingGroup = group
+                            }
+                            if model.groups.count > 1 {
+                                Button(role: .destructive) {
+                                    confirmDelete(group: group)
+                                } label: {
+                                    Label(loc("group_delete_button"), systemImage: "trash")
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+        }
+        .padding(14)
+        .background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.line, lineWidth: 1))
+    }
+
+    private func confirmDelete(group: SyncGroup) {
+        let alert = NSAlert()
+        alert.messageText = loc("group_delete_confirm_title", group.name)
+        alert.informativeText = loc("group_delete_confirm_desc")
+        alert.addButton(withTitle: loc("group_delete_button"))
+        alert.addButton(withTitle: loc("cancel"))
+        NSApp.activate(ignoringOtherApps: true)
+        if alert.runModal() == .alertFirstButtonReturn {
+            model.deleteGroup(id: group.id)
+        }
+    }
+}
+
+struct AddGroupSheet: View {
+    @ObservedObject var model: AppModel
+    @ObservedObject private var l10n = L10n.shared
+    @State private var name = ""
+    @State private var selectedIcon = "folder"
+    let close: () -> Void
+
+    let availableIcons = [
+        "folder", "briefcase", "doc.text", "camera", "graduationcap",
+        "heart", "externaldrive", "building.2", "tag", "star"
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(loc("group_add_title")).font(.system(size: 20, weight: .bold))
+            Text(loc("group_add_desc"))
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(loc("group_name_label")).font(.system(size: 13, weight: .medium))
+                TextField(loc("group_name_placeholder"), text: $name)
+                    .textFieldStyle(.roundedBorder)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(loc("group_icon_label")).font(.system(size: 13, weight: .medium))
+                HStack(spacing: 10) {
+                    ForEach(availableIcons, id: \.self) { icon in
+                        Button(action: { selectedIcon = icon }) {
+                            Image(systemName: icon)
+                                .font(.system(size: 16))
+                                .frame(width: 32, height: 32)
+                                .background(selectedIcon == icon ? Theme.accent : Theme.tile, in: RoundedRectangle(cornerRadius: 8))
+                                .foregroundStyle(selectedIcon == icon ? Color.white : Color.primary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            HStack {
+                Spacer()
+                Button(loc("cancel")) { close() }
+                    .buttonStyle(QuietButton(kind: .secondary))
+                    .keyboardShortcut(.cancelAction)
+                Button(loc("folders_btn_add")) {
+                    model.createGroup(name: name, icon: selectedIcon)
+                    close()
+                }
+                .buttonStyle(QuietButton(kind: .primary))
+                .keyboardShortcut(.defaultAction)
+                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(22)
+        .frame(width: 480)
+        .id(l10n.currentLanguage)
+    }
+}
+
+struct EditGroupSheet: View {
+    @ObservedObject var model: AppModel
+    @ObservedObject private var l10n = L10n.shared
+    let group: SyncGroup
+    @State private var name: String
+    @State private var selectedIcon: String
+    let close: () -> Void
+
+    init(model: AppModel, group: SyncGroup, close: @escaping () -> Void) {
+        self.model = model
+        self.group = group
+        self._name = State(initialValue: group.name)
+        self._selectedIcon = State(initialValue: group.icon)
+        self.close = close
+    }
+
+    let availableIcons = [
+        "folder", "briefcase", "doc.text", "camera", "graduationcap",
+        "heart", "externaldrive", "building.2", "tag", "star"
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(loc("group_edit_title")).font(.system(size: 20, weight: .bold))
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(loc("group_name_label")).font(.system(size: 13, weight: .medium))
+                TextField(loc("group_name_placeholder"), text: $name)
+                    .textFieldStyle(.roundedBorder)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(loc("group_icon_label")).font(.system(size: 13, weight: .medium))
+                HStack(spacing: 10) {
+                    ForEach(availableIcons, id: \.self) { icon in
+                        Button(action: { selectedIcon = icon }) {
+                            Image(systemName: icon)
+                                .font(.system(size: 16))
+                                .frame(width: 32, height: 32)
+                                .background(selectedIcon == icon ? Theme.accent : Theme.tile, in: RoundedRectangle(cornerRadius: 8))
+                                .foregroundStyle(selectedIcon == icon ? Color.white : Color.primary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            HStack {
+                if model.groups.count > 1 {
+                    Button(role: .destructive) {
+                        close()
+                        confirmDelete()
+                    } label: {
+                        Text(loc("group_delete_button"))
+                    }
+                    .buttonStyle(QuietButton(kind: .secondary))
+                }
+                Spacer()
+                Button(loc("cancel")) { close() }
+                    .buttonStyle(QuietButton(kind: .secondary))
+                    .keyboardShortcut(.cancelAction)
+                Button(loc("save")) {
+                    model.updateGroup(id: group.id, name: name, icon: selectedIcon)
+                    close()
+                }
+                .buttonStyle(QuietButton(kind: .primary))
+                .keyboardShortcut(.defaultAction)
+                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(22)
+        .frame(width: 480)
+        .id(l10n.currentLanguage)
+    }
+
+    private func confirmDelete() {
+        let alert = NSAlert()
+        alert.messageText = loc("group_delete_confirm_title", group.name)
+        alert.informativeText = loc("group_delete_confirm_desc")
+        alert.addButton(withTitle: loc("group_delete_button"))
+        alert.addButton(withTitle: loc("cancel"))
+        NSApp.activate(ignoringOtherApps: true)
+        if alert.runModal() == .alertFirstButtonReturn {
+            model.deleteGroup(id: group.id)
+        }
     }
 }
 

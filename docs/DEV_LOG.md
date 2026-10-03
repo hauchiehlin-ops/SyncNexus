@@ -65,6 +65,36 @@
 
 ## 📜 歷史演進與問題修正紀錄表 (Changelog & Memory Archive)
 
+### [2026-10-03] 多資料夾同步群組 (Multi-Folder Sync Groups) 架構完全落地 (維持 v1.0.12 Build 20)
+#### 1. 核心資料結構與持久化註冊表 (SyncGroup & SyncGroupRegistry)
+* **實作內容**：
+  - 新增 `SyncGroup` 模型與執行緒安全之 `SyncGroupRegistry`（`Sources/SyncCore/SyncGroup.swift`）。
+  - 自動生成或維護 `groups.json`，開箱提供 `default` 預設群組（無縫繼承現有 `state.db`，既有同步配置 100% 零破壞相容）。
+  - 每個群組擁有專屬目錄隔離（`Groups/<group_id>/state.db`、`Groups/<group_id>/Versions/` 與 `Logs/SyncNexus/syncnexus_<group_id>.log`）。
+  - Windows (`SyncGroup.cs`) 與 Android (`SyncGroup` data class in `SyncEngine.kt`) 同步落地對等架構。
+
+#### 2. 多引擎實例與全管線並行排程隔離 (Per-Group Independent Pipeline)
+* **實作內容**：
+  - `AppModel.swift` 升級為多群組協同排程架構，為每個群組維護獨立的 `SyncService` 實例與狀態快照。
+  - 各群組獨立監聽檔案系統事件（FSEvents）與專屬排程 Timer，徹底解除單一全域 SQLite 鎖爭用。群組 A 同步大容量檔案時，群組 B 的小檔案變動完全不卡頓。
+  - 強化跨群組目錄重複同步防護：於端點驗證器中加入跨群組路徑衝突診斷，防止不同群組誤選重疊目錄造成同步風暴。
+
+#### 3. 雙層分頁群組 UI 與六國語系完整對稱
+* **實作內容**：
+  - 在「資料夾」頁面頂部新增 `SyncGroupTabBar`：支援標籤切換、即時顯示各群組端點數、右鍵選單與管理按鈕。
+  - 實作「＋ 新增同步群組」視窗（`AddGroupSheet`）與「編輯群組」視窗（`EditGroupSheet`），提供群組名稱輸入與多款精選 SF Symbols 代表圖示。
+  - 在「概覽」頁面加入群組快速切換膠囊按鈕，讓使用者隨時切換檢視不同群組健康狀態。
+  - `StringsTable.swift` 對稱補齊繁中、簡中、英文、日文、泰文、韓文之 18 組全新同步群組本地化字典。
+  - 操作說明手冊同步更新 Apple 繁中、英文章節。
+
+#### 4. 單元測試覆蓋與品質保證
+* **實作內容**：
+  - 新增 `Tests/SyncCoreTests/SyncGroupTests.swift` 單元測試套件（4 項全通過）。
+  - 全專案 99 項單元測試全數通過（18 個測試套件 100% 綠燈）。
+  - 嚴格遵守版本規範，版本鎖定 `1.0.12 (build 20)`。
+
+---
+
 ### [2026-10-03] 7 大側欄主題手冊與原生多主題導覽落地 (維持 v1.0.12 Build 20)
 #### 1. 操作說明手冊全面重構為 7 大側欄主題專頁
 * **實作內容**：

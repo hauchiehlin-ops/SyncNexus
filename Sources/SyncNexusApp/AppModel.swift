@@ -44,7 +44,23 @@ final class AppModel: ObservableObject {
     @Published var trialRunReport: SyncReport?
     @Published var isRunningTrialRun = false
 
-    private var service: SyncService!
+    public let registry: SyncGroupRegistry
+    @Published var groups: [SyncGroup] = []
+    @Published var activeGroupId: String = "default"
+
+    private var services: [String: SyncService] = [:]
+    private var snapshots: [String: SyncService.Snapshot] = [:]
+
+    var activeGroup: SyncGroup? {
+        groups.first { $0.id == activeGroupId }
+    }
+
+    var service: SyncService {
+        if let s = services[activeGroupId] { return s }
+        if let first = services.values.first { return first }
+        fatalError("No sync service available")
+    }
+
     private var lastNotifiedConfirmation: String?
     private var lastNotifiedConflicts = 0
 
@@ -56,20 +72,27 @@ final class AppModel: ObservableObject {
     @Published var nearbyPeers: [LocalPeer] = []
 
     init() {
-        service = SyncService(dbPath: Self.appSupport.appendingPathComponent("state.db").path,
-                              versionsDir: Self.appSupport.appendingPathComponent("Versions"),
-                              logURL: Self.logURL) { [weak self] snapshot in
-            Task { @MainActor in self?.apply(snapshot) }
+        registry = SyncGroupRegistry(baseAppSupportURL: Self.appSupport)
+        groups = registry.allGroups()
+        let initialGroup = groups.first?.id ?? "default"
+        activeGroupId = initialGroup
+
+        for group in groups {
+            startService(for: group)
         }
+
         if let i = CommandLine.arguments.firstIndex(of: "--section"), i + 1 < CommandLine.arguments.count,
            let sec = MainSection(rawValue: CommandLine.arguments[i + 1]) { section = sec }     // debugging aid
-        service.start()
+
         refreshLoginState()
         setupLoginItemOnce()
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert]) { _, _ in }
         // After sleep the event stream can have gaps: re-check everything on wake.
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
-            self?.service.syncNow()
+            Task { @MainActor in
+                guard let self = self else { return }
+                for s in self.services.values { s.syncNow() }
+            }
         }
 
         // 啟動局域網點對點設備發現
@@ -79,19 +102,35 @@ final class AppModel: ObservableObject {
         LocalPeerDiscovery.shared.start()
     }
 
+    private func startService(for group: SyncGroup) {
+        let dbPath = registry.dbPath(for: group.id)
+        let versionsDir = registry.versionsURL(for: group.id)
+        let logURL = registry.logURL(for: group.id)
+        let gid = group.id
+
+        let svc = SyncService(dbPath: dbPath, versionsDir: versionsDir, logURL: logURL) { [weak self] snapshot in
+            Task { @MainActor in self?.apply(groupId: gid, snapshot: snapshot) }
+        }
+        services[gid] = svc
+        svc.start()
+    }
+
     // MARK: state
 
-    private func apply(_ s: SyncService.Snapshot) {
-        snap = s
-        if let c = s.confirmation, c.reason != lastNotifiedConfirmation {
-            lastNotifiedConfirmation = c.reason
-            notify(loc("status_need_confirm"), c.reason)
-        } else if s.confirmation == nil { lastNotifiedConfirmation = nil }
-        if s.conflicts.count > lastNotifiedConflicts {
-            let n = s.conflicts.count
-            notify(loc("status_conflicts_pending", n), loc("conflicts_section_desc"))
+    private func apply(groupId: String, snapshot s: SyncService.Snapshot) {
+        snapshots[groupId] = s
+        if groupId == activeGroupId {
+            snap = s
+            if let c = s.confirmation, c.reason != lastNotifiedConfirmation {
+                lastNotifiedConfirmation = c.reason
+                notify(loc("status_need_confirm"), c.reason)
+            } else if s.confirmation == nil { lastNotifiedConfirmation = nil }
+            if s.conflicts.count > lastNotifiedConflicts {
+                let n = s.conflicts.count
+                notify(loc("status_conflicts_pending", n), loc("conflicts_section_desc"))
+            }
+            lastNotifiedConflicts = s.conflicts.count
         }
-        lastNotifiedConflicts = s.conflicts.count
     }
 
     var overall: Overall {
@@ -177,14 +216,73 @@ final class AppModel: ObservableObject {
         if alert.runModal() == .alertFirstButtonReturn { service.syncNow(confirmed: true) }
     }
 
+    // MARK: sync groups management
+
+    func selectGroup(id: String) {
+        guard activeGroupId != id, groups.contains(where: { $0.id == id }) else { return }
+        activeGroupId = id
+        snap = snapshots[id] ?? .initial
+        lastNotifiedConfirmation = snap.confirmation?.reason
+        lastNotifiedConflicts = snap.conflicts.count
+        loadVersions()
+    }
+
+    func createGroup(name: String, icon: String = "folder") {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        let finalName = trimmed.isEmpty ? loc("group_default_name") : trimmed
+        let newGroup = registry.addGroup(name: finalName, icon: icon)
+        groups = registry.allGroups()
+        startService(for: newGroup)
+        selectGroup(id: newGroup.id)
+        settingsMessage = loc("group_created_toast", finalName)
+    }
+
+    func updateGroup(id: String, name: String, icon: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        if registry.updateGroup(id: id, name: trimmed, icon: icon) {
+            groups = registry.allGroups()
+            settingsMessage = loc("group_updated_toast", trimmed)
+        }
+    }
+
+    func deleteGroup(id: String) {
+        guard groups.count > 1 else {
+            settingsMessage = loc("group_cannot_delete_last")
+            return
+        }
+        guard let group = registry.group(id: id) else { return }
+        services[id]?.stop()
+        services.removeValue(forKey: id)
+        snapshots.removeValue(forKey: id)
+
+        if id != "default" {
+            let groupDir = Self.appSupport.appendingPathComponent("Groups/\(id)")
+            try? FileManager.default.removeItem(at: groupDir)
+        }
+
+        if registry.removeGroup(id: id) {
+            groups = registry.allGroups()
+            if activeGroupId == id {
+                selectGroup(id: groups.first?.id ?? "default")
+            }
+            settingsMessage = loc("group_deleted_toast", group.name)
+        }
+    }
+
+    func endpointCount(for groupId: String) -> Int {
+        snapshots[groupId]?.endpoints.count ?? 0
+    }
+
     func openLog() {
-        try? FileManager.default.createDirectory(at: Self.logURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-        if !FileManager.default.fileExists(atPath: Self.logURL.path) { try? Data().write(to: Self.logURL) }
-        NSWorkspace.shared.open(Self.logURL)
+        let logURL = registry.logURL(for: activeGroupId)
+        try? FileManager.default.createDirectory(at: logURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        if !FileManager.default.fileExists(atPath: logURL.path) { try? Data().write(to: logURL) }
+        NSWorkspace.shared.open(logURL)
     }
 
     func revealVersions() {
-        let dir = Self.appSupport.appendingPathComponent("Versions")
+        let dir = registry.versionsURL(for: activeGroupId)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         NSWorkspace.shared.open(dir)
     }
@@ -198,7 +296,15 @@ final class AppModel: ObservableObject {
     }
 
     func validate(path: String, name: String, replacing: String? = nil, portable: Bool = false) -> [ValidationIssue] {
-        EndpointValidator.validate(path: path, name: name, replacing: replacing, existing: existingConfigs, portableNames: portable)
+        var issues = EndpointValidator.validate(path: path, name: name, replacing: replacing, existing: existingConfigs, portableNames: portable)
+        let resPath = EndpointValidator.resolved(path)
+        for (gid, s) in snapshots where gid != activeGroupId {
+            if let ep = s.endpoints.first(where: { EndpointValidator.resolved($0.root) == resPath }) {
+                let gName = groups.first(where: { $0.id == gid })?.name ?? gid
+                issues.append(ValidationIssue(isError: true, message: loc("folders_used_in_other_group", gName, ep.id)))
+            }
+        }
+        return issues
     }
 
     func addEndpoint(name: String, path: String, removable: Bool, portable: Bool, archive: Bool = false, bookmarkData: Data? = nil) {
@@ -325,7 +431,10 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func quit() { service.stop(); NSApp.terminate(nil) }
+    func quit() {
+        for s in services.values { s.stop() }
+        NSApp.terminate(nil)
+    }
 
     // MARK: launch at login
 
