@@ -33,6 +33,62 @@ struct MainWindowView: View {
             sidebar
             Divider()
             VStack(spacing: 0) {
+                // 首頁頁首 / 頂部導覽列：語系、操作說明手冊、隱私權政策
+                HStack(alignment: .center, spacing: 10) {
+                    Text(model.section.title)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.secondary)
+
+                    Spacer()
+
+                    // 語系選單
+                    Picker("", selection: Binding(
+                        get: { L10n.shared.currentLanguage },
+                        set: { L10n.shared.currentLanguage = $0 }
+                    )) {
+                        ForEach(AppLanguage.allCases) { lang in
+                            Text(lang.displayName).tag(lang)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 130)
+
+                    // 操作說明手冊入口圖示按鈕
+                    Button {
+                        let langCode = L10n.shared.currentLanguage.rawValue
+                        if let url = URL(string: "https://github.com/hauchiehlin-ops/SyncNexus/blob/main/docs/manual/apple/MANUAL_apple_\(langCode).md") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "book.pages")
+                            Text(loc("menu_user_manual"))
+                        }
+                    }
+                    .buttonStyle(QuietButton(kind: .secondary, compact: true))
+                    .help(loc("menu_user_manual"))
+
+                    // 隱私權政策入口圖示按鈕
+                    Button {
+                        let langCode = L10n.shared.currentLanguage.rawValue
+                        if let url = URL(string: "https://github.com/hauchiehlin-ops/SyncNexus/blob/main/docs/privacy/apple/PRIVACY_apple_\(langCode).md") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "hand.raised.shield")
+                            Text(loc("privacy_policy_title"))
+                        }
+                    }
+                    .buttonStyle(QuietButton(kind: .secondary, compact: true))
+                    .help(loc("privacy_policy_title"))
+                }
+                .padding(.horizontal, 36)
+                .padding(.vertical, 10)
+                .background(Theme.sidebar.opacity(0.35))
+
+                Divider()
+
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
                         switch model.section {
@@ -45,27 +101,61 @@ struct MainWindowView: View {
                         case .settings: SettingsSection(model: model)
                         }
                     }
-                    .padding(.horizontal, 36).padding(.vertical, 28)
+                    .padding(.horizontal, 36).padding(.vertical, 24)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                if let m = model.settingsMessage {
-                    HStack {
-                        Image(systemName: "info.circle").foregroundStyle(.secondary)
-                        Text(m).font(.system(size: 13))
-                        Spacer()
-                        Button(loc("ok")) { model.settingsMessage = nil }.buttonStyle(QuietButton(kind: .plain))
-                    }
-                    .padding(.horizontal, 36).padding(.vertical, 10)
-                    .background(Theme.tile)
                 }
             }
         }
         .frame(minWidth: 940, minHeight: 620)
         .id(l10n.currentLanguage)
+        // 快顯提示 (Floating Toast HUD)
+        .overlay(alignment: .top) {
+            if let m = model.settingsMessage {
+                HStack(alignment: .center, spacing: 12) {
+                    Image(systemName: "info.circle.fill")
+                        .font(.system(size: 18))
+                        .foregroundStyle(Color.accentColor)
+                    Text(m)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Color.primary)
+                        .lineLimit(4)
+                    Spacer(minLength: 8)
+                    Button {
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            model.settingsMessage = nil
+                        }
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(.ultraThickMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(Color.primary.opacity(0.12), lineWidth: 1)
+                )
+                .shadow(color: Color.black.opacity(0.18), radius: 16, x: 0, y: 8)
+                .padding(.top, 16)
+                .padding(.horizontal, 40)
+                .frame(maxWidth: 680)
+                .transition(.asymmetric(
+                    insertion: .move(edge: .top).combined(with: .opacity).combined(with: .scale(scale: 0.95)),
+                    removal: .move(edge: .top).combined(with: .opacity)
+                ))
+                .zIndex(999)
+            }
+        }
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: model.settingsMessage)
         .task(id: model.settingsMessage) {
             guard model.settingsMessage != nil else { return }
-            try? await Task.sleep(nanoseconds: 8_000_000_000)
-            model.settingsMessage = nil
+            try? await Task.sleep(nanoseconds: 7_000_000_000)
+            withAnimation(.easeOut(duration: 0.2)) {
+                model.settingsMessage = nil
+            }
         }
     }
 
@@ -118,52 +208,7 @@ struct OverviewSection: View {
     @ObservedObject private var l10n = L10n.shared
 
     var body: some View {
-        HStack(alignment: .top) {
-            sectionHeader(model.overall == .ok ? loc("status_all_normal") : model.overallTitle, overviewSubtitle)
-            Spacer(minLength: 16)
-            HStack(spacing: 8) {
-                // 語系選單
-                Picker("", selection: Binding(
-                    get: { L10n.shared.currentLanguage },
-                    set: { L10n.shared.currentLanguage = $0 }
-                )) {
-                    ForEach(AppLanguage.allCases) { lang in
-                        Text(lang.displayName).tag(lang)
-                    }
-                }
-                .frame(width: 130)
-
-                // 操作說明手冊入口圖示按鈕
-                Button {
-                    let langCode = L10n.shared.currentLanguage.rawValue
-                    if let url = URL(string: "https://github.com/hauchiehlin-ops/SyncNexus/blob/main/docs/manual/apple/MANUAL_apple_\(langCode).md") {
-                        NSWorkspace.shared.open(url)
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "book.pages")
-                        Text(loc("menu_user_manual"))
-                    }
-                }
-                .buttonStyle(QuietButton(kind: .secondary, compact: true))
-                .help(loc("menu_user_manual"))
-
-                // 隱私權政策入口圖示按鈕
-                Button {
-                    let langCode = L10n.shared.currentLanguage.rawValue
-                    if let url = URL(string: "https://github.com/hauchiehlin-ops/SyncNexus/blob/main/docs/privacy/apple/PRIVACY_apple_\(langCode).md") {
-                        NSWorkspace.shared.open(url)
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "hand.raised.shield")
-                        Text(loc("privacy_policy_title"))
-                    }
-                }
-                .buttonStyle(QuietButton(kind: .secondary, compact: true))
-                .help(loc("privacy_policy_title"))
-            }
-        }
+        sectionHeader(model.overall == .ok ? loc("status_all_normal") : model.overallTitle, overviewSubtitle)
         if model.snap.confirmation != nil {
             Card {
                 HStack(spacing: 12) {

@@ -1497,6 +1497,38 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .th: "การป้องกันความปลอดภัยด้วย APFS Snapshot",
         .ko: "APFS 스냅샷 안전 보호"
     ],
+    "msg_apfs_sandbox_active": [
+        .en: "macOS Sandbox Active: System-level snapshots are restricted in sandbox mode. SyncNexus automatically safeguards all changes via built-in Version History (.syncnexus-history)!",
+        .zhHant: "macOS 沙盒安全保護中：沙盒環境無法執行系統級快照，SyncNexus 已自動透過「版本歷史紀錄（.syncnexus-history）」全程守護檔案變更！",
+        .zhHans: "macOS 沙盒安全保护中：沙盒环境无法执行系统级快照，SyncNexus 已自动通过“版本历史记录（.syncnexus-history）”全程守护文件变更！",
+        .ja: "macOS サンドボックス保護中: サンドボックス環境ではシステムスナップショットを実行できません。SyncNexus は「バージョン履歴（.syncnexus-history）」でファイルを自動保護します！",
+        .th: "ระบบ Sandbox ของ macOS กำลังปกป้อง: ไม่สามารถเรียกใช้สแนปช็อตระดับระบบได้ SyncNexus ปกป้องการเปลี่ยนแปลงทั้งหมดผ่าน 'ประวัติเวอร์ชัน (.syncnexus-history)' โดยอัตโนมัติ!",
+        .ko: "macOS 샌드박스 보호 중: 샌드박스 환경에서는 시스템 스냅샷을 실행할 수 없습니다. SyncNexus가 '버전 기록(.syncnexus-history)'을 통해 모든 변경 사항을 자동 보호합니다!"
+    ],
+    "msg_apfs_success": [
+        .en: "APFS local safety snapshot created successfully.",
+        .zhHant: "已成功建立 APFS 本地安全快照。",
+        .zhHans: "已成功建立 APFS 本地安全快照。",
+        .ja: "APFS ローカル安全スナップショットが正常に作成されました。",
+        .th: "สร้าง APFS สแนปช็อตความปลอดภัยสำเร็จ",
+        .ko: "APFS 로컬 안전 스냅샷이 성공적으로 생성되었습니다."
+    ],
+    "msg_apfs_failed_fallback": [
+        .en: "APFS snapshot creation failed (admin privileges may be required). Protected by built-in Version History.",
+        .zhHant: "建立 APFS 快照失敗（可能需要系統管理員權限）。已自動以版本歷史機制守護。",
+        .zhHans: "建立 APFS 快照失败（可能需要系统管理员权限）。已自动以版本历史机制守护。",
+        .ja: "APFS スナップショットの作成に失敗しました（管理者権限が必要な場合があります）。バージョン履歴により保護されています。",
+        .th: "การสร้างสแนปช็อต APFS ล้มเหลว (อาจต้องใช้สิทธิ์ผู้ดูแลระบบ) ปกป้องด้วยประวัติเวอร์ชันในตัว",
+        .ko: "APFS 스냅샷 생성 실패(관리자 권한이 필요할 수 있습니다). 내장된 버전 기록으로 보호됩니다."
+    ],
+    "msg_apfs_unsupported": [
+        .en: "APFS snapshots are not supported on this platform. Protected by built-in Version History.",
+        .zhHant: "目前平台不支援 APFS 快照機制。已自動以版本歷史機制守護。",
+        .zhHans: "目前平台不支援 APFS 快照机制。已自动以版本历史机制守护。",
+        .ja: "このプラットフォームでは APFS スナップショットはサポートされていません。バージョン履歴で保護されています。",
+        .th: "แพลตฟอร์มนี้ไม่รองรับสแนปช็อต APFS ปกป้องด้วยประวัติเวอร์ชันในตัว",
+        .ko: "이 플랫폼에서는 APFS 스냅샷이 지원되지 않습니다. 내장된 버전 기록으로 보호됩니다."
+    ],
     "settings_btn_instructions": [
         .en: "User Guide & Permissions",
         .zhHant: "使用說明與授權檢查",

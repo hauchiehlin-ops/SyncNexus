@@ -88,11 +88,14 @@ if [[ "$APP_STORE_BUILD" == true ]]; then
     exit 1
   fi
 elif [[ -z "$APP_SIGN_IDENTITY" ]]; then
-  APP_SIGN_IDENTITY=$(security find-identity -v -p codesigning | grep "Apple Distribution" | head -n 1 | sed -E 's/.*"([^"]+)".*/\1/' || true)
+  APP_SIGN_IDENTITY=$(security find-identity -v -p codesigning | grep -E 'Developer ID Application|Apple Development' | head -n 1 | sed -E 's/.*"([^"]+)".*/\1/' || true)
+  if [[ -z "$APP_SIGN_IDENTITY" ]]; then
+    APP_SIGN_IDENTITY=$(security find-identity -v -p codesigning | grep "Apple Distribution" | head -n 1 | sed -E 's/.*"([^"]+)".*/\1/' || true)
+  fi
 fi
 
 if [[ -n "$APP_SIGN_IDENTITY" ]]; then
-  echo "==> 使用 Apple Distribution 官方憑證簽署: $APP_SIGN_IDENTITY"
+  echo "==> 使用官方憑證簽署: $APP_SIGN_IDENTITY"
   codesign --force --deep --sign "$APP_SIGN_IDENTITY" "${SANDBOX_ARGS[@]}" --options runtime --identifier com.syncnexus.app "$APP"
 else
   Scripts/setup-signing.sh >/dev/null

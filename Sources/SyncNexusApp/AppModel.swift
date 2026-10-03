@@ -255,7 +255,13 @@ final class AppModel: ObservableObject {
 
     func createAPFSSnapshot() {
         let res = APFSSnapshotManager.shared.createLocalSnapshot()
-        settingsMessage = res.message
+        if res.isSandbox {
+            settingsMessage = loc("msg_apfs_sandbox_active")
+        } else if res.success {
+            settingsMessage = loc("msg_apfs_success")
+        } else {
+            settingsMessage = loc("msg_apfs_failed_fallback")
+        }
     }
 
     func repair(_ issue: IntegrityIssue, action: IntegrityAction) {

@@ -8,7 +8,13 @@ public final class APFSSnapshotManager: Sendable {
     private init() {}
 
     #if os(macOS)
-    public func createLocalSnapshot() -> (success: Bool, message: String) {
+    public func createLocalSnapshot() -> (success: Bool, message: String, isSandbox: Bool) {
+        // 檢查是否處於 macOS 沙盒環境
+        let isSandboxed = ProcessInfo.processInfo.environment["APP_SANDBOX_CONTAINER_ID"] != nil
+        if isSandboxed {
+            return (false, "macOS App Sandbox restricted", true)
+        }
+
         let task = Process()
         task.launchPath = "/usr/bin/tmutil"
         task.arguments = ["localsnapshot"]
@@ -21,17 +27,17 @@ public final class APFSSnapshotManager: Sendable {
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             let out = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             if task.terminationStatus == 0 {
-                return (true, out.isEmpty ? "已成功建立 APFS 本地安全快照" : out)
+                return (true, out.isEmpty ? "APFS snapshot created" : out, false)
             } else {
-                return (false, "建立快照失敗（可能需要系統管理員權限）：\(out)")
+                return (false, out, false)
             }
         } catch {
-            return (false, "無法啟動快照程序：\(error.localizedDescription)")
+            return (false, error.localizedDescription, false)
         }
     }
     #else
-    public func createLocalSnapshot() -> (success: Bool, message: String) {
-        return (false, "目前平台不支援 APFS 快照機制")
+    public func createLocalSnapshot() -> (success: Bool, message: String, isSandbox: Bool) {
+        return (false, "Unsupported platform", false)
     }
     #endif
 }
