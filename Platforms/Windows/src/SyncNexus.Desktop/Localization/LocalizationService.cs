@@ -371,6 +371,24 @@ public class LocalizationService
             [AppLanguage.Ko] = "해결할 충돌 {0}건",
             [AppLanguage.Th] = "ความขัดแย้งที่ต้องแก้ {0} รายการ",
         },
+        ["folder_icons_title"] = new()
+        {
+            [AppLanguage.ZhHant] = "資料夾圖示跟隨同步群組",
+            [AppLanguage.ZhHans] = "文件夹图标跟随同步群组",
+            [AppLanguage.En] = "Folder icons follow the sync group",
+            [AppLanguage.Ja] = "フォルダのアイコンを同期グループに合わせる",
+            [AppLanguage.Ko] = "폴더 아이콘을 동기화 그룹에 맞추기",
+            [AppLanguage.Th] = "ไอคอนโฟลเดอร์ตามกลุ่มการซิงค์",
+        },
+        ["folder_icons_desc"] = new()
+        {
+            [AppLanguage.ZhHant] = "被同步的資料夾會在檔案總管中顯示所屬群組的圖示。這會在每個資料夾內加入隱藏的 desktop.ini 與圖示檔（不會被同步）；使用一般資料夾圖示的群組不受影響。關閉後會還原為一般圖示。",
+            [AppLanguage.ZhHans] = "被同步的文件夹会在文件资源管理器中显示所属群组的图标。这会在每个文件夹内添加隐藏的 desktop.ini 与图标文件（不会被同步）；使用普通文件夹图标的群组不受影响。关闭后会还原为普通图标。",
+            [AppLanguage.En] = "Synced folders show their group's icon in File Explorer. This adds a hidden desktop.ini and an icon file to each folder; they are never synced. Groups with the plain folder icon are left alone. Turning this off restores the normal icons.",
+            [AppLanguage.Ja] = "同期中のフォルダに、所属グループのアイコンをエクスプローラーで表示します。各フォルダに隠しファイル desktop.ini とアイコンファイルが追加されます（同期はされません）。通常のフォルダアイコンのグループは変更されません。オフにすると元のアイコンに戻ります。",
+            [AppLanguage.Ko] = "동기화 중인 폴더가 파일 탐색기에서 소속 그룹의 아이콘으로 표시됩니다. 각 폴더에 숨김 desktop.ini와 아이콘 파일이 추가되며(동기화되지 않음), 기본 폴더 아이콘을 쓰는 그룹은 그대로입니다. 끄면 원래 아이콘으로 돌아갑니다.",
+            [AppLanguage.Th] = "โฟลเดอร์ที่ซิงค์จะแสดงไอคอนของกลุ่มใน File Explorer โดยจะเพิ่ม desktop.ini ที่ซ่อนและไฟล์ไอคอนในแต่ละโฟลเดอร์ (ไม่ถูกซิงค์) กลุ่มที่ใช้ไอคอนโฟลเดอร์ปกติจะไม่ถูกเปลี่ยน เมื่อปิดจะคืนไอคอนปกติ",
+        },
         ["app_name"] = new()
         {
             [AppLanguage.ZhHant] = "SyncNexus",

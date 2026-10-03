@@ -10,7 +10,8 @@ public struct IgnoreRules: Sendable {
     public static let `default` = IgnoreRules(
         exactNames: [".DS_Store", ".Trashes", ".Spotlight-V100", ".fseventsd", ".TemporaryItems",
                      ".DocumentRevisions-V100", "Thumbs.db", "desktop.ini", "$RECYCLE.BIN",
-                     "System Volume Information", ".syncnexus-endpoint", ".localized", ".syncnexus-history"],
+                     "System Volume Information", ".syncnexus-endpoint", ".localized", ".syncnexus-history",
+                     "Icon\r", ".syncnexus-icon.ico"],   // custom folder icons (macOS "Icon\r", Windows icon file): local decoration, never synced
         prefixes: ["._", "~$", ".~lock.", ".nexus-"],
         suffixes: [".nexus-part", ".tmp", ".crdownload", ".part", ".tmp.drivedownload", ".gdoc", ".gsheet", ".gslides", ".gscript", ".gform", ".gdraw", ".gsite", ".gmap", ".gjam", ".gtable"]
     )

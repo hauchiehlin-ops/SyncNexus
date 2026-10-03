@@ -150,4 +150,13 @@ struct SyncGroupTests {
         let g = reg.addGroup(name: "")
         #expect(SyncGroupRegistry(baseAppSupportURL: dir).group(id: g.id)?.name == "")   // survives reload, not frozen to a language
     }
+
+    @Test func folderIconFilesAreNeverSynced() {
+        let rules = IgnoreRules.default
+        #expect(rules.isIgnored(component: "Icon\r"))              // macOS custom folder icon
+        #expect(rules.isIgnored(component: "._Icon\r"))            // its AppleDouble twin on exFAT
+        #expect(rules.isIgnored(component: ".syncnexus-icon.ico"))  // Windows folder icon
+        #expect(rules.isIgnored(component: "desktop.ini"))
+        #expect(!rules.isIgnored(component: "Icon.png"))            // ordinary files are untouched
+    }
 }

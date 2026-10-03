@@ -3831,6 +3831,22 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .th: "กลุ่มใหม่",
         .ko: "새 그룹"
     ],
+    "folder_icons_title": [
+        .en: "Folder icons follow the sync group",
+        .zhHant: "資料夾圖示跟隨同步群組",
+        .zhHans: "文件夹图标跟随同步群组",
+        .ja: "フォルダのアイコンを同期グループに合わせる",
+        .th: "ไอคอนโฟลเดอร์ตามกลุ่มการซิงค์",
+        .ko: "폴더 아이콘을 동기화 그룹에 맞추기"
+    ],
+    "folder_icons_desc": [
+        .en: "Synced folders show their group's icon in Finder. This adds a small hidden file to each folder; it is never synced. Groups with the plain folder icon are left alone. Turning this off restores the normal icons.",
+        .zhHant: "被同步的資料夾會在 Finder 中顯示所屬群組的圖示。這會在每個資料夾內加入一個隱藏的小檔案（不會被同步）；使用一般資料夾圖示的群組不受影響。關閉後會還原為一般圖示。",
+        .zhHans: "被同步的文件夹会在 Finder 中显示所属群组的图标。这会在每个文件夹内添加一个隐藏的小文件（不会被同步）；使用普通文件夹图标的群组不受影响。关闭后会还原为普通图标。",
+        .ja: "同期中のフォルダに、所属グループのアイコンを Finder で表示します。各フォルダに小さな隠しファイルが追加されます（同期はされません）。通常のフォルダアイコンのグループは変更されません。オフにすると元のアイコンに戻ります。",
+        .th: "โฟลเดอร์ที่ซิงค์จะแสดงไอคอนของกลุ่มใน Finder โดยจะเพิ่มไฟล์ซ่อนขนาดเล็กในแต่ละโฟลเดอร์ (ไม่ถูกซิงค์) กลุ่มที่ใช้ไอคอนโฟลเดอร์ปกติจะไม่ถูกเปลี่ยน เมื่อปิดจะคืนไอคอนปกติ",
+        .ko: "동기화 중인 폴더가 Finder에서 소속 그룹의 아이콘으로 표시됩니다. 각 폴더에 작은 숨김 파일이 추가되며(동기화되지 않음), 기본 폴더 아이콘을 쓰는 그룹은 그대로입니다. 끄면 원래 아이콘으로 돌아갑니다."
+    ],
     "group_deleted_toast": [
         .en: "Sync group '%@' deleted.",
         .zhHant: "已刪除同步群組「%@」",

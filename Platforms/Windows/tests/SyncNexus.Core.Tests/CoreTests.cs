@@ -407,4 +407,15 @@ public class CoreTests
         Assert.Equal(GroupHealth.Attention, GroupStatusLogic.Overall(new[] { GroupHealth.Ok, GroupHealth.Attention, GroupHealth.NeedsFolders }));
         Assert.Equal(GroupHealth.Ok, GroupStatusLogic.Overall(Array.Empty<GroupHealth>()));
     }
+
+    [Fact]
+    public void FolderIconFiles_AreNeverSynced()
+    {
+        var rules = SyncNexus.Core.Engine.IgnoreRules.Default;
+        Assert.True(rules.IsIgnored("Icon\r"));                  // macOS custom folder icon
+        Assert.True(rules.IsIgnored("._Icon\r"));                // its AppleDouble twin on exFAT
+        Assert.True(rules.IsIgnored(".syncnexus-icon.ico"));      // Windows folder icon
+        Assert.True(rules.IsIgnored("desktop.ini"));
+        Assert.False(rules.IsIgnored("Icon.png"));
+    }
 }

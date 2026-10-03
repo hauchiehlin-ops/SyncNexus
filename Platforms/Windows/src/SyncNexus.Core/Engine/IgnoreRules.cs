@@ -11,7 +11,8 @@ public class IgnoreRules
         {
             ".DS_Store", ".Trashes", ".Spotlight-V100", ".fseventsd", ".TemporaryItems",
             ".DocumentRevisions-V100", "Thumbs.db", "desktop.ini", "$RECYCLE.BIN",
-            "System Volume Information", ".syncnexus-endpoint", ".localized", ".syncnexus-history"
+            "System Volume Information", ".syncnexus-endpoint", ".localized", ".syncnexus-history",
+            "Icon\r", ".syncnexus-icon.ico"   // custom folder icons (macOS "Icon\r", Windows icon file): local decoration, never synced
         },
         prefixes: new[] { "._", "~$", ".~lock.", ".nexus-" },
         suffixes: new[]

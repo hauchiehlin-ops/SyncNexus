@@ -277,3 +277,11 @@
 * 對應 macOS 選單列彈出視窗的規則：頂部狀態為全群組彙總（有需要處理者優先；只有「尚未加入 2 個資料夾」的新群組不影響「全部已同步」）；逐群組列出名稱、資料夾數與各自狀態。**教訓：新功能必須三平台同回合完成，不可只做 macOS 再事後補。**
 * **Android**：`SyncNexusEngineBridge.groupStates`（每群組資料夾數、同步中、衝突數、錯誤）、`GroupStatusLogic`（純邏輯）；前台服務通知改為 InboxStyle：標題＝整體狀態，展開後每個群組一行「名稱 · n 個資料夾 · 狀態」，狀態變化即時更新。六語系字串補齊，單元測試共 11 項，`gradle :app:testDebugUnitTest` 實測通過。
 * **Windows**：`GroupStatusLogic.cs`（純邏輯）；系統匣選單每次開啟時動態建立：開啟主視窗／立即對帳（所有群組）／每個群組一個項目（圖示、名稱、資料夾數、狀態），其子選單列出各資料夾的上線狀態並可「在主視窗檢視此群組」／結束；系統匣提示文字顯示全群組彙總。六語系字串補齊；`CoreTests` 新增 1 項。**此環境無 dotnet，Windows 端未編譯、未執行**，須在 Windows 開發機驗證。
+
+### [2026-10-03] 被同步的資料夾在檔案管理員中顯示所屬群組圖示（三平台，版本號未動）
+* **macOS**：`FolderIcon.swift` 以系統資料夾圖示疊上群組的 SF Symbol（`NSWorkspace.setIcon`）；`AppModel.refreshFolderIcons()` 以「期望 vs 已套用」差異比對，只在資料夾加入／移除、群組圖示變更、群組刪除、磁碟重新上線時動作；只移除自己套用的圖示（記錄於 UserDefaults）。群組維持預設的「folder」圖示則不改動資料夾。設定頁新增「資料夾圖示跟隨同步群組」開關（預設開，關閉即還原）。
+* **Windows**：`FolderIconService`（WPF 繪製資料夾＋群組 emoji → 256px PNG 封裝成 `.syncnexus-icon.ico`，搭配隱藏的 `desktop.ini` 與資料夾唯讀旗標，`SHChangeNotify` 通知檔案總管重繪）；他人寫的 `desktop.ini` 絕不覆蓋。主視窗設定列新增同名開關。
+* **Android**：作業系統不支援自訂資料夾圖示，無法實作；群組圖示僅顯示於 App 內。但為避免 Mac／Windows 產生的圖示檔被同步進來，三平台的忽略規則一併新增 `Icon\r`（含 `._Icon\r`）與 `.syncnexus-icon.ico`（`IgnoreRules` 共用於 Swift、C#、Kotlin 新增 `AndroidIgnoreRules`）。
+* 順帶修正 Android 既有錯誤：忽略清單用「小寫名稱」比對，但清單內含大小寫混合項目（如 `.DS_Store`），導致永遠比對不到。
+* 副作用須知：開啟後每個群組資料夾內會多一個隱藏小檔案（macOS：`Icon\r`；exFAT 磁碟另有 `._Icon\r`；Windows：`desktop.ini`＋`.syncnexus-icon.ico`）；iCloud／Google Drive 可能把它同步到您自己的其他裝置，不影響內容。
+* 測試：Swift 104 項、Android 12 項實測通過；Windows 新增 1 項測試**未編譯執行（無 dotnet）**。

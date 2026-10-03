@@ -171,6 +171,8 @@
             <DockPanel>
                 <CheckBox x:Name="ChkAutoStart" Content="開機時自動於背景啟動 SyncNexus" VerticalAlignment="Center"
                           Click="ChkAutoStart_Click"/>
+                <CheckBox x:Name="ChkFolderIcons" Content="資料夾圖示跟隨同步群組" VerticalAlignment="Center" Margin="16,0,0,0"
+                          Click="ChkFolderIcons_Click"/>
                 <TextBlock Text="守護行程常駐運行中" HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="12" Foreground="#888"/>
             </DockPanel>
         </Border>

@@ -16,6 +16,8 @@ public partial class MainWindow : Window
     private readonly MainViewModel _viewModel;
     private readonly BackgroundSyncService _syncService;
     private readonly GroupManager _groups;
+    private readonly FolderIconService _folderIcons =
+        new(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SyncNexus"));
 
     public MainWindow(MainViewModel viewModel, BackgroundSyncService syncService, GroupManager groups)
     {
@@ -25,9 +27,14 @@ public partial class MainWindow : Window
         _groups = groups;
         DataContext = viewModel;
 
+        ChkFolderIcons.IsChecked = _folderIcons.Enabled;
         ApplyGroupBarTexts();
-        // creating / deleting a group changes which folders must be watched
-        _groups.GroupsChanged += () => Dispatcher.Invoke(() => _syncService.ReconfigureFileWatchers());
+        // creating / deleting a group changes which folders must be watched (and which icons they carry)
+        _groups.GroupsChanged += () => Dispatcher.Invoke(() =>
+        {
+            _syncService.ReconfigureFileWatchers();
+            RefreshFolderIcons();
+        });
 
         ChkAutoStart.IsChecked = WindowsStartupHelper.IsRunAtStartup();
         Loaded += MainWindow_Loaded;
@@ -38,6 +45,7 @@ public partial class MainWindow : Window
         var helper = new WindowInteropHelper(this);
         _syncService.Start(helper.Handle);
         UpdateTrayTooltip();
+        RefreshFolderIcons();
 
         _syncService.OnStatusChanged += status =>
         {
@@ -49,6 +57,7 @@ public partial class MainWindow : Window
             Dispatcher.Invoke(() =>
             {
                 UpdateTrayTooltip();   // the tray covers every group
+                RefreshFolderIcons();  // diff-based: does nothing unless a folder or a group icon changed
                 if (groupId != _viewModel.SelectedGroupItem?.Id) return;   // only the shown group updates the screen
                 _viewModel.LoadEndpoints();
                 foreach (var note in report.Notes)
@@ -85,6 +94,7 @@ public partial class MainWindow : Window
             }
 
             _viewModel.ActiveStore.SaveEndpoint(dialog.ResultConfig);
+            RefreshFolderIcons();
             _syncService.ReconfigureFileWatchers();
             _viewModel.LoadEndpoints();
             _ = _syncService.RequestSyncAsync("新增端點");
@@ -99,6 +109,28 @@ public partial class MainWindow : Window
         };
         window.ShowDialog();
         _viewModel.LoadEndpoints();
+    }
+
+    /// <summary>Folder path -> symbol of its group, for every existing folder of every group whose icon is not the plain folder.</summary>
+    private void RefreshFolderIcons()
+    {
+        var desired = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var rt in _groups.Runtimes)
+        {
+            if (rt.Group.Icon == "folder") continue;
+            var symbol = GroupItemViewModel.EmojiFor(rt.Group.Icon);
+            foreach (var ep in rt.Store.GetEndpoints())
+            {
+                if (System.IO.Directory.Exists(ep.Root)) desired[ep.Root] = symbol;
+            }
+        }
+        _folderIcons.Sync(desired);
+    }
+
+    private void ChkFolderIcons_Click(object sender, RoutedEventArgs e)
+    {
+        _folderIcons.SetEnabled(ChkFolderIcons.IsChecked == true);
+        RefreshFolderIcons();   // off: restores the normal icons
     }
 
     private void ChkAutoStart_Click(object sender, RoutedEventArgs e)
@@ -134,6 +166,8 @@ public partial class MainWindow : Window
         UpdateTrayTooltip();
         TxtGroupTitle.Text = loc.Get("group_selector_title");
         BtnGroupNew.Content = loc.Get("group_add_button");
+        ChkFolderIcons.Content = loc.Get("folder_icons_title");
+        ChkFolderIcons.ToolTip = loc.Get("folder_icons_desc");
         BtnGroupRestore.Content = loc.Get("backup_restore_menu");
         BtnGroupImport.Content = loc.Get("import_legacy_button");
         BtnGroupEdit.Content = loc.Get("group_edit_title");
@@ -160,6 +194,7 @@ public partial class MainWindow : Window
         if (dialog.ShowDialog() == true)
         {
             _viewModel.UpdateGroup(item.Id, dialog.ResultName.Length == 0 && isMarker ? item.Group.Name : dialog.ResultName, dialog.ResultIcon);
+            RefreshFolderIcons();   // a new group icon applies to its folders right away
         }
     }
 

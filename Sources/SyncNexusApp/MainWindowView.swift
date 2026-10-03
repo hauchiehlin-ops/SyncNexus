@@ -619,6 +619,11 @@ struct SettingsSection: View {
                 Toggle(loc("settings_launch_at_login"), isOn: Binding(get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) })).toggleStyle(.switch)
                 if let n = model.loginNote { Text(n).font(.system(size: 12)).foregroundStyle(Theme.warn) }
                 Divider()
+                VStack(alignment: .leading, spacing: 4) {
+                    Toggle(loc("folder_icons_title"), isOn: Binding(get: { model.folderIconsEnabled }, set: { model.setFolderIcons($0) })).toggleStyle(.switch)
+                    Text(loc("folder_icons_desc")).font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                }
+                Divider()
                 HStack {
                     Image(systemName: fullDisk ? "checkmark.circle.fill" : "exclamationmark.circle.fill").foregroundStyle(fullDisk ? Theme.ok : Theme.warn)
                     VStack(alignment: .leading, spacing: 2) {

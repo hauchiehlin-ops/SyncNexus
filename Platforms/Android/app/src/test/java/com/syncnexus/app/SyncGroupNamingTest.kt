@@ -144,4 +144,13 @@ class SyncGroupNamingTest {
         assertEquals(GroupStatusLogic.Status.SYNCING, GroupStatusLogic.overall(listOf(line(ok), line(GroupStatusLogic.Status.SYNCING))))
         assertEquals(GroupStatusLogic.Status.ATTENTION, GroupStatusLogic.overall(listOf(line(GroupStatusLogic.Status.SYNCING), line(GroupStatusLogic.Status.ATTENTION))))
     }
+
+    @Test
+    fun folderIconFilesAndOsLitterAreIgnored() {
+        assertEquals(true, AndroidIgnoreRules.isIgnored("Icon\r"))                 // macOS custom folder icon
+        assertEquals(true, AndroidIgnoreRules.isIgnored("._Icon\r"))
+        assertEquals(true, AndroidIgnoreRules.isIgnored(".syncnexus-icon.ico"))     // Windows folder icon
+        assertEquals(true, AndroidIgnoreRules.isIgnored(".DS_Store"))               // was silently never matched before
+        assertEquals(false, AndroidIgnoreRules.isIgnored("Icon.png"))
+    }
 }

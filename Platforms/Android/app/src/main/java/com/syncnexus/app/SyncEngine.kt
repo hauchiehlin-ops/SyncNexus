@@ -48,20 +48,7 @@ class SyncEngine(
     private val safAdapter: SAFStorageAdapter
 ) {
 
-    // 系統暫存與垃圾檔案排除規則（結合 SyncCore 與 Android 行動端特定相簿快取與 .nomedia）
-    private val ignoredExact = setOf(
-        ".DS_Store", "Thumbs.db", "desktop.ini", ".syncnexus-endpoint", ".syncnexus-history",
-        ".nomedia", ".thumbnails", ".thumb", ".cache", "albumthumbs", "lost.dir"
-    )
-    private val ignoredPrefixes = listOf("._", "~$", ".~lock.", ".nexus-")
-    private val ignoredSuffixes = listOf(".nexus-part", ".tmp", ".part", ".crdownload")
-
-    private fun isIgnored(name: String): Boolean {
-        if (ignoredExact.contains(name.lowercase())) return true
-        if (ignoredPrefixes.any { name.startsWith(it) }) return true
-        if (ignoredSuffixes.any { name.endsWith(it) }) return true
-        return false
-    }
+    private fun isIgnored(name: String): Boolean = AndroidIgnoreRules.isIgnored(name)
 
     /**
      * 檢查 Android 行動裝置是否處於低電量非充電狀態（保護電池續航）

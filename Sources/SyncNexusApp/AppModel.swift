@@ -122,6 +122,26 @@ final class AppModel: ObservableObject {
         svc.start()
     }
 
+    // MARK: Finder folder icons
+
+    /// Folder path → symbol of its group, for every online folder of every group whose icon is not the plain folder.
+    private func desiredFolderIcons() -> [String: String] {
+        var out: [String: String] = [:]
+        for g in groups where g.icon != "folder" {
+            for ep in snapshots[g.id]?.endpoints ?? [] where ep.online { out[ep.root] = g.icon }
+        }
+        return out
+    }
+
+    func refreshFolderIcons() { FolderIcon.sync(desired: desiredFolderIcons()) }
+
+    var folderIconsEnabled: Bool { FolderIcon.isEnabled }
+    func setFolderIcons(_ on: Bool) {
+        FolderIcon.isEnabled = on
+        objectWillChange.send()
+        refreshFolderIcons()
+    }
+
     // MARK: state
 
     static func localized(_ s: SyncService.Snapshot) -> SyncService.Snapshot {
@@ -141,6 +161,7 @@ final class AppModel: ObservableObject {
     private func apply(groupId: String, snapshot s: SyncService.Snapshot) {
         snapshots[groupId] = s
         objectWillChange.send()   // the menu bar shows every group, not only the active one
+        refreshFolderIcons()      // diff-based: does nothing unless a folder or a group icon changed
         if groupId == activeGroupId {
             snap = Self.localized(s)
             if let c = s.confirmation, c.reason != lastNotifiedConfirmation {
@@ -321,6 +342,7 @@ final class AppModel: ObservableObject {
         guard !trimmed.isEmpty || groups.first(where: { $0.id == id })?.name.isEmpty == true else { return }
         if registry.updateGroup(id: id, name: trimmed, icon: icon) {
             groups = registry.allGroups()
+            refreshFolderIcons()   // a new group icon applies to its folders right away
             settingsMessage = loc("group_updated_toast", trimmed.isEmpty ? (groups.first { $0.id == id }.map(groupName) ?? "") : trimmed)
         }
     }
@@ -342,6 +364,7 @@ final class AppModel: ObservableObject {
 
         if registry.removeGroup(id: id) {
             groups = registry.allGroups()
+            refreshFolderIcons()   // the deleted group's folders get their normal icon back
             if activeGroupId == id {
                 selectGroup(id: groups.first?.id ?? "default")
             }
