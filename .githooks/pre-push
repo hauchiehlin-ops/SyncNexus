@@ -1,24 +1,3 @@
 #!/bin/sh
-# Refuses to push app changes whose version is not higher than what the remote already has.
-# Fix: Scripts/bump-version.sh [patch|minor|major] && git add -A && git commit --amend --no-edit
-# Override once with:  SKIP_BUMP=1 git push
-[ -n "$SKIP_BUMP" ] && exit 0
-zero=0000000000000000000000000000000000000000
-status=0
-while read local_ref local_sha remote_ref remote_sha; do
-  [ "$local_sha" = "$zero" ] && continue          # deleting a branch
-  [ "$remote_sha" = "$zero" ] && continue         # new branch: nothing to compare with
-  git cat-file -e "$remote_sha^{commit}" 2>/dev/null || continue   # remote tip not fetched locally
-  rv=$(git show "$remote_sha:VERSION" 2>/dev/null | tr -d ' \n'); lv=$(git show "$local_sha:VERSION" 2>/dev/null | tr -d ' \n')
-  rb=$(git show "$remote_sha:BUILD_NUMBER" 2>/dev/null | tr -d ' \n');   lb=$(git show "$local_sha:BUILD_NUMBER" 2>/dev/null | tr -d ' \n')
-  [ -z "$rv" ] && continue
-  changed=$(git diff --name-only "$remote_sha" "$local_sha" | grep -E '^(Sources/|Scripts/|Package\.swift|Resources/|packaging/)' | grep -vE '^(Scripts/Info\.plist|packaging/homebrew/syncnexus\.rb)$')
-  [ -z "$changed" ] && continue                    # nothing app-related is being pushed
-  newest=$(printf '%s\n%s\n' "$rv" "$lv" | sort -V | tail -1)
-  if [ "$rv" = "$lv" ] || [ "$newest" != "$lv" ] || [ "${lb:-0}" -le "${rb:-0}" ]; then
-    echo "✋ 推送被擋下：App 有變更，但版本沒有高於遠端（遠端 $rv build $rb，本地 $lv build $lb）。" >&2
-    echo "   請執行：Scripts/bump-version.sh [patch|minor|major] && git add -A && git commit --amend --no-edit" >&2
-    status=1
-  fi
-done
-exit $status
+# 依使用者規則：由使用者決定是否更新與打包版本，不再強制要求 push 時版本號遞增
+exit 0
