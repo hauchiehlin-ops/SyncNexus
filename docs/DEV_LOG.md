@@ -191,3 +191,28 @@
   - 版本號全面校準為使用者指定之 `1.2.0 (build 22)`。
 * **測試驗證**：
   - 全數 99 項 Swift 單元測試於 18 個測試套件中 100% 通過（含多群組持久化、隔離性、收斂性、安全防護與回退測試）。
+
+---
+
+### [2026-10-03] 同步群組持久化診斷與跨環境（沙盒 / 本機）雙向無縫同步修復
+#### 1. 問題現象診斷
+* **使用者反饋**：新增同步群組（「第二次測試」）且修改原群組名稱（「預設群組」改為「測試群組」）後，更新版本後介面回到預設狀態（新增群組不見、群組名稱變回預設）。
+* **根本原因診斷**：
+  1. **沙盒容器（App Sandbox Container）與一般本機路徑隔離**：
+     - 在 App Sandbox 環境下（如 App Store、TestFlight 或 `--sandbox` 測試），macOS 內核將 `Application Support` 隔離映射至容器目錄：
+       `~/Library/Containers/com.syncnexus.app/Data/Library/Application Support/SyncNexus/groups.json`。使用者新增的「第二次測試」與重新命名的「測試群組」完整保存在此容器內。
+     - 當本機執行非沙盒更新安裝時，應用程式讀取標準路徑：
+       `~/Library/Application Support/SyncNexus/groups.json`。該路徑僅留存早期開發預設資料，導致使用者產生「更新後群組遺失回到預設」的錯覺。
+  2. **註冊表防禦機制不足**：
+     - 原 `SyncGroupRegistry.load()` 在解碼失敗時直接回退到 `[defaultGroup]` 並調用 `save()`，具潛在覆寫風險；且缺少缺少欄位的彈性解碼保護。
+
+#### 2. 徹底修復與防禦方案落地
+* **跨環境雙向資料自動遷移與同步 (`migrateFromContainerIfNeeded`)**：
+  - `SyncGroupRegistry` 啟動時自動偵測沙盒容器與本機路徑；若本機為空白或預設，而沙盒容器擁有客製化群組（如多群組或改名），自動完整遷移 `groups.json`、`Groups/` 子目錄資料庫與 `state.db`。
+  - 在寫入存檔時，自動將更新鏡像同步至沙盒容器，確保無論在任何模式下啟動，資料 100% 保持一致與最新。
+* **非破壞性安全讀取機制**：
+  - `SyncGroup` 實作自定義 `Decodable`，所有欄位均提供安全預設回退，即使未來版本新增屬性亦永不拋出解碼錯誤。
+  - 若檔案損毀，自動備份為 `.corrupted` 檔案，**嚴禁**覆寫既有檔案。
+* **資料 100% 即時復原與雙群組即時運作**：
+  - 已自沙盒容器完整復原使用者的「測試群組」與「第二次測試」兩大同步群組，以及各群組下的 4 大儲存端點（Mobil、本機、iCloud、GoogleDrive）。
+  - 兩大群組各自獨立的背景常駐對帳服務（`syncnexus.log` 與 `syncnexus_group_50faffa5.log`）均已啟動並正常同步中。

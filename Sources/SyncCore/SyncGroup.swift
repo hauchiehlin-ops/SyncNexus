@@ -17,6 +17,19 @@ public struct SyncGroup: Codable, Identifiable, Sendable, Equatable {
         self.createdAt = createdAt
         self.retentionDays = retentionDays
     }
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, icon, createdAt, retentionDays
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decodeIfPresent(String.self, forKey: .id) ?? "default"
+        self.name = try container.decodeIfPresent(String.self, forKey: .name) ?? "預設群組"
+        self.icon = try container.decodeIfPresent(String.self, forKey: .icon) ?? "folder"
+        self.createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
+        self.retentionDays = try container.decodeIfPresent(Int.self, forKey: .retentionDays) ?? 30
+    }
 }
 
 /// Thread-safe registry that persists and manages SyncGroups across restarts.
@@ -99,19 +112,80 @@ public final class SyncGroupRegistry: @unchecked Sendable {
         return baseLogs.appendingPathComponent("syncnexus_\(groupId).log")
     }
 
+    private func migrateFromContainerIfNeeded() {
+        let fm = FileManager.default
+        let path = baseAppSupportURL.standardizedFileURL.path
+        let isStandardAppSupport = path.hasSuffix("/Library/Application Support/SyncNexus")
+        guard isStandardAppSupport && !path.contains("/Containers/") else { return }
+
+        let containerBase = fm.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Containers/com.syncnexus.app/Data/Library/Application Support/SyncNexus")
+        let containerGroupsURL = containerBase.appendingPathComponent("groups.json")
+
+        guard fm.fileExists(atPath: containerGroupsURL.path) else { return }
+
+        let decoder = JSONDecoder()
+        let currentData = try? Data(contentsOf: registryURL)
+        let currentGroups = currentData.flatMap { try? decoder.decode([SyncGroup].self, from: $0) } ?? []
+
+        let containerData = try? Data(contentsOf: containerGroupsURL)
+        let containerGroups = containerData.flatMap { try? decoder.decode([SyncGroup].self, from: $0) } ?? []
+
+        let currentIsDefaultOrEmpty = currentGroups.isEmpty || (currentGroups.count == 1 && currentGroups[0].name == "預設群組" && currentGroups[0].id == "default")
+        let containerHasCustomData = containerGroups.count > 1 || (containerGroups.count == 1 && containerGroups[0].name != "預設群組")
+
+        if currentIsDefaultOrEmpty && containerHasCustomData {
+            NSLog("[SyncGroupRegistry] Discovered customized sync groups in App Sandbox container. Migrating to local environment...")
+            try? fm.createDirectory(at: baseAppSupportURL, withIntermediateDirectories: true)
+
+            if fm.fileExists(atPath: registryURL.path) {
+                let backupURL = registryURL.appendingPathExtension("bak")
+                try? fm.removeItem(at: backupURL)
+                try? fm.copyItem(at: registryURL, to: backupURL)
+                try? fm.removeItem(at: registryURL)
+            }
+            try? fm.copyItem(at: containerGroupsURL, to: registryURL)
+
+            let containerGroupsDir = containerBase.appendingPathComponent("Groups")
+            let localGroupsDir = baseAppSupportURL.appendingPathComponent("Groups")
+            if fm.fileExists(atPath: containerGroupsDir.path) && !fm.fileExists(atPath: localGroupsDir.path) {
+                try? fm.copyItem(at: containerGroupsDir, to: localGroupsDir)
+            }
+
+            let containerStateDB = containerBase.appendingPathComponent("state.db")
+            let localStateDB = baseAppSupportURL.appendingPathComponent("state.db")
+            if fm.fileExists(atPath: containerStateDB.path) && !fm.fileExists(atPath: localStateDB.path) {
+                try? fm.copyItem(at: containerStateDB, to: localStateDB)
+            }
+        }
+    }
+
     private func load() {
         lock.lock()
         defer { lock.unlock() }
         let fm = FileManager.default
-        if fm.fileExists(atPath: registryURL.path),
-           let data = try? Data(contentsOf: registryURL),
-           let decoded = try? JSONDecoder().decode([SyncGroup].self, from: data),
-           !decoded.isEmpty {
-            groups = decoded
-        } else {
-            // First time setup or migration: default group
-            let defaultGroup = SyncGroup(id: "default", name: "預設群組", icon: "folder", createdAt: Date())
-            groups = [defaultGroup]
+
+        migrateFromContainerIfNeeded()
+
+        if fm.fileExists(atPath: registryURL.path) {
+            do {
+                let data = try Data(contentsOf: registryURL)
+                let decoded = try JSONDecoder().decode([SyncGroup].self, from: data)
+                if !decoded.isEmpty {
+                    groups = decoded
+                    return
+                }
+            } catch {
+                NSLog("[SyncGroupRegistry] Warning: Failed to decode groups.json: \(error). Preserving existing file as backup.")
+                let backupURL = registryURL.appendingPathExtension("corrupted-\(Int(Date().timeIntervalSince1970))")
+                try? fm.copyItem(at: registryURL, to: backupURL)
+            }
+        }
+
+        // Only create default group if file truly does not exist or is empty
+        let defaultGroup = SyncGroup(id: "default", name: "預設群組", icon: "folder", createdAt: Date())
+        groups = [defaultGroup]
+        if !fm.fileExists(atPath: registryURL.path) {
             save()
         }
     }
@@ -123,6 +197,17 @@ public final class SyncGroupRegistry: @unchecked Sendable {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         if let data = try? encoder.encode(groups) {
             try? data.write(to: registryURL, options: .atomic)
+
+            // If unsandboxed and container exists, keep container in sync as well
+            let path = baseAppSupportURL.standardizedFileURL.path
+            if path.hasSuffix("/Library/Application Support/SyncNexus") && !path.contains("/Containers/") {
+                let containerBase = fm.homeDirectoryForCurrentUser
+                    .appendingPathComponent("Library/Containers/com.syncnexus.app/Data/Library/Application Support/SyncNexus")
+                let containerGroupsURL = containerBase.appendingPathComponent("groups.json")
+                if fm.fileExists(atPath: containerBase.path) {
+                    try? data.write(to: containerGroupsURL, options: .atomic)
+                }
+            }
         }
     }
 }
