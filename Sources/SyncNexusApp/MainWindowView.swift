@@ -27,6 +27,7 @@ extension ExcludePreset {
 struct MainWindowView: View {
     @ObservedObject var model: AppModel
     @ObservedObject private var l10n = L10n.shared
+    @State private var activeDocument: DocumentType?
 
     var body: some View {
         HStack(spacing: 0) {
@@ -53,12 +54,9 @@ struct MainWindowView: View {
                     .pickerStyle(.menu)
                     .frame(width: 130)
 
-                    // 操作說明手冊入口圖示按鈕
+                    // 操作說明手冊入口圖示按鈕 (原生應用內開展)
                     Button {
-                        let langCode = L10n.shared.currentLanguage.rawValue
-                        if let url = URL(string: "https://github.com/hauchiehlin-ops/SyncNexus/blob/main/docs/manual/apple/MANUAL_apple_\(langCode).md") {
-                            NSWorkspace.shared.open(url)
-                        }
+                        activeDocument = .manual
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "book.pages")
@@ -68,12 +66,9 @@ struct MainWindowView: View {
                     .buttonStyle(QuietButton(kind: .secondary, compact: true))
                     .help(loc("menu_user_manual"))
 
-                    // 隱私權政策入口圖示按鈕
+                    // 隱私權政策入口圖示按鈕 (原生應用內開展)
                     Button {
-                        let langCode = L10n.shared.currentLanguage.rawValue
-                        if let url = URL(string: "https://github.com/hauchiehlin-ops/SyncNexus/blob/main/docs/privacy/apple/PRIVACY_apple_\(langCode).md") {
-                            NSWorkspace.shared.open(url)
-                        }
+                        activeDocument = .privacy
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "hand.raised.shield")
@@ -156,6 +151,9 @@ struct MainWindowView: View {
             withAnimation(.easeOut(duration: 0.2)) {
                 model.settingsMessage = nil
             }
+        }
+        .sheet(item: $activeDocument) { doc in
+            InAppDocumentView(type: doc)
         }
     }
 

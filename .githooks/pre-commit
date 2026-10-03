@@ -24,11 +24,11 @@ if ! git diff --cached --quiet -- VERSION; then
   exit 0
 fi
 
-# commits that touch only docs / tests do not change the app: no bump (unless BUMP is set explicitly)
-if [ -z "$BUMP" ]; then
-  git diff --cached --name-only | grep -Eq '^(Sources/|Scripts/|Package\.swift|Resources/|packaging/)' || exit 0
+# 依照使用者規則：禁止自動提升版本，僅在使用者明確指定 BUMP 變數或手動執行打包腳本時才提升版本
+if [ -z "$BUMP" ] || [ "$BUMP" = "none" ]; then
+  exit 0
 fi
 
-out=$(Scripts/bump-version.sh "$kind") || { echo "自動提升版本失敗：$out" >&2; exit 1; }
+out=$(Scripts/bump-version.sh "$kind") || { echo "手動提升版本失敗：$out" >&2; exit 1; }
 git add $FILES 2>/dev/null
-echo "版本已自動提升（$kind）：$out"
+echo "版本已依要求提升（$kind）：$out"

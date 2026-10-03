@@ -1,30 +1,39 @@
-# SyncNexus User Manual — Apple (macOS / iOS)
+# SyncNexus User Manual — Apple (macOS / iOS) Edition
 
-## 1. Introduction and Architecture
-**SyncNexus for Apple** is a local-first, two-way real-time file synchronization and reconciliation utility built natively for macOS and iOS. It delivers serverless zero-cloud architecture, cryptographic integrity verification, and comprehensive App Sandbox privacy protection.
+## 1. Overview & Key Highlights
+**SyncNexus for Apple** is a local-first, zero-cloud-lock-in real-time file synchronization app designed for Mac and iPhone. It keeps your folders identical without third-party servers.
 
-* **App Sandbox Architecture**: Strictly adheres to Apple App Store App Sandbox rules, persisting folder permissions through Security-Scoped Bookmarks.
-* **Serverless & P2P Direct Connect**: Leverages Apple Bonjour (mDNS `_syncnexus._tcp`) to automatically discover other Mac, Windows, and Android nodes on the same Wi-Fi.
-* **APFS Snapshot Protection**: Creates APFS snapshots on supported volumes prior to major sync runs for instant rollback.
-* **Multi-Target Support**: Local folders, iCloud Drive, Google Drive with placeholder detection, and external ExFAT drives.
-
----
-
-## 2. Quick Setup & Endpoint Management
-1. **Launch and Grant Access**:
-   - Open `SyncNexus.app`. When adding your first folder, choose the directory via the native `NSOpenPanel`.
-   - The application automatically generates a Security-Scoped Bookmark and writes the identity marker `.syncnexus-endpoint`.
-2. **Cloud and External Storage Configuration**:
-   - **iCloud Drive**: Select your target folder under `~/Library/Mobile Documents/com~apple~CloudDocs/`.
-   - **Google Drive**: Select Google Drive streaming or mirrored folders under CloudStorage.
-   - **External Storage**: Connect an ExFAT drive and select your folder under `/Volumes/<VolumeName>`.
-3. **Reconciliation & Real-Time Sync**:
-   - Click "Sync Now" or rely on FSEvents for real-time monitoring (2-second debouncing).
-   - Use "Diff Preview" to inspect pending file creations, edits, and deletions prior to execution.
+* **App Sandbox Protection**: Strictly adheres to Apple App Store sandbox requirements; never accesses unauthorized personal files.
+* **Local Network P2P Direct Connect**: Utilizes Apple Bonjour to automatically discover other Macs, Windows PCs, and Android phones on the same Wi-Fi.
+* **Safety First & Version History**: Changes are preserved in a built-in multi-version repository, with full macOS Trash integration for safe recovery.
+* **Multiple Storage Targets**: Supports Mac local folders, iCloud Drive, Google Drive, and external USB flash drives / portable hard drives.
 
 ---
 
-## 3. Conflict Resolution & Version History
-* **Non-Destructive Conflict Preservation**: Concurrent edits are never overwritten. Local conflicts are saved as `Filename (conflict Endpoint yyyy-MM-dd HH-mm).ext`.
-* **Version History**: Replaced files are automatically archived and can be restored at any time.
-* **Deletion Guard**: Halts automatically and requests explicit user confirmation whenever planned deletions exceed 25 files or 25% of tracked files.
+## 2. Quick Start: Adding Folders to Sync
+
+Go to the "Folders" tab and click "**Add Folder...**" to choose at least two folders you want to keep in sync:
+
+1. **Computer Local Folder**:
+   - Open **Finder**, click "**Documents**" or your user home folder in the left sidebar, and select the folder you want to sync.
+2. **iCloud Drive**:
+   - Open **Finder**, click "**iCloud Drive**" in the left sidebar, and pick the folder you wish to keep in sync. SyncNexus will automatically track changes.
+3. **Google Drive**:
+   - Open **Finder**, click "**Google Drive**" in the left sidebar, then click "**My Drive**", and pick the target folder.
+4. **External USB Flash Drive / Portable Hard Drive**:
+   - Plug the external drive into your Mac. Open **Finder**, click your drive's name under "**Locations**" in the left sidebar, and choose your folder. Formatting as **ExFAT** is strongly recommended for cross-platform compatibility between Mac and Windows!
+
+---
+
+## 3. Automatic Synchronization & Smart Safety
+
+* **Zero Manual Effort**:
+  Whenever you add, modify, rename, or delete a file in any folder, SyncNexus automatically syncs the changes to all other endpoints within 2 seconds.
+* **Smart Diff Preview (Trial Run)**:
+  Before committing changes, visit the "Diff Preview" tab and click "Run Trial Simulation" to view an exact checklist of pending operations with zero risk.
+* **Offline Conflict Protection**:
+  If files are edited on two sides simultaneously while offline, SyncNexus never overwrites data. It saves a timestamped conflict copy (e.g. `Filename (conflict ...)`), safely keeping both versions.
+* **History Versions & Deletion Guard**:
+  - Deleted files go to the macOS Trash whenever possible.
+  - Older overwritten versions can be restored with a single click in the "Versions" tab.
+  - If more than 25 files or 25% of items are deleted at once, Deletion Guard automatically halts syncing and requests user confirmation to prevent accidental loss.

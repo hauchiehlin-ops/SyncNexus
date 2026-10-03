@@ -2128,5 +2128,277 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .ja: "%d 年",
         .th: "%d ปี",
         .ko: "%d년"
+    ],
+    "btn_close": [
+        .en: "Close",
+        .zhHant: "關閉",
+        .zhHans: "关闭",
+        .ja: "閉じる",
+        .th: "ปิด",
+        .ko: "닫기"
+    ],
+    "manual_inapp_title": [
+        .en: "SyncNexus User Manual",
+        .zhHant: "SyncNexus 操作使用手冊",
+        .zhHans: "SyncNexus 操作使用手册",
+        .ja: "SyncNexus 取扱説明書",
+        .th: "คู่มือการใช้งาน SyncNexus",
+        .ko: "SyncNexus 사용 설명서"
+    ],
+    "privacy_inapp_title": [
+        .en: "SyncNexus Privacy Policy",
+        .zhHant: "SyncNexus 隱私權保護政策",
+        .zhHans: "SyncNexus 隐私保护政策",
+        .ja: "SyncNexus プライバシーポリシー",
+        .th: "นโยบายความเป็นส่วนตัว SyncNexus",
+        .ko: "SyncNexus 개인정보 보호정책"
+    ],
+    "manual_inapp_subtitle": [
+        .en: "Local-First Multi-Platform Smart Sync Guide",
+        .zhHant: "本機優先 · 跨平台智慧同步指南",
+        .zhHans: "本机优先 · 跨平台智能同步指南",
+        .ja: "ローカルファースト・クロスプラットフォーム同期ガイド",
+        .th: "คำแนะนำการซิงค์อัจฉริยะแบบเน้นโลคอลข้ามแพลตฟอร์ม",
+        .ko: "로컬 우선 · 크로스 플랫폼 스마트 동기화 가이드"
+    ],
+    "manual_inapp_footer_note": [
+        .en: "SyncNexus strictly complies with App Store and Sandbox security regulations. Zero telemetry.",
+        .zhHant: "SyncNexus 嚴格遵循 App Store 沙盒安全標準，零追蹤、零伺服器備存。",
+        .zhHans: "SyncNexus 严格遵循 App Store 沙盒安全标准，零追踪、零服务器备存。",
+        .ja: "SyncNexus は App Store およびサンドボックスのセキュリティ基準に厳格に準拠しています。",
+        .th: "SyncNexus ปฏิบัติตามมาตรฐานความปลอดภัย App Store และ Sandbox อย่างเคร่งครัด",
+        .ko: "SyncNexus는 App Store 및 샌드박스 보안 규정을 엄격히 준수합니다. 원격 분석 제로."
+    ],
+    "manual_step1_title": [
+        .en: "1. Quick Start: Select Folders",
+        .zhHant: "1. 快速開始：加入同步資料夾",
+        .zhHans: "1. 快速开始：添加同步文件夹",
+        .ja: "1. クイックスタート: 同期フォルダを追加",
+        .th: "1. เริ่มต้นอย่างรวดเร็ว: เพิ่มโฟลเดอร์ซิงค์",
+        .ko: "1. 빠른 시작: 동기화 폴더 추가"
+    ],
+    "manual_step1_desc": [
+        .en: "Click 'Add Folder...' below. You only need to pick 2 or more folders you want to keep identical. SyncNexus will handle all changes automatically!",
+        .zhHant: "點擊下方的「加入資料夾...」按鈕。只要選取 2 個以上想要保持同步的資料夾，SyncNexus 就會自動保持兩邊檔案隨時完全一致！",
+        .zhHans: "点击下方的“添加文件夹...”按钮。只要选取 2 个以上想要保持同步的文件夹，SyncNexus 就会自动保持两边文件随时完全一致！",
+        .ja: "「フォルダを追加...」をクリックします。同期を保ちたいフォルダを2つ以上選択するだけで、SyncNexus が自動的にファイルを一致させます！",
+        .th: "คลิกปุ่ม 'เพิ่มโฟลเดอร์...' ด้านล่าง เพียงเลือก 2 โฟลเดอร์ขึ้นไปที่คุณต้องการให้เหมือนกัน SyncNexus จะจัดการให้ตรงกันโดยอัตโนมัติ!",
+        .ko: "'폴더 추가...' 버튼을 클릭합니다. 일치시키고 싶은 2개 이상의 폴더를 선택하기만 하면 SyncNexus가 항상 완전히 동일하게 유지합니다!"
+    ],
+    "manual_badge_quickstart": [
+        .en: "Quick Start",
+        .zhHant: "快速上手",
+        .zhHans: "快速上手",
+        .ja: "クイックスタート",
+        .th: "เริ่มต้นเร็ว",
+        .ko: "빠른 시작"
+    ],
+    "manual_local_title": [
+        .en: "Computer Local Folder",
+        .zhHant: "電腦本機資料夾",
+        .zhHans: "电脑本机文件夹",
+        .ja: "PC ローカルフォルダ",
+        .th: "โฟลเดอร์ในเครื่องคอมพิวเตอร์",
+        .ko: "컴퓨터 로컬 폴더"
+    ],
+    "manual_local_desc": [
+        .en: "Open 'Finder', click 'Documents' or your home folder in the sidebar, and choose the folder you want to sync.",
+        .zhHant: "點開「Finder（訪達）」，點選左側側邊欄的「文件」或您的個人專屬資料夾，選取準備要同步的目錄。",
+        .zhHans: "打开“Finder（访达）”，点击左侧边栏的“文档”或您的个人专属文件夹，选取准备要同步的目录。",
+        .ja: "「Finder」を開き、サイドバーの「書類」またはホームフォルダをクリックして、同期したいフォルダを選択します。",
+        .th: "เปิด 'Finder' คลิก 'เอกสาร' หรือโฟลเดอร์ส่วนตัวของคุณในแถบด้านข้าง แล้วเลือกโฟลเดอร์ที่ต้องการซิงค์",
+        .ko: "'Finder'를 열고 사이드바에서 '문서' 또는 사용자 홈 폴더를 클릭한 후 동기화할 폴더를 선택합니다."
+    ],
+    "manual_icloud_title": [
+        .en: "iCloud Drive",
+        .zhHant: "iCloud 雲碟",
+        .zhHans: "iCloud 云盘",
+        .ja: "iCloud Drive",
+        .th: "iCloud Drive",
+        .ko: "iCloud Drive"
+    ],
+    "manual_icloud_desc": [
+        .en: "Open 'Finder', click 'iCloud Drive' in the left sidebar, and select the folder you want to sync. SyncNexus will automatically monitor changes.",
+        .zhHant: "點開「Finder（訪達）」，點擊側邊欄的「iCloud 雲碟」後，選取準備要同步的目錄。SyncNexus 會自動偵測並同步。",
+        .zhHans: "打开“Finder（访达）”，点击侧边栏的“iCloud 云盘”后，选取准备要同步的目录。SyncNexus 会自动检测并同步。",
+        .ja: "「Finder」を開き、左側サイドバーの「iCloud Drive」をクリックし、同期するフォルダを選択します。",
+        .th: "เปิด 'Finder' คลิก 'iCloud Drive' ในแถบด้านข้างซ้าย แล้วเลือกโฟลเดอร์ที่ต้องการซิงค์ SyncNexus จะตรวจหาและซิงค์โดยอัตโนมัติ",
+        .ko: "'Finder'를 열고 왼쪽 사이드바에서 'iCloud Drive'를 클릭한 다음 동기화할 폴더를 선택합니다."
+    ],
+    "manual_gdrive_title": [
+        .en: "Google Drive",
+        .zhHant: "Google 雲端硬碟 (Google Drive)",
+        .zhHans: "Google 云端硬盘 (Google Drive)",
+        .ja: "Google ドライブ",
+        .th: "Google ไดรฟ์ (Google Drive)",
+        .ko: "Google 드라이브"
+    ],
+    "manual_gdrive_desc": [
+        .en: "Open 'Finder', click 'Google Drive' in the left sidebar, click 'My Drive', and select the folder you want to sync.",
+        .zhHant: "點開「Finder（訪達）」，點擊側邊欄的「Google Drive」、再點擊「我的雲端硬碟」後，選取準備要同步的目錄。",
+        .zhHans: "打开“Finder（访达）”，点击侧边栏的“Google Drive”、再点击“我的云端硬盘”后，选取准备要同步的目录。",
+        .ja: "「Finder」を開き、左側サイドバーの「Google Drive」をクリックし、「マイドライブ」をクリックして同期するフォルダを選択します。",
+        .th: "เปิด 'Finder' คลิก 'Google Drive' ในแถบด้านข้างซ้าย จากนั้นคลิก 'ไดรฟ์ของฉัน' แล้วเลือกโฟลเดอร์ที่ต้องการซิงค์",
+        .ko: "'Finder'를 열고 왼쪽 사이드바의 'Google Drive'를 클릭한 후 '내 드라이브'를 클릭하여 동기화할 폴더를 선택합니다."
+    ],
+    "manual_usb_title": [
+        .en: "External USB Flash Drive / Portable Hard Drive",
+        .zhHant: "外接式隨身碟 / 行動硬碟",
+        .zhHans: "外接式 U 盘 / 移动硬盘",
+        .ja: "外付け USB メモリ / ポータブル HDD",
+        .th: "แฟลชไดรฟ์ USB / ฮาร์ดดิสก์พกพาภายนอก",
+        .ko: "외장 USB 드라이브 / 외장 하드"
+    ],
+    "manual_usb_desc": [
+        .en: "Plug in your USB drive, open 'Finder', click your drive name under 'Locations' in the sidebar, and select the folder. Formatting as ExFAT is recommended for sharing between Mac and Windows!",
+        .zhHant: "插上隨身碟，點開「Finder（訪達）」，在左側「位置」下方點擊您的隨身碟名稱，選取準備要同步的目錄。格式建議為 ExFAT，方便在 Mac 與 Windows 之間通用！",
+        .zhHans: "插入 U 盘，打开“Finder（访达）”，在左侧“位置”下方点击您的 U 盘名称，选取准备要同步的目录。格式建议为 ExFAT，方便在 Mac 与 Windows 之间通用！",
+        .ja: "USB ドライブを接続し、「Finder」を開き、サイドバーの「場所」の下にあるドライブ名をクリックして同期するフォルダを選択します。Mac と Windows 間で共有するには ExFAT 形式が推奨されます！",
+        .th: "เสียบแฟลชไดรฟ์ เปิด 'Finder' คลิกชื่อไดรฟ์ของคุณใต้ 'ตำแหน่ง' ในแถบด้านข้าง แล้วเลือกโฟลเดอร์ แนะนำให้ฟอร์แมตเป็น ExFAT เพื่อใช้ร่วมกันระหว่าง Mac และ Windows!",
+        .ko: "USB 드라이브를 연결하고 'Finder'를 연 뒤 사이드바 '위치' 아래에서 드라이브 이름을 클릭하여 폴더를 선택합니다. Mac과 Windows 간 호환을 위해 ExFAT 포맷을 권장합니다!"
+    ],
+    "manual_sync_title": [
+        .en: "Automatic Sync & Smart Diff Preview",
+        .zhHant: "全自動對帳與智慧差異預覽",
+        .zhHans: "全自动对账与智能差异预览",
+        .ja: "完全自動同期とスマート差分プレビュー",
+        .th: "ซิงค์อัตโนมัติสมบูรณ์แบบและการดูตัวอย่างความแตกต่างอัจฉริยะ",
+        .ko: "완전 자동 동기화 및 스마트 차이점 미리보기"
+    ],
+    "manual_sync_desc": [
+        .en: "No manual actions needed: changes in any folder sync within 2 seconds. Want to check changes first? Go to 'Diff Preview' and click 'Run Trial Simulation' to see what will change safely.",
+        .zhHant: "平時完全無須手動操作：任一資料夾有新增、修改或刪除，2 秒內自動同步到其他所有資料夾。想先確認會動到哪些檔案？切換至「差異預覽」點擊「執行試跑模擬」，安全零風險！",
+        .zhHans: "平时完全无需手动操作：任一文件夹有新增、修改或删除，2 秒内自动同步到其他所有文件夹。想先确认会动到哪些文件？切换至“差异预览”点击“执行试跑模拟”，安全零风险！",
+        .ja: "普段は手動操作は一切不要です。いずれかのフォルダで変更があると、2秒以内に自動同期されます。「差分プレビュー」で「シミュレーション実行」をクリックすれば、事前に変更内容を確認できます。",
+        .th: "ไม่จำเป็นต้องจัดการด้วยตนเอง: ไฟล์ที่เปลี่ยนแปลงจะซิงค์อัตโนมัติภายใน 2 วินาที หากต้องการตรวจสอบก่อน ให้ไปที่ 'ดูตัวอย่างความแตกต่าง' แล้วคลิก 'จำลองการทำงาน' ปลอดภัยไร้ความเสี่ยง!",
+        .ko: "평소에는 수동 조작이 전혀 필요하지 않습니다. 폴더에 변경 사항이 생기면 2초 내에 자동 동기화됩니다. '차이점 미리보기'에서 '시뮬레이션 실행'을 클릭하여 안전하게 미리 확인하세요."
+    ],
+    "manual_badge_smart": [
+        .en: "Smart Sync",
+        .zhHant: "智慧同步",
+        .zhHans: "智能同步",
+        .ja: "スマート同期",
+        .th: "ซิงค์อัจฉริยะ",
+        .ko: "스마트 동기화"
+    ],
+    "manual_protection_title": [
+        .en: "Conflict Safeguard & History Rollback",
+        .zhHant: "防覆蓋衝突保護與歷史還原",
+        .zhHans: "防覆盖冲突保护与历史还原",
+        .ja: "競合保護と履歴復元",
+        .th: "การป้องกันการทับซ้อนและการกู้คืนประวัติ",
+        .ko: "덮어쓰기 방지 충돌 보호 및 히스토리 복원"
+    ],
+    "manual_protection_desc": [
+        .en: "Simultaneous offline edits? SyncNexus keeps both versions by creating a conflict file. Deleted files go to Trash first, and older versions can be restored anytime from the 'Versions' tab!",
+        .zhHant: "兩邊離線同時修改同一個檔案？SyncNexus 絕不覆蓋，會自動另存衝突備份檔，兩份完整保留！刪除的檔案優先進垃圾桶，舊版本也能隨時在「舊版本」分頁一鍵復原！",
+        .zhHans: "两边离线同时修改同一个文件？SyncNexus 绝不覆盖，会自动另存冲突备份文件，两份完整保留！删除的文件优先进入废纸篓，旧版本也能随时在“旧版本”分页一键恢复！",
+        .ja: "オフラインで両側が同時に同じファイルを変更した場合は、競合コピーとして保存し、上書きを防止します！削除ファイルはゴミ箱へ送られ、「旧バージョン」からいつでも復元可能です。",
+        .th: "แก้ไขไฟล์เดียวกันขณะออฟไลน์ทั้งสองด้าน? SyncNexus จะไม่เขียนทับ แต่จะบันทึกสำเนาข้อขัดแย้งแยกไว้! ไฟล์ที่ถูกลบจะไปที่ถังขยะก่อน และสามารถกู้คืนเวอร์ชันเก่าได้ตลอดเวลาที่ 'ประวัติเวอร์ชัน'!",
+        .ko: "오프라인에서 양쪽이 동시에 동일한 파일을 수정한 경우, 충돌 사본으로 자동 저장하여 덮어쓰기를 방지합니다! 삭제된 파일은 휴지통으로 이동하며 '이전 버전'에서 언제든 원클릭 복원할 수 있습니다."
+    ],
+    "manual_badge_safety": [
+        .en: "Zero Risk",
+        .zhHant: "零風險防護",
+        .zhHans: "零风险防护",
+        .ja: "ゼロリスク保護",
+        .th: "ความปลอดภัยสูงสุด",
+        .ko: "무위험 보호"
+    ],
+    "privacy_sec1_title": [
+        .en: "1. 100% Local-First Architecture",
+        .zhHant: "1. 100% 本機優先，無雲端中繼伺服器",
+        .zhHans: "1. 100% 本机优先，无云端中继服务器",
+        .ja: "1. 100% ローカルファースト、クラウド中継なし",
+        .th: "1. โครงสร้างเน้นโลคอล 100% ไม่มีเซิร์ฟเวอร์คลาวด์ตัวกลาง",
+        .ko: "1. 100% 로컬 우선, 클라우드 중계 서버 없음"
+    ],
+    "privacy_sec1_desc": [
+        .en: "All file comparisons, transfers, and metadata calculations occur exclusively on your local devices. SyncNexus operates zero cloud storage and zero remote servers.",
+        .zhHant: "所有檔案比對、同步傳輸與特徵碼比對皆完全在您的電腦本地執行。SyncNexus 沒有經營任何雲端伺服器，絕不會上傳您的檔案內容。",
+        .zhHans: "所有文件比对、同步传输与特征码比对皆完全在您的电脑本地执行。SyncNexus 没有经营任何云端服务器，绝不会上传您的文件内容。",
+        .ja: "すべてのファイル比較、同期、ハッシュ計算はお使いのコンピュータ上で完全にローカルに実行されます。ファイルが外部サーバーにアップロードされることは一切ありません。",
+        .th: "การเปรียบเทียบไฟล์ การซิงค์ และการประมวลผลทั้งหมดทำงานในเครื่องคอมพิวเตอร์ของคุณเท่านั้น SyncNexus ไม่มีเซิร์ฟเวอร์ภายนอกและไม่เคยอัปโหลดเนื้อหาไฟล์ของคุณ",
+        .ko: "모든 파일 비교, 동기화 전송 및 체크섬 계산은 컴퓨터 로컬에서 완전히 수행됩니다. SyncNexus는 외부 서버를 운영하지 않으며 파일 내용을 업로드하지 않습니다."
+    ],
+    "privacy_badge_local": [
+        .en: "Local Only",
+        .zhHant: "僅限本機",
+        .zhHans: "仅限本机",
+        .ja: "ローカル限定",
+        .th: "ในเครื่องเท่านั้น",
+        .ko: "로컬 전용"
+    ],
+    "privacy_sec2_title": [
+        .en: "2. Strict App Sandbox & Least Privilege",
+        .zhHant: "2. 嚴格遵循 macOS 沙盒與最小權限原則",
+        .zhHans: "2. 严格遵循 macOS 沙盒与最小权限原则",
+        .ja: "2. 厳格な App Sandbox と最小特権の原則",
+        .th: "2. Sandbox ของ macOS ที่เข้มงวดและหลักสิทธิ์ขั้นต่ำ",
+        .ko: "2. 엄격한 macOS 샌드박스 및 최소 권한 원칙"
+    ],
+    "privacy_sec2_desc": [
+        .en: "SyncNexus strictly runs within the macOS App Sandbox. It only accesses folders you explicitly choose via the standard macOS picker window, secured via Security-Scoped Bookmarks.",
+        .zhHant: "本軟體在 macOS 系統沙盒內隔離運行，僅能存取您在選取視窗中明確勾選的目錄（透過 Security-Scoped Bookmarks 安全授權），絕無法擅自存取您電腦中的其他私人檔案。",
+        .zhHans: "本软件在 macOS 系统沙盒内隔离运行，仅能访问您在选取窗口中明确勾选的目录（通过 Security-Scoped Bookmarks 安全授权），绝无法擅自访问您电脑中的其他私人文件。",
+        .ja: "本アプリは macOS のサンドボックス内で隔離されて動作し、ユーザーが明示的に選択したフォルダのみにアクセスします。他のプライベートファイルにアクセスすることはできません。",
+        .th: "ซอฟต์แวร์นี้ทำงานใน Sandbox ของ macOS โดยเข้าถึงเฉพาะโฟลเดอร์ที่คุณเลือกอย่างชัดเจนเท่านั้น และไม่สามารถเข้าถึงไฟล์ส่วนตัวอื่นๆ ในเครื่องได้",
+        .ko: "본 앱은 macOS 시스템 샌드박스 내에서 격리 실행되며, 사용자가 명시적으로 선택한 폴더에만 접근합니다. 다른 개인 파일에는 무단 접근할 수 없습니다."
+    ],
+    "privacy_badge_sandbox": [
+        .en: "Sandboxed",
+        .zhHant: "沙盒安全",
+        .zhHans: "沙盒安全",
+        .ja: "サンドボックス",
+        .th: "ปลอดภัยด้วย Sandbox",
+        .ko: "샌드박스 보호"
+    ],
+    "privacy_sec3_title": [
+        .en: "3. Zero Telemetry & Zero Data Tracking",
+        .zhHant: "3. 零診斷追蹤，零廣告，無任何資料收集",
+        .zhHans: "3. 零诊断追踪，零广告，无任何数据收集",
+        .ja: "3. テレメトリ・広告・データ収集ゼロ",
+        .th: "3. ไม่มีการติดตาม ไม่มีการรวบรวมข้อมูลใดๆ ทั้งสิ้น",
+        .ko: "3. 원격 분석·광고·데이터 수집 제로"
+    ],
+    "privacy_sec3_desc": [
+        .en: "We do not collect names, paths, usage analytics, device identifiers, IP addresses, or crash logs. There are no analytics SDKs or third-party tracking libraries installed.",
+        .zhHant: "我們不收集檔案清單、資料夾名稱、硬體序號、IP 位址或任何分析數據。程式內未植入任何廣告追蹤 SDK 或第三方數據分析工具。",
+        .zhHans: "我们不收集文件清单、文件夹名称、硬件序列号、IP 地址或任何分析数据。程序内未植入任何广告追踪 SDK 或第三方数据分析工具。",
+        .ja: "ファイル一覧、フォルダ名、デバイス情報、IP アドレスなどのデータを収集することはありません。サードパーティの追跡 SDK は一切含まれていません。",
+        .th: "เราไม่รวบรวมรายชื่อไฟล์ ชื่อโฟลเดอร์ ข้อมูลอุปกรณ์ ที่อยู่ IP หรือข้อมูลการวิเคราะห์ใดๆ ไม่มี SDK โฆษณาหรือเครื่องมือติดตามของบุคคลที่สาม",
+        .ko: "파일 목록, 폴더 이름, 기기 식별자, IP 주소 등의 데이터를 일체 수집하지 않습니다. 분석 SDK나 제3자 추적 도구가 전혀 포함되어 있지 않습니다."
+    ],
+    "privacy_badge_no_cloud": [
+        .en: "No Telemetry",
+        .zhHant: "零追蹤",
+        .zhHans: "零追踪",
+        .ja: "追跡なし",
+        .th: "ไม่มีการติดตาม",
+        .ko: "추적 없음"
+    ],
+    "privacy_sec4_title": [
+        .en: "4. User-Controlled Deletions",
+        .zhHant: "4. 安全刪除機制：優先移至系統垃圾桶",
+        .zhHans: "4. 安全删除机制：优先移至系统废纸篓",
+        .ja: "4. 安全な削除メカニズム: ゴミ箱へ優先移動",
+        .th: "4. กลไกการลบที่ปลอดภัย: ย้ายไปที่ถังขยะก่อนเสมอ",
+        .ko: "4. 안전한 삭제 메커니즘: 시스템 휴지통으로 우선 이동"
+    ],
+    "privacy_sec4_desc": [
+        .en: "Deleted files are moved to the macOS Trash whenever possible, preventing irreversible loss. You can empty the Trash or restore files whenever you wish.",
+        .zhHant: "在進行同步刪除時，檔案會優先移至 macOS 系統「垃圾桶」而非永久抹除，確保隨時可撤銷操作。您擁有資料處置的最高決定權。",
+        .zhHans: "在进行同步删除时，文件会优先移至 macOS 系统“废纸篓”而非永久抹除，确保随时可撤销操作。您拥有数据处置的最高决定权。",
+        .ja: "削除されたファイルは完全に消去されるのではなく、可能な限り macOS の「ゴミ箱」に移動されるため、いつでも復元可能です。",
+        .th: "เมื่อซิงค์การลบ ไฟล์จะถูกย้ายไปที่ 'ถังขยะ' ของ macOS ก่อนเสมอแทนการลบถาวร เพื่อให้สามารถกู้คืนได้ตลอดเวลา คุณเป็นผู้ควบคุมข้อมูลของคุณอย่างแท้จริง",
+        .ko: "동기화 삭제 시 파일이 완전히 지워지지 않고 우선 macOS '휴지통'으로 이동하므로 언제든 되돌릴 수 있습니다. 사용자가 모든 데이터 권한을 갖습니다."
+    ],
+    "privacy_badge_trash": [
+        .en: "Recycle Bin Safe",
+        .zhHant: "防誤刪",
+        .zhHans: "防误删",
+        .ja: "誤削除防止",
+        .th: "ปลอดภัยจากการลบผิด",
+        .ko: "오삭제 방지"
     ]
 ]
