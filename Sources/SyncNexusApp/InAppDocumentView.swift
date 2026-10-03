@@ -25,21 +25,33 @@ public struct InAppDocumentView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack(alignment: .center) {
+            // Header: 標題、語系切換器、關閉按鈕
+            HStack(alignment: .center, spacing: 12) {
                 HStack(spacing: 10) {
                     Image(systemName: type == .manual ? "book.pages.fill" : "hand.raised.shield.fill")
                         .font(.system(size: 22))
                         .foregroundStyle(Color.accentColor)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(type == .manual ? loc("manual_inapp_title") : loc("privacy_inapp_title"))
-                            .font(.system(size: 18, weight: .bold))
+                            .font(.system(size: 17, weight: .bold))
                         Text(loc("manual_inapp_subtitle"))
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
                     }
                 }
                 Spacer()
+
+                // 手冊內直接切換語系
+                Picker("", selection: Binding(
+                    get: { L10n.shared.currentLanguage },
+                    set: { L10n.shared.currentLanguage = $0 }
+                )) {
+                    ForEach(AppLanguage.allCases) { lang in
+                        Text(lang.displayName).tag(lang)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(width: 130)
 
                 Button {
                     dismiss()
@@ -52,7 +64,7 @@ public struct InAppDocumentView: View {
                 .keyboardShortcut(.cancelAction)
             }
             .padding(.horizontal, 24)
-            .padding(.vertical, 16)
+            .padding(.vertical, 14)
             .background(Theme.sidebar)
 
             Divider()
@@ -84,17 +96,17 @@ public struct InAppDocumentView: View {
                 .buttonStyle(QuietButton(kind: .primary, compact: true))
             }
             .padding(.horizontal, 24)
-            .padding(.vertical, 14)
+            .padding(.vertical, 12)
             .background(Theme.tile)
         }
-        .frame(minWidth: 860, minHeight: 620)
+        .frame(minWidth: 920, minHeight: 650)
         .background(Theme.card)
     }
 
     // MARK: - 7 大主題獨立頁面式操作手冊
     private var manualLayout: some View {
         HStack(spacing: 0) {
-            // 左側主題導覽列 (對齊側邊欄 7 大項目)
+            // 左側主題導覽列 (100% 對齊主視窗 7 大主題順序)
             VStack(alignment: .leading, spacing: 4) {
                 Text(loc("menu_user_manual"))
                     .font(.system(size: 11, weight: .bold))
@@ -126,7 +138,7 @@ public struct InAppDocumentView: View {
                 Spacer()
             }
             .padding(10)
-            .frame(width: 180)
+            .frame(width: 190)
             .background(Theme.sidebar.opacity(0.5))
 
             Divider()
@@ -149,78 +161,92 @@ public struct InAppDocumentView: View {
             renderTopic(
                 title: loc("manual_topic_overview_title"),
                 desc: loc("manual_topic_overview_desc"),
-                badge: loc("section_overview"),
+                badge: section.title,
                 imageName: "01_overview",
-                f1Title: loc("manual_topic_overview_f1_title"),
-                f1Desc: loc("manual_topic_overview_f1_desc"),
-                f2Title: loc("stat_tracked_files"),
-                f2Desc: loc("manual_topic_overview_f2_desc")
+                opsTitle: loc("manual_topic_overview_ops_title"),
+                opsDesc: loc("manual_topic_overview_ops_desc"),
+                safeTitle: loc("manual_topic_overview_safe_title"),
+                safeDesc: loc("manual_topic_overview_safe_desc"),
+                tipsTitle: loc("manual_topic_overview_tips_title"),
+                tipsDesc: loc("manual_topic_overview_tips_desc")
             )
         case .diffPreview:
             renderTopic(
                 title: loc("manual_topic_diff_title"),
                 desc: loc("manual_topic_diff_desc"),
-                badge: loc("section_diff_preview"),
+                badge: section.title,
                 imageName: "02_diff_preview",
-                f1Title: loc("manual_topic_diff_f1_title"),
-                f1Desc: loc("manual_topic_diff_f1_desc"),
-                f2Title: loc("manual_topic_diff_f2_title"),
-                f2Desc: loc("manual_topic_diff_f2_desc")
+                opsTitle: loc("manual_topic_diff_ops_title"),
+                opsDesc: loc("manual_topic_diff_ops_desc"),
+                safeTitle: loc("manual_topic_diff_safe_title"),
+                safeDesc: loc("manual_topic_diff_safe_desc"),
+                tipsTitle: loc("manual_topic_diff_tips_title"),
+                tipsDesc: loc("manual_topic_diff_tips_desc")
             )
         case .folders:
             renderTopic(
                 title: loc("manual_topic_folders_title"),
                 desc: loc("manual_topic_folders_desc"),
-                badge: loc("section_folders"),
-                imageName: "03_folders_endpoints",
-                f1Title: loc("manual_topic_folders_f1_title"),
-                f1Desc: loc("manual_topic_folders_f1_desc"),
-                f2Title: loc("manual_topic_folders_f2_title"),
-                f2Desc: loc("manual_topic_folders_f2_desc")
+                badge: section.title,
+                imageName: "03_folders",
+                opsTitle: loc("manual_topic_folders_ops_title"),
+                opsDesc: loc("manual_topic_folders_ops_desc"),
+                safeTitle: loc("manual_topic_folders_safe_title"),
+                safeDesc: loc("manual_topic_folders_safe_desc"),
+                tipsTitle: loc("manual_topic_folders_tips_title"),
+                tipsDesc: loc("manual_topic_folders_tips_desc")
             )
         case .conflicts:
             renderTopic(
                 title: loc("manual_topic_conflicts_title"),
                 desc: loc("manual_topic_conflicts_desc"),
-                badge: loc("section_conflicts"),
+                badge: section.title,
                 imageName: "04_conflicts",
-                f1Title: loc("manual_topic_conflicts_f1_title"),
-                f1Desc: loc("manual_topic_conflicts_f1_desc"),
-                f2Title: loc("conflicts_empty_title"),
-                f2Desc: loc("conflicts_empty_desc")
+                opsTitle: loc("manual_topic_conflicts_ops_title"),
+                opsDesc: loc("manual_topic_conflicts_ops_desc"),
+                safeTitle: loc("manual_topic_conflicts_safe_title"),
+                safeDesc: loc("manual_topic_conflicts_safe_desc"),
+                tipsTitle: loc("manual_topic_conflicts_tips_title"),
+                tipsDesc: loc("manual_topic_conflicts_tips_desc")
             )
         case .versions:
             renderTopic(
                 title: loc("manual_topic_versions_title"),
                 desc: loc("manual_topic_versions_desc"),
-                badge: loc("section_versions"),
+                badge: section.title,
                 imageName: "05_versions",
-                f1Title: loc("manual_topic_versions_f1_title"),
-                f1Desc: loc("manual_topic_versions_f1_desc"),
-                f2Title: loc("manual_topic_versions_f2_title"),
-                f2Desc: loc("manual_topic_versions_f2_desc")
+                opsTitle: loc("manual_topic_versions_ops_title"),
+                opsDesc: loc("manual_topic_versions_ops_desc"),
+                safeTitle: loc("manual_topic_versions_safe_title"),
+                safeDesc: loc("manual_topic_versions_safe_desc"),
+                tipsTitle: loc("manual_topic_versions_tips_title"),
+                tipsDesc: loc("manual_topic_versions_tips_desc")
             )
         case .verification:
             renderTopic(
                 title: loc("manual_topic_verification_title"),
                 desc: loc("manual_topic_verification_desc"),
-                badge: loc("section_verification"),
+                badge: section.title,
                 imageName: "06_verification",
-                f1Title: loc("manual_topic_verification_f1_title"),
-                f1Desc: loc("manual_topic_verification_f1_desc"),
-                f2Title: loc("verification_safeguards_title"),
-                f2Desc: "\(loc("safeguard_1"))\n\(loc("safeguard_2"))\n\(loc("safeguard_3"))\n\(loc("safeguard_4"))"
+                opsTitle: loc("manual_topic_verification_ops_title"),
+                opsDesc: loc("manual_topic_verification_ops_desc"),
+                safeTitle: loc("manual_topic_verification_safe_title"),
+                safeDesc: loc("manual_topic_verification_safe_desc"),
+                tipsTitle: loc("manual_topic_verification_tips_title"),
+                tipsDesc: loc("manual_topic_verification_tips_desc")
             )
         case .settings:
             renderTopic(
                 title: loc("manual_topic_settings_title"),
                 desc: loc("manual_topic_settings_desc"),
-                badge: loc("section_settings"),
+                badge: section.title,
                 imageName: "07_settings",
-                f1Title: loc("manual_topic_settings_f1_title"),
-                f1Desc: loc("manual_topic_settings_f1_desc"),
-                f2Title: loc("manual_topic_settings_f2_title"),
-                f2Desc: loc("manual_topic_settings_f2_desc")
+                opsTitle: loc("manual_topic_settings_ops_title"),
+                opsDesc: loc("manual_topic_settings_ops_desc"),
+                safeTitle: loc("manual_topic_settings_safe_title"),
+                safeDesc: loc("manual_topic_settings_safe_desc"),
+                tipsTitle: loc("manual_topic_settings_tips_title"),
+                tipsDesc: loc("manual_topic_settings_tips_desc")
             )
         }
     }
@@ -230,10 +256,12 @@ public struct InAppDocumentView: View {
         desc: String,
         badge: String,
         imageName: String,
-        f1Title: String,
-        f1Desc: String,
-        f2Title: String,
-        f2Desc: String
+        opsTitle: String,
+        opsDesc: String,
+        safeTitle: String,
+        safeDesc: String,
+        tipsTitle: String,
+        tipsDesc: String
     ) -> some View {
         VStack(alignment: .leading, spacing: 18) {
             // 標題與簡介卡片
@@ -244,7 +272,7 @@ public struct InAppDocumentView: View {
                 badge: badge
             )
 
-            // 實際 UI 截圖展示
+            // 真實 UI 截圖展示 (精確對應當前主題畫面)
             if let img = loadManualImage(named: imageName) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
@@ -271,20 +299,28 @@ public struct InAppDocumentView: View {
                 .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Theme.line, lineWidth: 1))
             }
 
-            // 功能按鈕位置與操作方式說明
+            // 卡片 1：功能按鈕位置與操作方式說明
             DocCard(
                 icon: "hand.tap.fill",
-                title: f1Title,
-                desc: f1Desc,
-                badge: loc("status_ok")
+                title: opsTitle,
+                desc: opsDesc,
+                badge: loc("manual_badge_operations")
             )
 
-            // 預期現象、反饋與防護機制
+            // 卡片 2：產出現象、反饋與防護機制
             DocCard(
                 icon: "shield.checkerboard",
-                title: f2Title,
-                desc: f2Desc,
-                badge: loc("manual_badge_safety")
+                title: safeTitle,
+                desc: safeDesc,
+                badge: loc("manual_badge_phenomena")
+            )
+
+            // 卡片 3：日常使用小撇步與秘訣
+            DocCard(
+                icon: "lightbulb.fill",
+                title: tipsTitle,
+                desc: tipsDesc,
+                badge: loc("manual_badge_tips")
             )
         }
     }

@@ -79,7 +79,15 @@
   - 支援載入並即時展示真實 UI 截圖（自 App Resources `ManualAssets` 或本機目錄載入）。
   - `StringsTable.swift` 補齊 7 大主題專屬之全量多國語系文字（繁中、簡中、英文、日文、韓文、泰文）。
 
-#### 3. 建置流程與資源封裝強化
+#### 3. 截圖對應修正與六語系卡片式手冊強化
+* **問題根因**：先前自動化模擬截圖時，滑鼠點擊座標產生 3 列位移偏差，導致截圖與主題對應錯置（如差異預覽誤對應到概覽、衝突誤對應到資料夾等）。
+* **解決方案**：
+  - 改採 macOS 原生 `AXUIElement` Accessibility API 精準觸發側欄各導覽按鈕，並以 Vision OCR 逐張驗證 7 張截圖與對應功能完全 100% 精準吻合。
+  - 同步更新 `Resources/ManualAssets/` 與 `docs/manual/assets/` 全套截圖。
+  - `InAppDocumentView.swift` 升級為卡片式主題導覽（標題卡、UI 截圖、功能操作、產出現象與防護、日常使用秘訣），於視窗頂部提供即時語系切換器。
+  - `StringsTable.swift` 對稱補齊繁中、簡中、英文、日文、泰文、韓文之全量卡片內容與徽章標籤。
+
+#### 4. 建置流程與資源封裝強化
 * **實作內容**：
   - 更新 `Scripts/build-app.sh`，在 codesign 簽名之前先自動清理 `@ea` 與 `com.apple.quarantine` 延伸屬性，杜絕 `resource fork, Finder information not allowed` 簽名失敗。
   - 將高解析度手冊截圖資源（`Resources/ManualAssets/`）自動封裝進 `SyncNexus.app/Contents/Resources/`。
