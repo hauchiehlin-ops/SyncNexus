@@ -1,4 +1,5 @@
 using SyncNexus.Core.Engine;
+using SyncNexus.Core.Model;
 using Xunit;
 
 namespace SyncNexus.Core.Tests;
@@ -227,6 +228,183 @@ public class CoreTests
             }
         }
     }
+
+    private static readonly string[] DefaultNames = { "預設群組", "默认群组", "Default Group", "預設同步群組" };
+
+    [Fact]
+    public void GroupNaming_UnnamedGroupsAreNumberedAndLocalized()
+    {
+        var a = new SyncGroup("group_a", "");
+        var b = new SyncGroup("group_b", "");
+        var named = new SyncGroup("group_c", "家庭相片");
+        var all = new List<SyncGroup> { a, named, b };
+
+        Assert.Equal("새 그룹", SyncGroupNaming.Display(a, all, "기본 그룹", "새 그룹", DefaultNames));
+        Assert.Equal("새 그룹 2", SyncGroupNaming.Display(b, all, "기본 그룹", "새 그룹", DefaultNames));
+        Assert.Equal("家庭相片", SyncGroupNaming.Display(named, all, "기본 그룹", "새 그룹", DefaultNames));
+    }
+
+    [Fact]
+    public void GroupNaming_BuiltInDefaultFollowsLanguage()
+    {
+        var def = new SyncGroup("default", "預設群組");
+        Assert.Equal("Default Group", SyncGroupNaming.Display(def, new[] { def }, "Default Group", "New Group", DefaultNames));
+        // a user who renamed the default group keeps their name
+        var renamed = new SyncGroup("default", "測試群組");
+        Assert.Equal("測試群組", SyncGroupNaming.Display(renamed, new[] { renamed }, "Default Group", "New Group", DefaultNames));
+    }
+
+    private static string TempDir()
+    {
+        var d = Path.Combine(Path.GetTempPath(), "sg-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(d);
+        return d;
+    }
+
+    [Fact]
+    public void GroupRegistry_StartsWithDefaultAndPersistsEmptyNames()
+    {
+        var dir = TempDir();
+        try
+        {
+            var reg = new SyncGroupRegistry(dir);
+            Assert.Single(reg.All());
+            Assert.Equal("default", reg.All()[0].Id);
+
+            var created = reg.Add("   ", "star");
+            Assert.Equal("", created.Name);   // stored empty, shown per language later
+
+            var reloaded = new SyncGroupRegistry(dir);
+            Assert.Equal(2, reloaded.All().Count);
+            Assert.Equal("", reloaded.Get(created.Id)!.Name);
+            Assert.EndsWith("state.db", reloaded.DbPath("default"));
+            Assert.Contains(created.Id, reloaded.DbPath(created.Id));
+        }
+        finally { Directory.Delete(dir, true); }
+    }
+
+    [Fact]
+    public void GroupRegistry_RulesForUpdateAndRemove()
+    {
+        var dir = TempDir();
+        try
+        {
+            var reg = new SyncGroupRegistry(dir);
+            var g = reg.Add("");
+            Assert.True(reg.Update(g.Id, "", "heart"));                 // unnamed may stay unnamed
+            Assert.False(reg.Update("default", "  ", "heart"));         // a named group needs text
+            Assert.True(reg.Update("default", "工作", "heart"));
+            Assert.True(reg.Remove(g.Id));
+            Assert.False(reg.Remove("default"));                        // never the last one
+        }
+        finally { Directory.Delete(dir, true); }
+    }
+
+    [Fact]
+    public void GroupRegistry_DamagedFileIsKeptAndNotOverwritten()
+    {
+        var dir = TempDir();
+        try
+        {
+            File.WriteAllText(Path.Combine(dir, "groups.json"), "{ not json");
+            var reg = new SyncGroupRegistry(dir);
+            Assert.Single(reg.All());                                   // in-memory default only
+            Assert.Equal("{ not json", File.ReadAllText(Path.Combine(dir, "groups.json")));
+            Assert.Single(Directory.GetFiles(dir, "groups.json.corrupted-*"));
+        }
+        finally { Directory.Delete(dir, true); }
+    }
+
+    // ---- backups, restore, legacy import, folder overlap ----
+
+    private static void MakeDb(string path, params (string Id, string Root)[] endpoints)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        using var store = new SyncNexus.Core.Storage.SqliteStore(path);
+        foreach (var (id, root) in endpoints)
+        {
+            store.SaveEndpoint(new EndpointConfig { Id = id, Root = root });
+        }
+        store.Dispose();
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();   // release the file so it can be copied / deleted
+    }
+
+    [Fact]
+    public void Backup_SkipsUnchangedAndEmpty_RestoresFiles()
+    {
+        var dir = TempDir();
+        try
+        {
+            var reg = new SyncGroupRegistry(dir);
+            var backups = new GroupBackups(reg);
+            Assert.NotNull(backups.BackupNow());                 // first launch (empty state is fine when no backup exists)
+            Assert.Null(backups.BackupNow());                    // unchanged
+
+            MakeDb(reg.DbPath("default"), ("a", @"C:\a"), ("b", @"C:\b"));
+            Assert.NotNull(backups.BackupNow());                 // changed, has folders
+            Assert.Equal(2, backups.ListBackups()[0].EndpointCount);
+
+            // simulate the overwrite: database wiped, group renamed
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            File.Delete(reg.DbPath("default"));
+            reg.Update("default", "被覆蓋", "folder");
+            Assert.Null(backups.BackupNow());                    // an empty state must not evict the good backup
+
+            backups.RestoreFiles(backups.ListBackups().First(b => b.EndpointCount == 2));
+            Assert.Equal("預設群組", reg.Get("default")!.Name);
+            Assert.Equal(2, GroupDatabaseFiles.CountEndpoints(reg.DbPath("default")));
+        }
+        finally { Directory.Delete(dir, true); }
+    }
+
+    [Fact]
+    public void LegacyImport_ReadsGroupsAndSkipsEmptyDatabases()
+    {
+        var legacy = TempDir();
+        try
+        {
+            var src = new SyncGroupRegistry(legacy);
+            var second = src.Add("第二次測試");
+            MakeDb(src.DbPath("default"), ("a", @"C:\a"));
+            MakeDb(src.DbPath(second.Id));                       // no endpoints -> skipped
+
+            var items = LegacyImport.Read(legacy);
+            try
+            {
+                Assert.Single(items);
+                Assert.Equal("default", items[0].Group.Id);
+                Assert.Equal(1, items[0].Endpoints);
+            }
+            finally { LegacyImport.Cleanup(items); }
+
+            Assert.Throws<LegacyImportException>(() => LegacyImport.Read(Path.Combine(legacy, "does-not-exist")));
+        }
+        finally { Directory.Delete(legacy, true); }
+    }
+
+    [Fact]
+    public void FolderOverlap_SameOrNestedButNotSiblings()
+    {
+        Assert.True(FolderOverlap.Overlaps(@"C:\Work", @"c:\work\"));
+        Assert.True(FolderOverlap.Overlaps(@"C:\Work", @"C:\Work\Sub"));
+        Assert.True(FolderOverlap.Overlaps(@"C:\Work\Sub", @"C:\Work"));
+        Assert.False(FolderOverlap.Overlaps(@"C:\Work", @"C:\Workshop"));
+        Assert.True(FolderOverlap.IsNested(@"C:\Work", @"C:\Work\Sub"));
+        Assert.False(FolderOverlap.IsNested(@"C:\Work", @"C:\Work"));
+    }
+
+    [Fact]
+    public void GroupStatus_EvaluatesAndAggregatesAcrossGroups()
+    {
+        Assert.Equal(GroupHealth.Attention, GroupStatusLogic.Evaluate(3, 0, 2));    // open conflicts
+        Assert.Equal(GroupHealth.Attention, GroupStatusLogic.Evaluate(3, 1, 0));    // a folder is offline
+        Assert.Equal(GroupHealth.NeedsFolders, GroupStatusLogic.Evaluate(1, 0, 0));
+        Assert.Equal(GroupHealth.Ok, GroupStatusLogic.Evaluate(2, 0, 0));
+
+        // an unfinished new group does not spoil "all in sync"
+        Assert.Equal(GroupHealth.Ok, GroupStatusLogic.Overall(new[] { GroupHealth.Ok, GroupHealth.NeedsFolders }));
+        Assert.Equal(GroupHealth.NeedsFolders, GroupStatusLogic.Overall(new[] { GroupHealth.NeedsFolders }));
+        Assert.Equal(GroupHealth.Attention, GroupStatusLogic.Overall(new[] { GroupHealth.Ok, GroupHealth.Attention, GroupHealth.NeedsFolders }));
+        Assert.Equal(GroupHealth.Ok, GroupStatusLogic.Overall(Array.Empty<GroupHealth>()));
+    }
 }
-
-

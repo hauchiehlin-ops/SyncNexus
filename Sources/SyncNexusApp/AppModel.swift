@@ -140,6 +140,7 @@ final class AppModel: ObservableObject {
 
     private func apply(groupId: String, snapshot s: SyncService.Snapshot) {
         snapshots[groupId] = s
+        objectWillChange.send()   // the menu bar shows every group, not only the active one
         if groupId == activeGroupId {
             snap = Self.localized(s)
             if let c = s.confirmation, c.reason != lastNotifiedConfirmation {
@@ -154,7 +155,7 @@ final class AppModel: ObservableObject {
         }
     }
 
-    var overall: Overall {
+    static func overall(of snap: SyncService.Snapshot) -> Overall {
         if snap.phase == .paused { return .paused }
         if snap.error != nil || snap.confirmation != nil || !snap.conflicts.isEmpty || !snap.integrityIssues.isEmpty { return .attention }
         if snap.phase == .syncing { return .syncing }
@@ -163,7 +164,7 @@ final class AppModel: ObservableObject {
         return .ok
     }
 
-    var overallTitle: String {
+    static func title(of snap: SyncService.Snapshot, _ overall: Overall) -> String {
         switch overall {
         case .starting: return loc("status_starting")
         case .ok: return loc("status_ok")
@@ -178,7 +179,7 @@ final class AppModel: ObservableObject {
         }
     }
 
-    var overallDetail: String {
+    static func detail(of snap: SyncService.Snapshot, _ overall: Overall) -> String {
         switch overall {
         case .ok, .partial:
             if let t = snap.lastDeepVerify { return "\(loc("section_verification"))　\(t.formatted(date: .omitted, time: .shortened))" }
@@ -195,13 +196,64 @@ final class AppModel: ObservableObject {
         }
     }
 
-    var iconName: String {
-        if snap.error != nil || snap.confirmation != nil { return "exclamationmark.arrow.triangle.2.circlepath" }
-        if snap.endpoints.contains(where: { !$0.online }) && snap.phase != .syncing { return "arrow.triangle.2.circlepath.circle" }
-        switch snap.phase {
-        case .paused: return "pause.circle"
-        default: return "arrow.triangle.2.circlepath"
+    var overall: Overall { Self.overall(of: snap) }
+    var overallTitle: String { Self.title(of: snap, overall) }
+    var overallDetail: String { Self.detail(of: snap, overall) }
+
+    // MARK: all groups at a glance (menu bar)
+
+    /// Every group with its own (translated) snapshot and state, in the order of the group bar.
+    var groupStates: [(group: SyncGroup, snap: SyncService.Snapshot, overall: Overall)] {
+        groups.map { g in
+            let raw = snapshots[g.id] ?? .initial
+            let local = Self.localized(raw)
+            return (g, local, Self.overall(of: raw))
         }
+    }
+
+    private static func severity(_ o: Overall) -> Int {
+        switch o {
+        case .attention: 5
+        case .partial: 4
+        case .syncing: 3
+        case .starting: 2
+        case .ok: 1
+        case .paused: 0
+        }
+    }
+
+    /// The group that needs the most attention (the first one when all are fine).
+    private var worstGroup: (group: SyncGroup, snap: SyncService.Snapshot, overall: Overall)? {
+        let states = groupStates
+        return states.max { Self.severity($0.overall) < Self.severity($1.overall) }
+    }
+
+    /// One state for the whole app: the worst across groups; paused only when every group is paused.
+    var popoverOverall: Overall {
+        let states = groupStates
+        if !states.isEmpty && states.allSatisfy({ $0.overall == .paused }) { return .paused }
+        return worstGroup?.overall ?? overall
+    }
+    var popoverTitle: String {
+        guard let w = worstGroup else { return overallTitle }
+        return Self.title(of: w.snap, popoverOverall == .paused ? .paused : w.overall)
+    }
+    var popoverDetail: String {
+        guard let w = worstGroup else { return overallDetail }
+        let text = Self.detail(of: w.snap, popoverOverall == .paused ? .paused : w.overall)
+        // with several groups, say which one the message is about
+        if groups.count > 1, w.overall == .attention, !text.isEmpty { return "\(groupName(w.group))：\(text)" }
+        return text
+    }
+
+    var allPaused: Bool { !groupStates.isEmpty && groupStates.allSatisfy { $0.overall == .paused } }
+
+    var iconName: String {
+        let s = worstGroup?.snap ?? snap
+        if s.error != nil || s.confirmation != nil { return "exclamationmark.arrow.triangle.2.circlepath" }
+        if s.endpoints.contains(where: { !$0.online }) && s.phase != .syncing { return "arrow.triangle.2.circlepath.circle" }
+        if allPaused { return "pause.circle" }
+        return "arrow.triangle.2.circlepath"
     }
 
     var headline: String {
@@ -223,9 +275,16 @@ final class AppModel: ObservableObject {
 
     func syncNow() { service.syncNow() }
     func verifyNow() { service.verifyNow() }
-    func togglePause() { snap.phase == .paused ? service.resume() : service.pause() }
+    /// Pausing is app-wide: every group pauses (or resumes) together.
+    func togglePause() {
+        let all = Array(services.values)
+        if allPaused { all.forEach { $0.resume() } } else { all.forEach { $0.pause() } }
+    }
 
-    func reviewConfirmation() {
+    func syncAllNow() { services.values.forEach { $0.syncNow() } }
+
+    func reviewConfirmation(group: String? = nil) {
+        if let group { selectGroup(id: group) }   // the confirmation belongs to that group's service
         guard let c = snap.confirmation else { return }
         let alert = NSAlert()
         alert.messageText = c.reason   // already localized (snap)
@@ -471,7 +530,7 @@ final class AppModel: ObservableObject {
     }
 
     /// How many cloud files of this folder are still being read in the background (iCloud / Drive placeholders).
-    func pendingCloud(_ id: String) -> Int { (snapshots[activeGroupId]?.skipped ?? []).filter { $0.hasPrefix("[\(id)]") && $0.contains("讀取雲端") }.count }
+    func pendingCloud(_ id: String, group: String? = nil) -> Int { (snapshots[group ?? activeGroupId]?.skipped ?? []).filter { $0.hasPrefix("[\(id)]") && $0.contains("讀取雲端") }.count }
 
     func setExclude(_ preset: ExcludePreset, on: Bool) {
         var p = snap.excludePresets

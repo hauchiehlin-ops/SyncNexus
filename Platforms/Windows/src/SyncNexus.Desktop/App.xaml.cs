@@ -9,8 +9,7 @@ namespace SyncNexus.Desktop;
 
 public partial class App : Application
 {
-    private IStore? _store;
-    private SyncEngine? _engine;
+    private GroupManager? _groups;
     private BackgroundSyncService? _syncService;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -18,21 +17,18 @@ public partial class App : Application
         base.OnStartup(e);
 
         var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var dbPath = Path.Combine(appData, "SyncNexus", "state.db");
+        _groups = new GroupManager(Path.Combine(appData, "SyncNexus"));
+        _syncService = new BackgroundSyncService(_groups);
 
-        _store = new SqliteStore(dbPath);
-        _engine = new SyncEngine(_store);
-        _syncService = new BackgroundSyncService(_store, _engine);
-
-        var viewModel = new MainViewModel(_store, _engine);
-        var mainWindow = new MainWindow(viewModel, _syncService, _store);
+        var viewModel = new MainViewModel(_groups);
+        var mainWindow = new MainWindow(viewModel, _syncService, _groups);
         mainWindow.Show();
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
         _syncService?.Dispose();
-        _store?.Dispose();
+        _groups?.Dispose();
         base.OnExit(e);
     }
 }

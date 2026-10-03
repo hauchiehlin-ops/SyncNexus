@@ -8,23 +8,22 @@ namespace SyncNexus.Desktop.Services;
 
 public class BackgroundSyncService : IDisposable
 {
-    private readonly IStore _store;
-    private readonly SyncEngine _engine;
+    private readonly GroupManager _groups;
     private readonly WindowsDeviceWatcher _deviceWatcher;
     private readonly LocalPeerDiscovery _peerDiscovery;
-    private WindowsFileWatcher? _fileWatcher;
+    private readonly List<WindowsFileWatcher> _fileWatchers = new();
     private readonly Timer _periodicTimer;
     private readonly SemaphoreSlim _syncLock = new(1, 1);
     private bool _isDisposed;
 
-    public event Action<SyncReport>? OnSyncCompleted;
+    /// <summary>Raised once per group after it was reconciled: (groupId, report).</summary>
+    public event Action<string, SyncReport>? OnSyncCompleted;
     public event Action<string>? OnStatusChanged;
 
-    public BackgroundSyncService(IStore store, SyncEngine engine)
+    public BackgroundSyncService(GroupManager groups)
     {
-        _store = store;
-        _engine = engine;
-        _deviceWatcher = new WindowsDeviceWatcher(store);
+        _groups = groups;
+        _deviceWatcher = new WindowsDeviceWatcher(() => _groups.Runtimes.Select(r => r.Store).ToList());
         _peerDiscovery = new LocalPeerDiscovery();
 
         // 60-second periodic heartbeat
@@ -48,16 +47,18 @@ public class BackgroundSyncService : IDisposable
         ReconfigureFileWatchers();
     }
 
+    /// <summary>Rebuilds the file watchers: one per group, each watching that group's folders.</summary>
     public void ReconfigureFileWatchers()
     {
-        _fileWatcher?.Dispose();
+        foreach (var w in _fileWatchers) w.Dispose();
+        _fileWatchers.Clear();
 
-        var endpoints = _store.GetEndpoints();
-        var validRoots = endpoints.Select(e => e.Root).Where(Directory.Exists).ToList();
-
-        if (validRoots.Count > 0)
+        foreach (var rt in _groups.Runtimes)
         {
-            _fileWatcher = new WindowsFileWatcher(
+            var validRoots = rt.Store.GetEndpoints().Select(e => e.Root).Where(Directory.Exists).ToList();
+            if (validRoots.Count == 0) continue;
+
+            var watcher = new WindowsFileWatcher(
                 validRoots,
                 async batch =>
                 {
@@ -65,7 +66,8 @@ public class BackgroundSyncService : IDisposable
                     await RequestSyncAsync(reason);
                 }
             );
-            _fileWatcher.Start();
+            watcher.Start();
+            _fileWatchers.Add(watcher);
         }
     }
 
@@ -81,9 +83,15 @@ public class BackgroundSyncService : IDisposable
         try
         {
             OnStatusChanged?.Invoke($"同步中 ({triggerReason})...");
-            var report = await Task.Run(() => _engine.SyncAll());
-            OnSyncCompleted?.Invoke(report);
-            OnStatusChanged?.Invoke(report.IsSuccess ? "就緒" : "部分端點離線");
+            var allOk = true;
+            // groups are reconciled one after another; each has its own database and engine
+            foreach (var rt in _groups.Runtimes)
+            {
+                var report = await Task.Run(() => rt.Engine.SyncAll());
+                allOk &= report.IsSuccess;
+                OnSyncCompleted?.Invoke(rt.Group.Id, report);
+            }
+            OnStatusChanged?.Invoke(allOk ? "就緒" : "部分端點離線");
         }
         catch (Exception ex)
         {
@@ -95,11 +103,30 @@ public class BackgroundSyncService : IDisposable
         }
     }
 
+    /// <summary>
+    /// Runs an action while no reconciliation is running (waits for a running one to finish) and blocks new ones meanwhile.
+    /// Used for restore / import, which replace the databases. File watchers are rebuilt afterwards.
+    /// </summary>
+    public async Task RunExclusiveAsync(Action action)
+    {
+        await _syncLock.WaitAsync();
+        try
+        {
+            await Task.Run(action);
+        }
+        finally
+        {
+            _syncLock.Release();
+        }
+        ReconfigureFileWatchers();
+    }
+
     public void Dispose()
     {
         _isDisposed = true;
         _periodicTimer.Dispose();
-        _fileWatcher?.Dispose();
+        foreach (var w in _fileWatchers) w.Dispose();
+        _fileWatchers.Clear();
         _deviceWatcher.Dispose();
         _peerDiscovery.Dispose();
         _syncLock.Dispose();

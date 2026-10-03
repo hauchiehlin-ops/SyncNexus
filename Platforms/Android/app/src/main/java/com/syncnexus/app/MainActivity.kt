@@ -58,7 +58,15 @@ class MainActivity : ComponentActivity() {
                             uriString = uri.toString(),
                             displayName = folderName
                         )
-                        SyncNexusEngineBridge.addEndpoint(endpoint)
+                        SyncNexusEngineBridge.addEndpoint(endpoint)?.let { otherGroupId ->
+                            if (otherGroupId == SyncNexusEngineBridge.NESTED_IN_GROUP) {
+                                android.widget.Toast.makeText(this, getString(R.string.folder_nested_in_group), android.widget.Toast.LENGTH_LONG).show()
+                                return@let
+                            }
+                            val other = SyncNexusEngineBridge.groups.value.firstOrNull { it.id == otherGroupId }
+                            val shown = other?.let { SyncGroupNaming.display(this, it, SyncNexusEngineBridge.groups.value) } ?: otherGroupId
+                            android.widget.Toast.makeText(this, getString(R.string.group_folder_in_use, shown), android.widget.Toast.LENGTH_LONG).show()
+                        }
                     },
                     onRemoveFolder = { epId ->
                         SyncNexusEngineBridge.removeEndpoint(epId)
@@ -87,6 +95,8 @@ fun SyncNexusScreen(
 ) {
     val snapshot by SyncNexusEngineBridge.snapshot.collectAsState()
     val endpoints by SyncNexusEngineBridge.endpoints.collectAsState()
+    val groups by SyncNexusEngineBridge.groups.collectAsState()
+    val activeGroupId by SyncNexusEngineBridge.activeGroupId.collectAsState()
     val nearbyDevices by peerDiscovery.nearbyDevices.collectAsState()
     val scope = rememberCoroutineScope()
 
@@ -190,6 +200,8 @@ fun SyncNexusScreen(
                     }
                 }
             }
+
+            SyncGroupCard(groups = groups, activeGroupId = activeGroupId)
 
             // 功能按鈕
             Row(
@@ -308,5 +320,192 @@ fun SyncNexusScreen(
                 }
             }
         }
+    }
+}
+
+private val groupIconEmoji = linkedMapOf(
+    "folder" to "📁", "briefcase" to "💼", "doc.text" to "📄", "camera" to "📷", "graduationcap" to "🎓",
+    "heart" to "❤️", "externaldrive" to "💾", "building.2" to "🏢", "tag" to "🏷️", "star" to "⭐"
+)
+
+/** Group switcher: chips for each group, plus new / edit / delete for the active one. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SyncGroupCard(groups: List<SyncGroup>, activeGroupId: String) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var editing by remember { mutableStateOf<SyncGroup?>(null) }
+    var creating by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf<SyncGroup?>(null) }
+    val active = groups.firstOrNull { it.id == activeGroupId }
+
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.group_selector_title), fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Spacer(modifier = Modifier.weight(1f))
+                TextButton(onClick = { creating = true }) { Text("＋ " + stringResource(R.string.group_add_button)) }
+            }
+            androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(groups, key = { it.id }) { g ->
+                    FilterChip(
+                        selected = g.id == activeGroupId,
+                        onClick = { SyncNexusEngineBridge.selectGroup(g.id) },
+                        label = { Text((groupIconEmoji[g.icon] ?: "📁") + " " + SyncGroupNaming.display(context, g, groups)) }
+                    )
+                }
+            }
+            if (active != null) {
+                Row {
+                    TextButton(onClick = { editing = active }) { Text(stringResource(R.string.group_edit_title)) }
+                    GroupBackupMenu()
+                    if (groups.size > 1) {
+                        TextButton(onClick = { confirmDelete = active }) {
+                            Text(stringResource(R.string.group_delete_button), color = Color(0xFFC62828))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (creating) {
+        GroupEditDialog(
+            title = stringResource(R.string.group_add_title),
+            initialName = "", initialIcon = "folder", allowEmptyName = true,
+            onDismiss = { creating = false },
+            onSave = { name, icon -> SyncNexusEngineBridge.createGroup(name, icon); creating = false }
+        )
+    }
+    editing?.let { g ->
+        GroupEditDialog(
+            title = stringResource(R.string.group_edit_title),
+            initialName = if (g.id == SyncGroupOps.DEFAULT_ID && SyncGroupNaming.display(context, g, groups) != g.name) "" else g.name,
+            initialIcon = g.icon, allowEmptyName = g.name.isEmpty(),
+            onDismiss = { editing = null },
+            onSave = { name, icon -> SyncNexusEngineBridge.updateGroup(g.id, name, icon); editing = null }
+        )
+    }
+    confirmDelete?.let { g ->
+        AlertDialog(
+            onDismissRequest = { confirmDelete = null },
+            title = { Text(stringResource(R.string.group_delete_confirm_title, SyncGroupNaming.display(context, g, groups))) },
+            text = { Text(stringResource(R.string.group_delete_confirm_desc)) },
+            confirmButton = {
+                TextButton(onClick = { SyncNexusEngineBridge.deleteGroup(g.id); confirmDelete = null }) {
+                    Text(stringResource(R.string.group_delete_button), color = Color(0xFFC62828))
+                }
+            },
+            dismissButton = { TextButton(onClick = { confirmDelete = null }) { Text(stringResource(R.string.group_cancel)) } }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun GroupEditDialog(
+    title: String,
+    initialName: String,
+    initialIcon: String,
+    allowEmptyName: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (String, String) -> Unit
+) {
+    var name by remember { mutableStateOf(initialName) }
+    var icon by remember { mutableStateOf(initialIcon) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = name, onValueChange = { name = it }, singleLine = true,
+                    label = { Text(stringResource(R.string.group_name_label)) },
+                    placeholder = { Text(stringResource(R.string.group_name_placeholder)) }
+                )
+                androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(groupIconEmoji.keys.toList()) { key ->
+                        FilterChip(selected = icon == key, onClick = { icon = key }, label = { Text(groupIconEmoji[key] ?: "📁") })
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = allowEmptyName || name.isNotBlank(), onClick = { onSave(name, icon) }) {
+                Text(stringResource(R.string.group_save))
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.group_cancel)) } }
+    )
+}
+
+/** Backup & restore menu: restore an automatic backup, export settings to a file, import settings from a file. */
+@Composable
+fun GroupBackupMenu() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var menuOpen by remember { mutableStateOf(false) }
+    var listOpen by remember { mutableStateOf(false) }
+    var pendingRestore by remember { mutableStateOf<GroupBackupLogic.BackupMeta?>(null) }
+    val toast = { text: String -> android.widget.Toast.makeText(context, text, android.widget.Toast.LENGTH_LONG).show() }
+
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null && !SyncNexusEngineBridge.exportSettings(context, uri)) toast(context.getString(R.string.import_failed))
+    }
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            val r = SyncNexusEngineBridge.importSettings(context, uri)
+            toast(
+                when {
+                    r == null -> context.getString(R.string.import_failed)
+                    r.imported.isEmpty() -> context.getString(R.string.import_nothing_new)
+                    else -> context.getString(R.string.import_ok, r.imported.size, r.endpointCount)
+                }
+            )
+        }
+    }
+
+    Box {
+        TextButton(onClick = { menuOpen = true }) { Text(stringResource(R.string.backup_menu)) }
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            DropdownMenuItem(text = { Text(stringResource(R.string.backup_restore_title)) }, onClick = { menuOpen = false; listOpen = true })
+            DropdownMenuItem(text = { Text(stringResource(R.string.backup_export)) }, onClick = { menuOpen = false; exportLauncher.launch("syncnexus-settings.json") })
+            DropdownMenuItem(text = { Text(stringResource(R.string.backup_import)) }, onClick = { menuOpen = false; importLauncher.launch(arrayOf("application/json", "*/*")) })
+        }
+    }
+
+    if (listOpen) {
+        val backups = remember { SyncNexusEngineBridge.listBackups() }
+        AlertDialog(
+            onDismissRequest = { listOpen = false },
+            title = { Text(stringResource(R.string.backup_restore_title)) },
+            text = {
+                if (backups.isEmpty()) Text(stringResource(R.string.backup_none))
+                else androidx.compose.foundation.lazy.LazyColumn {
+                    items(backups, key = { it.name }) { b ->
+                        TextButton(onClick = { listOpen = false; pendingRestore = b }) {
+                            val whenText = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT).format(java.util.Date(b.time))
+                            Text("$whenText\n${b.groupNames.joinToString(", ")} (${b.endpointTotal})")
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { listOpen = false }) { Text(stringResource(R.string.group_cancel)) } }
+        )
+    }
+    pendingRestore?.let { b ->
+        AlertDialog(
+            onDismissRequest = { pendingRestore = null },
+            title = { Text(stringResource(R.string.backup_restore_confirm_title)) },
+            text = { Text(stringResource(R.string.backup_restore_confirm_desc)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingRestore = null
+                    toast(
+                        if (SyncNexusEngineBridge.restoreBackup(b.name)) context.getString(R.string.backup_restore_ok, b.groupNames.size, b.endpointTotal)
+                        else context.getString(R.string.import_failed)
+                    )
+                }) { Text(stringResource(R.string.backup_restore_button)) }
+            },
+            dismissButton = { TextButton(onClick = { pendingRestore = null }) { Text(stringResource(R.string.group_cancel)) } }
+        )
     }
 }

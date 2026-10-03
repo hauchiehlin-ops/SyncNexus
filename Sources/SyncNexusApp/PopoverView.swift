@@ -14,20 +14,17 @@ struct PopoverView: View {
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    private var totalEndpoints: Int { model.groupStates.reduce(0) { $0 + $1.snap.endpoints.count } }
+
     var body: some View {
         VStack(spacing: 0) {
             header
             Divider()
             scrolling {
                 VStack(alignment: .leading, spacing: 0) {
-                    banners
-                    sectionLabel(loc("section_folders"))
-                    if model.snap.endpoints.isEmpty {
-                        Text(loc("popover_no_folders_hint"))
-                            .font(.system(size: 13)).foregroundStyle(.secondary).padding(.horizontal, 20).padding(.vertical, 8)
-                    }
-                    ForEach(model.snap.endpoints, id: \.id) { ep in endpointRow(ep) }
-                    if !model.snap.recent.isEmpty {
+                    ForEach(model.groupStates, id: \.group.id) { state in banners(for: state) }
+                    foldersByGroup
+                    if !allRecent.isEmpty {
                         sectionLabel(loc("popover_recent_activity")).padding(.top, 8)
                         ForEach(groupedActivity.prefix(3)) { g in activityRow(g) }
                     }
@@ -43,7 +40,66 @@ struct PopoverView: View {
 
     /// Natural height for the usual case; scrolls only when there are unusually many rows.
     @ViewBuilder private func scrolling<C: View>(@ViewBuilder _ content: () -> C) -> some View {
-        if model.snap.endpoints.count > 6 { ScrollView { content() }.frame(height: 440) } else { content() }
+        if totalEndpoints + model.groups.count > 7 { ScrollView { content() }.frame(height: 440) } else { content() }
+    }
+
+    // MARK: folders, grouped by sync group
+
+    /// With several groups every group gets its own block (so each can be reviewed here); a single group keeps the plain list.
+    @ViewBuilder private var foldersByGroup: some View {
+        let states = model.groupStates
+        if states.count > 1 {
+            sectionLabel(loc("group_selector_title"))
+            ForEach(states, id: \.group.id) { state in
+                groupHeader(state)
+                if state.snap.endpoints.isEmpty {
+                    Text(loc("popover_no_folders_hint"))
+                        .font(.system(size: 12)).foregroundStyle(.secondary).padding(.horizontal, 20).padding(.leading, 28).padding(.vertical, 4)
+                }
+                ForEach(state.snap.endpoints, id: \.id) { ep in endpointRow(ep, group: state.group.id).padding(.leading, 18) }
+            }
+        } else if let state = states.first {
+            sectionLabel(loc("section_folders"))
+            if state.snap.endpoints.isEmpty {
+                Text(loc("popover_no_folders_hint"))
+                    .font(.system(size: 13)).foregroundStyle(.secondary).padding(.horizontal, 20).padding(.vertical, 8)
+            }
+            ForEach(state.snap.endpoints, id: \.id) { ep in endpointRow(ep, group: state.group.id) }
+        }
+    }
+
+    /// Group title with its own state; click to open that group on the Folders page.
+    private func groupHeader(_ state: (group: SyncGroup, snap: SyncService.Snapshot, overall: Overall)) -> some View {
+        let (chipText, chipKind): (String, Chip.Kind) = {
+            switch state.overall {
+            case .ok: (loc("online"), .ok)
+            case .attention: (AppModel.title(of: state.snap, .attention), .warn)
+            case .partial: (loc("status_partial"), .warn)
+            case .paused: (loc("status_paused"), .warn)
+            case .syncing: (loc("status_syncing"), .ok)
+            case .starting: (loc("status_starting"), .ok)
+            }
+        }()
+        return Button {
+            model.selectGroup(id: state.group.id)
+            openMain(.folders)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: state.group.icon).font(.system(size: 13)).foregroundStyle(Color.accentColor).frame(width: 20)
+                Text(model.groupName(state.group)).font(.system(size: 13, weight: .bold)).lineLimit(1)
+                Text("\(state.snap.endpoints.count)")
+                    .font(.system(size: 10, weight: .semibold)).padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(Theme.line, in: Capsule())
+                Spacer(minLength: 0)
+                Chip(text: chipText, kind: chipKind)
+                Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold)).foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 20).padding(.vertical, 8)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 6)
+        .help(loc("group_edit_title"))
     }
 
     // MARK: header
@@ -52,27 +108,27 @@ struct PopoverView: View {
         HStack(spacing: 14) {
             ring
             VStack(alignment: .leading, spacing: 3) {
-                Text(model.overallTitle).font(.system(size: 18, weight: .bold)).tracking(-0.2)
-                if !model.overallDetail.isEmpty {
-                    Text(model.overallDetail).font(.system(size: 13)).foregroundStyle(.secondary).lineLimit(2)
+                Text(model.popoverTitle).font(.system(size: 18, weight: .bold)).tracking(-0.2)
+                if !model.popoverDetail.isEmpty {
+                    Text(model.popoverDetail).font(.system(size: 13)).foregroundStyle(.secondary).lineLimit(2)
                 }
             }
             Spacer(minLength: 0)
             Button(action: model.togglePause) {
-                Image(systemName: model.snap.phase == .paused ? "play.fill" : "pause.fill").font(.system(size: 13))
+                Image(systemName: model.allPaused ? "play.fill" : "pause.fill").font(.system(size: 13))
                     .frame(width: 34, height: 34)
                     .overlay(Circle().stroke(Theme.line, lineWidth: 1))
             }
             .buttonStyle(.plain)
-            .help(model.snap.phase == .paused ? loc("popover_resume_sync") : loc("popover_pause_sync"))
-            .accessibilityLabel(model.snap.phase == .paused ? loc("popover_resume_sync") : loc("popover_pause_sync"))
+            .help(model.allPaused ? loc("popover_resume_sync") : loc("popover_pause_sync"))
+            .accessibilityLabel(model.allPaused ? loc("popover_resume_sync") : loc("popover_pause_sync"))
         }
         .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 16)
     }
 
     private var ring: some View {
         let (symbol, fg, bg): (String?, Color, Color) = {
-            switch model.overall {
+            switch model.popoverOverall {
             case .ok: ("checkmark", Theme.ok, Theme.okFill)
             case .partial: ("minus", Theme.warn, Theme.warnFill)
             case .attention: ("exclamationmark", Theme.warn, Theme.warnFill)
@@ -90,20 +146,24 @@ struct PopoverView: View {
 
     // MARK: content
 
-    @ViewBuilder private var banners: some View {
-        if let e = model.snap.error {
-            banner(symbol: "xmark.octagon", tone: .bad, title: loc("popover_sync_error"), detail: e, action: loc("popover_btn_log")) { model.openLog() }
+    @ViewBuilder private func banners(for state: (group: SyncGroup, snap: SyncService.Snapshot, overall: Overall)) -> some View {
+        let gid = state.group.id
+        let s = state.snap
+        // several groups: say which group a message is about
+        let who = model.groups.count > 1 ? model.groupName(state.group) + "：" : ""
+        if let e = s.error {
+            banner(symbol: "xmark.octagon", tone: .bad, title: loc("popover_sync_error"), detail: who + e, action: loc("popover_btn_log")) { model.selectGroup(id: gid); model.openLog() }
         }
-        if model.snap.confirmation != nil {
-            banner(symbol: "hand.raised", tone: .warn, title: loc("popover_confirm_needed"), detail: model.snap.confirmation?.reason ?? "", action: loc("popover_btn_view")) { model.reviewConfirmation() }
+        if s.confirmation != nil {
+            banner(symbol: "hand.raised", tone: .warn, title: loc("popover_confirm_needed"), detail: who + (s.confirmation?.reason ?? ""), action: loc("popover_btn_view")) { model.reviewConfirmation(group: gid) }
         }
-        if !model.snap.conflicts.isEmpty {
-            banner(symbol: "exclamationmark.triangle", tone: .warn, title: loc("status_conflicts_pending", model.snap.conflicts.count),
-                   detail: loc("popover_conflict_sub", (model.snap.conflicts[0].path as NSString).lastPathComponent), action: loc("popover_btn_view")) { openMain(.conflicts) }
+        if !s.conflicts.isEmpty {
+            banner(symbol: "exclamationmark.triangle", tone: .warn, title: loc("status_conflicts_pending", s.conflicts.count),
+                   detail: who + loc("popover_conflict_sub", (s.conflicts[0].path as NSString).lastPathComponent), action: loc("popover_btn_view")) { model.selectGroup(id: gid); openMain(.conflicts) }
         }
-        if !model.snap.integrityIssues.isEmpty {
-            banner(symbol: "checkmark.shield", tone: .warn, title: loc("popover_corrupt_files", model.snap.integrityIssues.count),
-                   detail: loc("popover_corrupt_sub"), action: loc("popover_btn_view")) { openMain(.verification) }
+        if !s.integrityIssues.isEmpty {
+            banner(symbol: "checkmark.shield", tone: .warn, title: loc("popover_corrupt_files", s.integrityIssues.count),
+                   detail: who + loc("popover_corrupt_sub"), action: loc("popover_btn_view")) { model.selectGroup(id: gid); openMain(.verification) }
         }
     }
 
@@ -128,14 +188,14 @@ struct PopoverView: View {
             .padding(.horizontal, 20).padding(.top, 14).padding(.bottom, 4)
     }
 
-    private func endpointRow(_ ep: SyncService.EndpointStatus) -> some View {
+    private func endpointRow(_ ep: SyncService.EndpointStatus, group: String) -> some View {
         let kind = EndpointValidator.describe(path: ep.root).kind
         return HStack(spacing: 12) {
             Image(systemName: kind.symbol).font(.system(size: 16)).frame(width: 34, height: 34)
                 .background(Theme.tile, in: RoundedRectangle(cornerRadius: 9))
             VStack(alignment: .leading, spacing: 2) {
                 Text(DisplayNames.endpoint(ep.id)).font(.system(size: 14, weight: .semibold))
-                Text(ep.online ? (model.pendingCloud(ep.id) > 0 ? loc("popover_reading_cloud", model.pendingCloud(ep.id)) : shortPath(ep.root)) : ((ep.removable && !FileManager.default.fileExists(atPath: ep.root)) ? loc("popover_unplugged_sub") : ep.detail))
+                Text(ep.online ? (model.pendingCloud(ep.id, group: group) > 0 ? loc("popover_reading_cloud", model.pendingCloud(ep.id, group: group)) : shortPath(ep.root)) : ((ep.removable && !FileManager.default.fileExists(atPath: ep.root)) ? loc("popover_unplugged_sub") : ep.detail))
                     .font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }
             Spacer(minLength: 0)
@@ -148,12 +208,16 @@ struct PopoverView: View {
     private struct ActivityGroup: Identifiable {
         var id: Int64; var time: Date; var op: String; var path: String; var count: Int; var ok: Bool
     }
+    /// Recent changes of every group, newest first.
+    private var allRecent: [SyncService.Activity] {
+        model.groupStates.flatMap { $0.snap.recent }.sorted { $0.time > $1.time }
+    }
     private var groupedActivity: [ActivityGroup] {
         var out: [ActivityGroup] = []
-        for a in model.snap.recent {
+        for a in allRecent {
             if let i = out.firstIndex(where: { $0.op == a.op && $0.path == a.path && abs($0.time.timeIntervalSince(a.time)) < 120 }) {
                 out[i].count += 1; out[i].ok = out[i].ok && a.ok
-            } else { out.append(ActivityGroup(id: a.id, time: a.time, op: a.op, path: a.path, count: 1, ok: a.ok)) }
+            } else { out.append(ActivityGroup(id: Int64(out.count), time: a.time, op: a.op, path: a.path, count: 1, ok: a.ok)) }
         }
         return out
     }
@@ -171,7 +235,7 @@ struct PopoverView: View {
 
     private var footer: some View {
         HStack(spacing: 8) {
-            Button(loc("popover_sync_now")) { model.syncNow() }.buttonStyle(QuietButton(kind: .primary)).keyboardShortcut("r")
+            Button(loc("popover_sync_now")) { model.syncAllNow() }.buttonStyle(QuietButton(kind: .primary)).keyboardShortcut("r")
             Button(loc("popover_settings")) { openMain(.overview) }.buttonStyle(QuietButton(kind: .secondary)).keyboardShortcut(",")
             Spacer(minLength: 0)
             Text(loc("popover_version", Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"))

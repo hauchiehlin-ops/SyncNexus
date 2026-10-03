@@ -249,3 +249,31 @@
 ### [2026-10-03] 群組刪除入口與「預設群組名稱隨語系」（版本號未動）
 * 「家庭相片」「工作專案」並非系統預設（僅出現在輸入框範例與手冊），是使用者端在沙盒內輸入建立的空群組。刪除入口原本只有標籤右鍵與「編輯」視窗，不易發現：現於群組橫幅「編輯」旁新增紅色「刪除群組」按鈕（先點選該群組標籤即可），統一走 `AppModel.confirmAndDeleteGroup` 確認後刪除（不刪實體檔案）。
 * 新增群組未輸入名稱時，`groups.json` 儲存空字串，不再凍結成當下語系的文字；顯示時依語系呈現「新增群組 / New Group / 새 그룹…」，多個未命名群組自動編號（` 2`、` 3`）。使用者自行輸入的名稱維持原樣。僅 macOS 端；Windows／Android 的對等實作尚未同步。
+
+### [2026-10-03] 「未命名群組名稱隨語系」同步至 Windows / Android（版本號未動）
+* 與 macOS 相同規則：未命名群組存空字串、顯示時依語系呈現「新增群組 / New Group / 새 그룹…」並自動編號；內建預設群組（id `default`）以固定標記名儲存，顯示時依語系呈現；使用者自行輸入的名稱不變。
+* **Windows**：`Core/Model/SyncGroupNaming.cs`（純邏輯）、`LocalizationService` 新增 5 組六語系字串與 `GetAllLanguages`、`MainViewModel` 的建立／刪除群組訊息改為本地化並新增 `GroupDisplayName`；`CoreTests` 新增 2 項測試。**此環境無 dotnet，Windows 端未編譯、未執行測試**，需在 Windows 開發機 `dotnet test` 驗證。
+* **Android**：`SyncGroupNaming.kt`（純邏輯＋以各語系資源辨識預設名稱），六個 `strings.xml` 新增 `group_default_name`、`group_new_default_name`；`SyncGroupNamingTest` 3 項測試以 `gradle :app:testDebugUnitTest` 實測通過。
+* 備註：上述備註已過時 — 群組切換 UI 已於下一則紀錄補齊。
+
+### [2026-10-03] Windows / Android 同步群組完整落地：切換畫面、獨立資料與持久化（版本號未動）
+* **Android**：`SyncNexusEngineBridge` 改為多群組（`groups`、`activeGroupId`、各群組獨立端點清單；預設群組沿用原 `endpoints_json` 鍵，既有安裝不遺失資料夾）；`SyncGroupOps`（純邏輯，含「同一資料夾不得屬於兩個群組」）；`MainActivity` 新增群組卡片（FilterChip 切換、新增／編輯／刪除對話框、emoji 圖示）；六語系字串補齊；背景對帳會逐一對帳所有群組。`gradle :app:testDebugUnitTest`（5 項）與 `compileDebugKotlin`、`processDebugResources` 實測通過。
+* **Windows**：`SyncGroupRegistry`（groups.json，損毀檔另存 `.corrupted-*` 不覆寫；預設群組沿用 `state.db`，其餘 `Groups/<id>/state.db`）、`GroupManager`（每群組獨立 SqliteStore + SyncEngine）、`BackgroundSyncService` 與 `WindowsDeviceWatcher` 改為多群組（每群組獨立檔案監聽、逐群組對帳）、`MainViewModel` 群組清單／切換／新增／編輯／刪除、`MainWindow.xaml` 群組列、`GroupDialog`、六語系字串；`CoreTests` 新增 3 項註冊表測試。**此環境無 dotnet：Windows 端全部程式未編譯、未執行**，必須在 Windows 開發機執行 `dotnet build` 與 `dotnet test` 後才能視為完成。
+* 上述「尚未同步」清單已於下一則紀錄補齊。
+
+### [2026-10-03] macOS 功能移植至 Windows / Android：自動備份與還原、匯入舊設定、巢狀路徑檢查（版本號未動）
+* **規則與 macOS 一致**：每次啟動自動備份（內容沒變不重備、空白狀態在已有備份時不備份且不擠掉最後一份含資料夾的備份、保留最新 10 份、同秒備份不覆蓋）；還原前先備份目前狀態；匯入時已設定的群組絕不覆寫、空群組補入、未知群組新增；資料夾不得同時屬於兩個群組，且「巢狀（一個在另一個裡面）」也視為重疊。
+* **Android**（`GroupBackupLogic.kt`、`GroupBackupStore.kt`、`SyncGroupOps.kt`、`MainActivity` 的「備份」選單）：備份存於 `filesDir/Backups/Registry/<時間戳>/snapshot.json`；選單含「從備份還原」「匯出設定…」「匯入設定…」（以 SAF 檔案選擇器，由使用者授權選檔，符合 Google Play 規範）；SAF 樹 URI 以解碼後的 document id 判斷巢狀；同群組巢狀與跨群組重疊皆有提示。六語系字串補齊。單元測試共 10 項，`gradle :app:testDebugUnitTest` 實測通過。
+* **Windows**（`GroupBackups.cs`、`LegacyImport.cs`、`GroupDatabaseFiles.cs`、`FolderOverlap.cs`、`GroupManager`、`MainWindow` 群組列新增「從備份還原」「匯入舊設定」按鈕）：SQLite 資料庫以「複製到暫存＋WAL checkpoint」取得一致快照；還原／匯入透過 `BackgroundSyncService.RunExclusiveAsync` 在無同步進行時執行，並先關閉資料庫；被取代檔案改名 `.pre-restore-*` / `.pre-import-*`。六語系字串補齊；`CoreTests` 新增 3 項。**此環境無 dotnet：Windows 端所有程式與測試均未編譯、未執行**，須在 Windows 開發機 `dotnet build` / `dotnet test` 驗證。
+* 與 macOS 的差異：Windows／Android 無 Toast，結果以狀態列（Windows）或 Toast（Android）顯示；備份同樣存放於 App 資料夾內，若整個資料夾被刪除，備份會一併消失（Android 另提供「匯出設定」可存到容器之外）。
+
+### [2026-10-03] 選單列彈出視窗改為「依同步群組」呈現（版本號未動）
+* 原本彈出視窗只列出「目前選中群組」的資料夾，多群組時看不到其他群組。現改為：多於一個群組時，「同步群組」區塊逐群組顯示（群組圖示／名稱／資料夾數／該群組狀態晶片，其下縮排列出各端點）；點群組標題會切換到該群組並開啟「資料夾」頁。單一群組維持原本清單外觀。
+* 頂部狀態環與標題改為**全群組彙總**（最需要注意者優先；全部暫停才顯示暫停；有多群組時訊息前綴群組名稱）；警示橫幅（錯誤／需確認／衝突／損毀）逐群組列出，按鈕先切換到該群組再處理；最近活動合併所有群組；「立即同步」與暫停／繼續改為作用於所有群組；選單列圖示也依最需要注意的群組顯示。
+* `AppModel` 新增 `groupStates`、`popoverOverall/Title/Detail`、`allPaused`、`syncAllNow`；其他群組的快照更新也會觸發彈出視窗重繪。
+* 僅 macOS（Windows 系統匣選單與 Android 通知目前不含逐群組清單）。
+
+### [2026-10-03] 三平台對等補齊：Windows 系統匣選單／Android 通知改為逐群組呈現（版本號未動）
+* 對應 macOS 選單列彈出視窗的規則：頂部狀態為全群組彙總（有需要處理者優先；只有「尚未加入 2 個資料夾」的新群組不影響「全部已同步」）；逐群組列出名稱、資料夾數與各自狀態。**教訓：新功能必須三平台同回合完成，不可只做 macOS 再事後補。**
+* **Android**：`SyncNexusEngineBridge.groupStates`（每群組資料夾數、同步中、衝突數、錯誤）、`GroupStatusLogic`（純邏輯）；前台服務通知改為 InboxStyle：標題＝整體狀態，展開後每個群組一行「名稱 · n 個資料夾 · 狀態」，狀態變化即時更新。六語系字串補齊，單元測試共 11 項，`gradle :app:testDebugUnitTest` 實測通過。
+* **Windows**：`GroupStatusLogic.cs`（純邏輯）；系統匣選單每次開啟時動態建立：開啟主視窗／立即對帳（所有群組）／每個群組一個項目（圖示、名稱、資料夾數、狀態），其子選單列出各資料夾的上線狀態並可「在主視窗檢視此群組」／結束；系統匣提示文字顯示全群組彙總。六語系字串補齊；`CoreTests` 新增 1 項。**此環境無 dotnet，Windows 端未編譯、未執行**，須在 Windows 開發機驗證。

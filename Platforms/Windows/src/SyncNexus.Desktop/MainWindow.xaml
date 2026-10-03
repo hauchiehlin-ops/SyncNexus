@@ -13,6 +13,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -20,15 +21,11 @@
 
         <!-- System Tray Icon -->
         <tb:TaskbarIcon x:Name="MyTaskbarIcon"
-                        ToolTipText="SyncNexus 跨平台同步中心"
+                        ToolTipText="SyncNexus"
                         TrayMouseDoubleClick="MyTaskbarIcon_TrayMouseDoubleClick">
             <tb:TaskbarIcon.ContextMenu>
-                <ContextMenu>
-                    <MenuItem Header="開啟主視窗" Click="MenuOpen_Click" FontWeight="Bold"/>
-                    <MenuItem Header="立即對帳" Click="MenuSync_Click"/>
-                    <Separator/>
-                    <MenuItem Header="結束 SyncNexus" Click="MenuExit_Click"/>
-                </ContextMenu>
+                <!-- built in code each time it opens: open / sync, one entry per sync group with its folders, quit -->
+                <ContextMenu x:Name="TrayMenu" Opened="TrayMenu_Opened"/>
             </tb:TaskbarIcon.ContextMenu>
         </tb:TaskbarIcon>
 
@@ -83,8 +80,39 @@
             </DockPanel>
         </Border>
 
+        <!-- Sync group bar: switch between groups; new / edit / delete -->
+        <Border Grid.Row="2" Background="White" CornerRadius="8" Padding="12,8" Margin="0,0,0,12"
+                BorderBrush="#E5E5E5" BorderThickness="1">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="BtnGroupRestore" Content="從備份還原" Padding="10,4" Margin="8,0,0,0" Background="#FFFFFF" BorderBrush="#CCCCCC" Click="BtnGroupRestore_Click"/>
+                    <Button x:Name="BtnGroupImport" Content="匯入舊設定" Padding="10,4" Margin="6,0,0,0" Background="#FFFFFF" BorderBrush="#CCCCCC" Click="BtnGroupImport_Click"/>
+                    <Button x:Name="BtnGroupNew" Content="＋ 新增群組" Padding="10,4" Margin="8,0,0,0" Background="#FFFFFF" BorderBrush="#CCCCCC" Click="BtnGroupNew_Click"/>
+                    <Button x:Name="BtnGroupEdit" Content="編輯群組" Padding="10,4" Margin="6,0,0,0" Background="#FFFFFF" BorderBrush="#CCCCCC" Click="BtnGroupEdit_Click"/>
+                    <Button x:Name="BtnGroupDelete" Content="刪除群組" Padding="10,4" Margin="6,0,0,0" Background="#FFFFFF" BorderBrush="#CCCCCC" Foreground="#C5221F" Click="BtnGroupDelete_Click"/>
+                </StackPanel>
+                <TextBlock x:Name="TxtGroupTitle" Text="同步群組" FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center" Margin="0,0,12,0" DockPanel.Dock="Left"/>
+                <ListBox ItemsSource="{Binding Groups}" SelectedItem="{Binding SelectedGroupItem, Mode=TwoWay}"
+                         BorderThickness="0" Background="Transparent" ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Margin="4,2">
+                                <TextBlock Text="{Binding IconEmoji}" Margin="0,0,6,0"/>
+                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
+
         <!-- Endpoints List -->
-        <GroupBox Grid.Row="2" Header="同步端點 (本機 / Google Drive / OneDrive / 外接磁碟)" Padding="10" Background="White"
+        <GroupBox Grid.Row="3" Header="同步端點 (本機 / Google Drive / OneDrive / 外接磁碟)" Padding="10" Background="White"
                   BorderBrush="#E5E5E5" BorderThickness="1">
             <ListBox ItemsSource="{Binding Endpoints}" BorderThickness="0" Background="Transparent">
                 <ListBox.ItemTemplate>
@@ -138,7 +166,7 @@
         </GroupBox>
 
         <!-- Settings Bar -->
-        <Border Grid.Row="3" Background="#FFFFFF" CornerRadius="6" Padding="12,8" Margin="0,12,0,0"
+        <Border Grid.Row="4" Background="#FFFFFF" CornerRadius="6" Padding="12,8" Margin="0,12,0,0"
                 BorderBrush="#E5E5E5" BorderThickness="1">
             <DockPanel>
                 <CheckBox x:Name="ChkAutoStart" Content="開機時自動於背景啟動 SyncNexus" VerticalAlignment="Center"
@@ -148,7 +176,7 @@
         </Border>
 
         <!-- Footer / Logs -->
-        <StatusBar Grid.Row="4" Background="Transparent" Margin="0,6,0,0">
+        <StatusBar Grid.Row="5" Background="Transparent" Margin="0,6,0,0">
             <StatusBarItem>
                 <TextBlock Text="✅ 守護行程運作中 · 支援長路徑與雲端佔位符感應 · 系統匣就緒" FontSize="11" Foreground="#888888"/>
             </StatusBarItem>

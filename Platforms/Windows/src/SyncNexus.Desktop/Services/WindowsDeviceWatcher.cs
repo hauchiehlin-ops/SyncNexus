@@ -13,14 +13,14 @@ public class WindowsDeviceWatcher : IDisposable
     private const int DBT_DEVICEARRIVAL = 0x8000;
     private const int DBT_DEVICEREMOVECOMPLETE = 0x8004;
 
-    private readonly IStore _store;
+    private readonly Func<IReadOnlyList<IStore>> _stores;
     private HwndSource? _hwndSource;
 
     public event Action? OnDeviceChanged;
 
-    public WindowsDeviceWatcher(IStore store)
+    public WindowsDeviceWatcher(Func<IReadOnlyList<IStore>> stores)
     {
-        _store = store;
+        _stores = stores;
     }
 
     /// <summary>
@@ -52,7 +52,12 @@ public class WindowsDeviceWatcher : IDisposable
     /// </summary>
     public void CheckDriveLetterShifts()
     {
-        var endpoints = _store.GetEndpoints().Where(e => e.Removable && !string.IsNullOrEmpty(e.VolumeUuid)).ToList();
+        foreach (var store in _stores()) CheckDriveLetterShifts(store);
+    }
+
+    private void CheckDriveLetterShifts(IStore store)
+    {
+        var endpoints = store.GetEndpoints().Where(e => e.Removable && !string.IsNullOrEmpty(e.VolumeUuid)).ToList();
         if (endpoints.Count == 0) return;
 
         var currentDrives = DriveInfo.GetDrives()
@@ -82,8 +87,8 @@ public class WindowsDeviceWatcher : IDisposable
                         if (Directory.Exists(newRoot))
                         {
                             ep.Root = newRoot;
-                            _store.SaveEndpoint(ep);
-                            _store.RecordJournal("remount", ep.Id, newRoot, $"Drive letter shifted to {drive.Name}", "done");
+                            store.SaveEndpoint(ep);
+                            store.RecordJournal("remount", ep.Id, newRoot, $"Drive letter shifted to {drive.Name}", "done");
                             break;
                         }
                     }
