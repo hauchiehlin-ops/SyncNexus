@@ -105,6 +105,25 @@ struct SyncGroupTabBar: View {
                 Text(loc("group_selector_title"))
                     .font(.system(size: 14, weight: .bold))
                 Spacer()
+                Menu {
+                    let backups = model.registry.listBackups()
+                    if backups.isEmpty {
+                        Text(loc("backup_none"))
+                    } else {
+                        ForEach(backups) { b in
+                            Button("\(b.date.formatted(date: .abbreviated, time: .shortened))　\(b.groupNames.joined(separator: "、"))（\(b.endpointCount)）") {
+                                model.restoreBackup(b)
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock.arrow.circlepath")
+                        Text(loc("backup_restore_menu"))
+                    }
+                    .font(.system(size: 12, weight: .medium))
+                }
+                .menuStyle(.borderlessButton).fixedSize()
                 Button(action: { model.importLegacySettings() }) {
                     HStack(spacing: 4) {
                         Image(systemName: "square.and.arrow.down")

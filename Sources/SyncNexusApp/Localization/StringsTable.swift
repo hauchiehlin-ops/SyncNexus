@@ -3055,6 +3055,54 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .th: "นำเข้าไม่สำเร็จ: %@",
         .ko: "가져오기 실패: %@"
     ],
+    "backup_restore_menu": [
+        .en: "Restore Backup",
+        .zhHant: "從備份還原",
+        .zhHans: "从备份还原",
+        .ja: "バックアップから復元",
+        .th: "กู้คืนจากข้อมูลสำรอง",
+        .ko: "백업에서 복원"
+    ],
+    "backup_none": [
+        .en: "No backups yet",
+        .zhHant: "尚無備份",
+        .zhHans: "暂无备份",
+        .ja: "バックアップはまだありません",
+        .th: "ยังไม่มีข้อมูลสำรอง",
+        .ko: "백업 없음"
+    ],
+    "backup_restore_button": [
+        .en: "Restore",
+        .zhHant: "還原",
+        .zhHans: "还原",
+        .ja: "復元",
+        .th: "กู้คืน",
+        .ko: "복원"
+    ],
+    "backup_restore_confirm_title": [
+        .en: "Restore the backup from %@?",
+        .zhHant: "要還原 %@ 的備份嗎？",
+        .zhHans: "要还原 %@ 的备份吗？",
+        .ja: "%@ のバックアップを復元しますか？",
+        .th: "กู้คืนข้อมูลสำรองเมื่อ %@ หรือไม่?",
+        .ko: "%@ 백업을 복원할까요?"
+    ],
+    "backup_restore_confirm_desc": [
+        .en: "Groups and folder settings will return to that moment. The current state is backed up first, so you can switch back.",
+        .zhHant: "群組與資料夾設定會回到當時的狀態。還原前會先備份目前狀態，之後仍可切換回來。",
+        .zhHans: "群组与文件夹设置会回到当时的状态。还原前会先备份当前状态，之后仍可切换回来。",
+        .ja: "グループとフォルダ設定がその時点に戻ります。復元前に現在の状態をバックアップするので、後で戻せます。",
+        .th: "กลุ่มและการตั้งค่าโฟลเดอร์จะย้อนกลับไปยังขณะนั้น ระบบจะสำรองสถานะปัจจุบันก่อน จึงสามารถสลับกลับได้",
+        .ko: "그룹과 폴더 설정이 해당 시점으로 돌아갑니다. 복원 전에 현재 상태를 먼저 백업하므로 다시 되돌릴 수 있습니다."
+    ],
+    "backup_restore_ok": [
+        .en: "Restored %d group(s) with %d folder(s). If a folder shows offline, re-select it once to grant access.",
+        .zhHant: "已還原 %d 個群組、%d 個資料夾。若資料夾顯示離線，請重新選取一次以授權存取。",
+        .zhHans: "已还原 %d 个群组、%d 个文件夹。若文件夹显示离线，请重新选取一次以授权访问。",
+        .ja: "%d 個のグループ（フォルダ %d 件）を復元しました。フォルダがオフラインの場合は、もう一度選択してアクセスを許可してください。",
+        .th: "กู้คืน %d กลุ่ม %d โฟลเดอร์แล้ว หากโฟลเดอร์แสดงออฟไลน์ ให้เลือกใหม่หนึ่งครั้งเพื่ออนุญาตการเข้าถึง",
+        .ko: "%d개 그룹(폴더 %d개)을 복원했습니다. 폴더가 오프라인으로 표시되면 한 번 다시 선택해 접근을 허용하세요."
+    ],
     "group_deleted_toast": [
         .en: "Sync group '%@' deleted.",
         .zhHant: "已刪除同步群組「%@」",

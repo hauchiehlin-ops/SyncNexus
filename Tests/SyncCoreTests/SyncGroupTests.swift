@@ -78,8 +78,8 @@ struct SyncGroupTests {
                                       : dir.appendingPathComponent("Groups/\(gid)/state.db")
             try FileManager.default.createDirectory(at: db.deletingLastPathComponent(), withIntermediateDirectories: true)
             let d = try Database(path: db.path)
-            try d.exec("CREATE TABLE endpoints(id TEXT)")
-            for i in 0..<n { try d.exec("INSERT INTO endpoints(id) VALUES(?)", [.text("e\(i)")]) }
+            try d.exec("CREATE TABLE endpoints(id TEXT, root TEXT)")
+            for i in 0..<n { try d.exec("INSERT INTO endpoints(id, root) VALUES(?,?)", [.text("e\(i)"), .text("/r\(i)")]) }
         }
     }
 
@@ -120,5 +120,26 @@ struct SyncGroupTests {
         try makeLegacy(inner, groups: [SyncGroup(id: "default", name: "A")], endpoints: ["default": 3])
         let r = try reg.importLegacySettings(from: parent)
         #expect(r.imported == ["A"])
+    }
+
+    @Test func backupAndRestoreRoundTrip() throws {
+        let dir = try tmpDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let reg = SyncGroupRegistry(baseAppSupportURL: dir)
+        #expect(reg.listBackups().count == 1)                 // first launch snapshot
+        try makeLegacy(dir, groups: reg.allGroups(), endpoints: ["default": 3])
+        #expect(reg.backupNow() != nil)
+        #expect(reg.backupNow() == nil)                       // unchanged -> no duplicate
+        #expect(reg.listBackups().first?.endpointCount == 3)
+
+        // simulate the overwrite: DB wiped, group renamed
+        for ext in ["", "-wal", "-shm"] { try? FileManager.default.removeItem(atPath: dir.appendingPathComponent("state.db").path + ext) }
+        _ = reg.updateGroup(id: "default", name: "被覆蓋", icon: "folder")
+        #expect(reg.backupNow() == nil)                       // empty state must not evict the good backup
+
+        try reg.restore(reg.listBackups()[0])
+        #expect(reg.group(id: "default")?.name == "預設群組")
+        let d = try Database(path: reg.dbPath(for: "default"))
+        #expect(try d.query("SELECT COUNT(*) FROM endpoints")[0][0].intValue == 3)
     }
 }

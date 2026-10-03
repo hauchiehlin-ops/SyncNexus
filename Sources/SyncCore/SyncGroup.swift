@@ -43,6 +43,7 @@ public final class SyncGroupRegistry: @unchecked Sendable {
         self.baseAppSupportURL = baseAppSupportURL
         self.registryURL = baseAppSupportURL.appendingPathComponent("groups.json")
         load()
+        backupNow()
     }
 
     public func allGroups() -> [SyncGroup] {
@@ -294,6 +295,138 @@ public final class SyncGroupRegistry: @unchecked Sendable {
               let r = try? d.query("SELECT COUNT(*) FROM endpoints"),
               let n = r.first?.first?.intValue else { return 0 }
         return Int(n)
+    }
+
+    // MARK: automatic backups & one-click restore
+
+    public struct BackupInfo: Identifiable, Sendable {
+        public var id: String { url.lastPathComponent }
+        public let url: URL
+        public let date: Date
+        public let groupNames: [String]
+        public let endpointCount: Int
+    }
+
+    private struct Manifest: Codable {
+        var date: Date
+        var groups: [Entry]
+        var fingerprint: String
+        struct Entry: Codable { var id: String; var name: String; var endpoints: Int }
+    }
+
+    private var backupsRoot: URL { baseAppSupportURL.appendingPathComponent("Backups/Registry") }
+    public static let backupsToKeep = 10
+
+    private func fingerprint() -> (String, [Manifest.Entry]) {
+        var fp = (try? Data(contentsOf: registryURL)).map { String(decoding: $0, as: UTF8.self) } ?? ""
+        var entries: [Manifest.Entry] = []
+        for g in groups {
+            let path = dbPath(for: g.id)
+            var n = 0
+            if let d = try? Database(path: path), FileManager.default.fileExists(atPath: path),
+               let rows = try? d.query("SELECT id, root FROM endpoints ORDER BY id") {
+                n = rows.count
+                fp += rows.map { ($0[0].textValue ?? "") + "=" + ($0[1].textValue ?? "") }.joined(separator: ";")
+            }
+            entries.append(.init(id: g.id, name: g.name, endpoints: n))
+        }
+        return (fp, entries)
+    }
+
+    /// Snapshots groups.json and every group's state.db into Backups/Registry/<timestamp>/.
+    /// Skips when nothing changed, and never lets an empty state push out good backups. Returns the backup made, if any.
+    @discardableResult
+    public func backupNow(force: Bool = false) -> URL? {
+        lock.lock()
+        defer { lock.unlock() }
+        let fm = FileManager.default
+        let (fp, entries) = fingerprint()
+        let total = entries.reduce(0) { $0 + $1.endpoints }
+        let existing = listBackupURLs()
+        if !force {
+            if total == 0 && !existing.isEmpty { return nil }
+            if let last = existing.last, let m = readManifest(last), m.fingerprint == fp { return nil }
+        }
+        let fmt = DateFormatter(); fmt.dateFormat = "yyyyMMdd-HHmmss"; fmt.locale = Locale(identifier: "en_US_POSIX")
+        let base = fmt.string(from: Date())
+        var dir = backupsRoot.appendingPathComponent(base)
+        var n = 1
+        while fm.fileExists(atPath: dir.path) { n += 1; dir = backupsRoot.appendingPathComponent("\(base)-\(n)") }   // never reuse (or delete) an existing backup
+        do {
+            try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            if fm.fileExists(atPath: registryURL.path) { try fm.copyItem(at: registryURL, to: dir.appendingPathComponent("groups.json")) }
+            for g in groups {
+                let src = URL(fileURLWithPath: dbPath(for: g.id))
+                guard fm.fileExists(atPath: src.path), let snap = Self.consolidatedCopy(of: src) else { continue }
+                defer { try? fm.removeItem(at: snap.deletingLastPathComponent()) }
+                let dst = g.id == "default" ? dir.appendingPathComponent("state.db")
+                                            : dir.appendingPathComponent("Groups/\(g.id)/state.db")
+                try fm.createDirectory(at: dst.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try fm.copyItem(at: snap, to: dst)
+            }
+            let enc = JSONEncoder()
+            try enc.encode(Manifest(date: Date(), groups: entries, fingerprint: fp)).write(to: dir.appendingPathComponent("manifest.json"))
+        } catch {
+            NSLog("[SyncGroupRegistry] backup failed: \(error)")
+            try? fm.removeItem(at: dir)
+            return nil
+        }
+        // rotate: keep newest N, plus the newest backup that still holds endpoints
+        let all = listBackupURLs()
+        if all.count > Self.backupsToKeep {
+            let keepGood = all.last { (readManifest($0)?.groups.reduce(0) { $0 + $1.endpoints } ?? 0) > 0 }
+            for old in all.dropLast(Self.backupsToKeep) where old != keepGood { try? fm.removeItem(at: old) }
+        }
+        return dir
+    }
+
+    private func listBackupURLs() -> [URL] {
+        let items = (try? FileManager.default.contentsOfDirectory(at: backupsRoot, includingPropertiesForKeys: nil)) ?? []
+        return items.filter { FileManager.default.fileExists(atPath: $0.appendingPathComponent("manifest.json").path) }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+    }
+
+    private func readManifest(_ dir: URL) -> Manifest? {
+        guard let d = try? Data(contentsOf: dir.appendingPathComponent("manifest.json")) else { return nil }
+        return try? JSONDecoder().decode(Manifest.self, from: d)
+    }
+
+    /// Newest first.
+    public func listBackups() -> [BackupInfo] {
+        lock.lock(); defer { lock.unlock() }
+        return listBackupURLs().reversed().compactMap { u in
+            guard let m = readManifest(u) else { return nil }
+            return BackupInfo(url: u, date: m.date, groupNames: m.groups.map(\.name), endpointCount: m.groups.reduce(0) { $0 + $1.endpoints })
+        }
+    }
+
+    /// Replaces the current groups and databases with a backup. The current state is backed up first
+    /// and replaced files are kept as `.pre-restore-<stamp>`. Callers must stop services first.
+    public func restore(_ backup: BackupInfo) throws {
+        backupNow(force: true)
+        lock.lock()
+        defer { lock.unlock() }
+        let fm = FileManager.default
+        let stamp = Int(Date().timeIntervalSince1970)
+        guard let data = try? Data(contentsOf: backup.url.appendingPathComponent("groups.json")),
+              let restored = try? JSONDecoder().decode([SyncGroup].self, from: data), !restored.isEmpty else {
+            throw LegacyImportError.nothingFound
+        }
+        func replace(_ dst: URL, with src: URL) throws {
+            try fm.createDirectory(at: dst.deletingLastPathComponent(), withIntermediateDirectories: true)
+            for ext in ["", "-wal", "-shm"] {
+                let f = URL(fileURLWithPath: dst.path + ext)
+                if fm.fileExists(atPath: f.path) { try fm.moveItem(at: f, to: URL(fileURLWithPath: f.path + ".pre-restore-\(stamp)")) }
+            }
+            try fm.copyItem(at: src, to: dst)
+        }
+        for g in restored {
+            let src = g.id == "default" ? backup.url.appendingPathComponent("state.db")
+                                        : backup.url.appendingPathComponent("Groups/\(g.id)/state.db")
+            if fm.fileExists(atPath: src.path) { try replace(URL(fileURLWithPath: dbPath(for: g.id)), with: src) }
+        }
+        try replace(registryURL, with: backup.url.appendingPathComponent("groups.json"))
+        groups = restored
     }
 
     private func save() {

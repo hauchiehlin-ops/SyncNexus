@@ -306,6 +306,29 @@ final class AppModel: ObservableObject {
         settingsMessage = message
     }
 
+    func restoreBackup(_ backup: SyncGroupRegistry.BackupInfo) {
+        let alert = NSAlert()
+        alert.messageText = loc("backup_restore_confirm_title", backup.date.formatted(date: .abbreviated, time: .shortened))
+        alert.informativeText = loc("backup_restore_confirm_desc")
+        alert.addButton(withTitle: loc("backup_restore_button"))
+        alert.addButton(withTitle: loc("cancel"))
+        NSApp.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        for s in services.values { s.stop() }
+        services.removeAll(); snapshots.removeAll()
+        do {
+            try registry.restore(backup)
+            settingsMessage = loc("backup_restore_ok", backup.groupNames.count, backup.endpointCount)
+        } catch {
+            settingsMessage = loc("import_legacy_failed", "\(error)")
+        }
+        groups = registry.allGroups()
+        for g in groups { startService(for: g) }
+        if !groups.contains(where: { $0.id == activeGroupId }) { activeGroupId = groups.first?.id ?? "default" }
+        snap = snapshots[activeGroupId] ?? .initial
+    }
+
     func endpointCount(for groupId: String) -> Int {
         snapshots[groupId]?.endpoints.count ?? 0
     }
