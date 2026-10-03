@@ -2,6 +2,14 @@ import Foundation
 import Testing
 @testable import SyncCore
 
+private final class ReleasedCloudFiles: @unchecked Sendable {
+    private let lock = NSLock()
+    private var urls: [URL] = []
+    func append(_ url: URL) { lock.lock(); urls.append(url); lock.unlock() }
+    func paths() -> [String] { lock.lock(); defer { lock.unlock() }; return urls.map(\.path) }
+    var count: Int { lock.lock(); defer { lock.unlock() }; return urls.count }
+}
+
 private final class Env2 {
     let base = FileManager.default.temporaryDirectory.appendingPathComponent("sf-\(UUID().uuidString)")
     let store: Store
@@ -193,6 +201,40 @@ struct PlaceholderTests {
         let r = try e.sync()
         #expect(e.downloads.isEmpty)
         #expect(r.skipped.contains(where: { $0.contains("上限") }))
+    }
+
+    @Test func spaceSavingReleasesOnlyPlaceholderSourcesAfterVerifiedCopy() throws {
+        let e = try Env2(["local", "icloud"])
+        try e.write("icloud", "cloud.txt", "cloud content")
+        e.placeholders = ["cloud.txt"]
+        let hash = try FileOps.sha256(of: e.url("icloud", "cloud.txt"))
+        e.engine.options.placeholderHash = { $0.lastPathComponent == "cloud.txt" ? hash : nil }
+        e.engine.options.cloudSpaceSaving = true
+        let released = ReleasedCloudFiles()
+        e.engine.options.releaseCloudContent = { url, completion in
+            released.append(url)
+            completion(nil)
+        }
+
+        try e.sync()
+
+        #expect(e.read("local", "cloud.txt") == "cloud content")
+        #expect(released.paths() == [e.url("icloud", "cloud.txt").path])
+    }
+
+    @Test func spaceSavingNeverEvictsAFileThatWasAlreadyLocal() throws {
+        let e = try Env2(["local", "icloud"])
+        try e.write("icloud", "kept-offline.txt", "content")
+        e.engine.options.cloudSpaceSaving = true
+        let released = ReleasedCloudFiles()
+        e.engine.options.releaseCloudContent = { url, completion in
+            released.append(url)
+            completion(nil)
+        }
+
+        try e.sync()
+
+        #expect(released.count == 0)
     }
 }
 
@@ -587,5 +629,46 @@ struct ExcludeTests {
         try FileManager.default.removeItem(at: e.url("a", "repo/.git"))
         try e.sync()
         #expect(e.read("b", "repo/.git/HEAD") == "ref")            // and changes there are no longer propagated either
+    }
+
+    @Test func serviceExcludePresetsAndConflictPolicyPersistAndPublish() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("svc-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let db = dir.appendingPathComponent("state.db").path
+        let ver = dir.appendingPathComponent("versions")
+
+        var latestSnapshot = SyncService.Snapshot.initial
+        let svc = SyncService(dbPath: db, versionsDir: ver, logURL: nil) { snap in
+            latestSnapshot = snap
+        }
+        svc.start()
+
+        let expExclude = await withCheckedContinuation { (continuation: CheckedContinuation<Set<ExcludePreset>, Never>) in
+            svc.setExcludePresets([.git, .nodeModules]) { _ in
+                continuation.resume(returning: latestSnapshot.excludePresets)
+            }
+        }
+        #expect(expExclude == [.git, .nodeModules])
+
+        let expPolicy = await withCheckedContinuation { (continuation: CheckedContinuation<ConflictPolicy, Never>) in
+            svc.setConflictPolicy(.newerWins) { _ in
+                continuation.resume(returning: latestSnapshot.conflictPolicy)
+            }
+        }
+        #expect(expPolicy == .newerWins)
+
+        await svc.stopAndWait()
+
+        // Restart service to verify it loads persisted configuration immediately into snapshot on startup
+        var reloadedSnapshot = SyncService.Snapshot.initial
+        let svc2 = SyncService(dbPath: db, versionsDir: ver, logURL: nil) { snap in
+            reloadedSnapshot = snap
+        }
+        svc2.start()
+        try await Task.sleep(nanoseconds: 100_000_000)
+        #expect(reloadedSnapshot.excludePresets == [.git, .nodeModules])
+        #expect(reloadedSnapshot.conflictPolicy == .newerWins)
+        await svc2.stopAndWait()
     }
 }

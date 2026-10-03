@@ -6,6 +6,7 @@
 build/
 dist/
 Platforms/Android/.gradle/
+Platforms/Android/.kotlin/
 Platforms/Android/build/
 Platforms/Android/app/build/
 Platforms/Android/release-key.jks

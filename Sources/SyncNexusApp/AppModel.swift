@@ -46,6 +46,10 @@ final class AppModel: ObservableObject {
     @Published var versionItems: [VersionItem] = []
     @Published var trialRunReport: SyncReport?
     @Published var isRunningTrialRun = false
+    @Published var isRestoringBackup = false
+    @Published var canCancelBackupRestore = false
+    @Published var backupRestoreStatus: String?
+    private var backupRestoreTask: Task<Void, Never>?
 
     public let registry: SyncGroupRegistry
     @Published var groups: [SyncGroup] = []
@@ -409,6 +413,14 @@ final class AppModel: ObservableObject {
     }
 
     func restoreBackup(_ backup: SyncGroupRegistry.BackupInfo) {
+        guard !isRestoringBackup else { return }
+        // A SwiftUI Menu is still finishing AppKit event tracking when its action runs. Presenting
+        // a modal alert in that same stack can strand the menu and alert event loops together.
+        DispatchQueue.main.async { [weak self] in self?.confirmRestoreBackup(backup) }
+    }
+
+    private func confirmRestoreBackup(_ backup: SyncGroupRegistry.BackupInfo) {
+        guard !isRestoringBackup else { return }
         let alert = NSAlert()
         alert.messageText = loc("backup_restore_confirm_title", backup.date.formatted(date: .abbreviated, time: .shortened))
         alert.informativeText = loc("backup_restore_confirm_desc")
@@ -417,18 +429,67 @@ final class AppModel: ObservableObject {
         NSApp.activate(ignoringOtherApps: true)
         guard alert.runModal() == .alertFirstButtonReturn else { return }
 
-        for s in services.values { s.stop() }
-        services.removeAll(); snapshots.removeAll()
-        do {
-            try registry.restore(backup)
-            settingsMessage = loc("backup_restore_ok", backup.groupNames.count, backup.endpointCount)
-        } catch {
-            settingsMessage = loc("import_legacy_failed", "\(error)")
+        beginBackupRestore(backup)
+    }
+
+    private func beginBackupRestore(_ backup: SyncGroupRegistry.BackupInfo) {
+        isRestoringBackup = true
+        canCancelBackupRestore = true
+        backupRestoreStatus = loc("backup_restore_stopping")
+        let stopping = Array(services.values)
+
+        backupRestoreTask = Task { [weak self] in
+            await withTaskGroup(of: Void.self) { group in
+                for service in stopping {
+                    group.addTask { await service.stopAndWait() }
+                }
+            }
+
+            guard let self else { return }
+            self.services.removeAll()
+            self.snapshots.removeAll()
+
+            guard !Task.isCancelled else {
+                self.finishBackupRestore(message: loc("backup_restore_cancelled"))
+                return
+            }
+
+            self.backupRestoreStatus = loc("backup_restore_applying")
+            self.canCancelBackupRestore = false
+            let registry = self.registry
+            let result: Result<Void, Error> = await withCheckedContinuation { continuation in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    continuation.resume(returning: Result { try registry.restore(backup) })
+                }
+            }
+
+            let message: String
+            switch result {
+            case .success:
+                message = loc("backup_restore_ok", backup.groupNames.count, backup.endpointCount)
+            case .failure(let error):
+                message = loc("backup_restore_failed", "\(error)")
+            }
+            self.finishBackupRestore(message: message)
         }
+    }
+
+    func cancelBackupRestore() {
+        guard isRestoringBackup else { return }
+        backupRestoreStatus = loc("backup_restore_cancelling")
+        backupRestoreTask?.cancel()
+    }
+
+    private func finishBackupRestore(message: String) {
         groups = registry.allGroups()
         for g in groups { startService(for: g) }
         if !groups.contains(where: { $0.id == activeGroupId }) { activeGroupId = groups.first?.id ?? "default" }
         snap = Self.localized(snapshots[activeGroupId] ?? .initial)
+        isRestoringBackup = false
+        canCancelBackupRestore = false
+        backupRestoreStatus = nil
+        backupRestoreTask = nil
+        settingsMessage = message
     }
 
     func confirmAndDeleteGroup(_ group: SyncGroup) {
@@ -558,8 +619,30 @@ final class AppModel: ObservableObject {
     func setExclude(_ preset: ExcludePreset, on: Bool) {
         var p = snap.excludePresets
         if on { p.insert(preset) } else { p.remove(preset) }
+        snap.excludePresets = p
+        if snapshots[activeGroupId] != nil {
+            snapshots[activeGroupId]?.excludePresets = p
+        }
         service.setExcludePresets(p) { [weak self] err in
-            Task { @MainActor in self?.settingsMessage = err.map { loc("msg_add_failed", CoreMessages.localize($0)) } ?? loc("msg_excludes_updated") }
+            Task { @MainActor in
+                if let err {
+                    self?.settingsMessage = loc("msg_add_failed", CoreMessages.localize(err))
+                    if let cur = self?.snapshots[self?.activeGroupId ?? ""]?.excludePresets {
+                        self?.snap.excludePresets = cur
+                    }
+                } else {
+                    self?.settingsMessage = loc("msg_excludes_updated")
+                }
+            }
+        }
+    }
+
+    func setCloudSpaceSaving(_ enabled: Bool) {
+        service.setCloudSpaceSaving(enabled) { [weak self] error in
+            Task { @MainActor in
+                self?.settingsMessage = error.map { loc("msg_add_failed", CoreMessages.localize($0)) }
+                    ?? loc(enabled ? "cloud_space_saving_enabled" : "cloud_space_saving_disabled")
+            }
         }
     }
 
@@ -570,8 +653,21 @@ final class AppModel: ObservableObject {
     // MARK: conflicts
 
     func setPolicy(_ p: ConflictPolicy) {
+        snap.conflictPolicy = p
+        if snapshots[activeGroupId] != nil {
+            snapshots[activeGroupId]?.conflictPolicy = p
+        }
         service.setConflictPolicy(p) { [weak self] err in
-            Task { @MainActor in self?.settingsMessage = err.map { loc("msg_add_failed", CoreMessages.localize($0)) } ?? loc("msg_conflict_policy_updated") }
+            Task { @MainActor in
+                if let err {
+                    self?.settingsMessage = loc("msg_add_failed", CoreMessages.localize(err))
+                    if let cur = self?.snapshots[self?.activeGroupId ?? ""]?.conflictPolicy {
+                        self?.snap.conflictPolicy = cur
+                    }
+                } else {
+                    self?.settingsMessage = loc("msg_conflict_policy_updated")
+                }
+            }
         }
     }
 

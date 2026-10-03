@@ -23,6 +23,11 @@ public struct ScanResult: Sendable {
     public var leftovers: [URL] = []   // engine temp files left behind by an interrupted run
 }
 
+/// A cooperative cancellation requested while walking a potentially slow cloud-backed tree.
+/// Callers must treat this differently from an unreadable endpoint: it is an intentional stop,
+/// not evidence that files disappeared.
+public struct ScanCancelled: Error, Sendable {}
+
 public enum FileOps {
     #if canImport(Darwin)
     static let SF_DATALESS_FLAG: UInt32 = 0x4000_0000
@@ -55,11 +60,16 @@ public enum FileOps {
     }
 
     /// `placeholder` lets tests mark files as not-downloaded; real runs use the file's dataless flag.
-    public static func scan(root: URL, ignore: IgnoreRules, placeholder: ((URL) -> Bool)? = nil, only prefixes: [String]? = nil) throws -> ScanResult {
+    public static func scan(root: URL, ignore: IgnoreRules, placeholder: ((URL) -> Bool)? = nil,
+                            only prefixes: [String]? = nil, shouldCancel: (() -> Bool)? = nil) throws -> ScanResult {
         var result = ScanResult()
         let fm = FileManager.default
         func walk(_ dir: URL, _ prefix: String) throws {
-            for name in try fm.contentsOfDirectory(atPath: dir.path) {
+            if shouldCancel?() == true { throw ScanCancelled() }
+            let names = try fm.contentsOfDirectory(atPath: dir.path)
+            if shouldCancel?() == true { throw ScanCancelled() }
+            for name in names {
+                if shouldCancel?() == true { throw ScanCancelled() }
                 let url = dir.appendingPathComponent(name)
                 if name.hasSuffix(".nexus-part") { result.leftovers.append(url); continue }
                 if ignore.isIgnored(component: name) { continue }
@@ -81,6 +91,7 @@ public enum FileOps {
         if let prefixes {
             // Incremental: only these paths (a file, or a folder with everything below it), as reported by event stream.
             for p in prefixes where !p.isEmpty {
+                if shouldCancel?() == true { throw ScanCancelled() }
                 if p.split(separator: "/").contains(where: { ignore.isIgnored(component: String($0)) }) { continue }
                 let url = root.appendingPathComponent(p)
                 guard let st = getStat(path: url.path) else { continue }

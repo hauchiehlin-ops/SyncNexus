@@ -1593,6 +1593,14 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .th: "รายการที่ยกเว้นจะไม่ถูกแตะต้องในทุกโฟลเดอร์ ไฟล์ที่เคยซิงค์แล้วจะไม่ถูกลบ และจะไม่ซิงค์อีกต่อไป",
         .ko: "제외된 항목은 모든 폴더에 그대로 유지됩니다. 기존 동기화된 파일은 삭제되지 않으며 이후 동기화에서 제외됩니다."
     ],
+    "settings_exclude_desc": [
+        .en: "Recommended safety rules to prevent database or repository corruption. Toggles can be customized for specific development workflows.",
+        .zhHant: "建議的安全排除原則，避免資料庫鎖檔或版本庫損壞；若有特殊工作需求可個別切換調整。",
+        .zhHans: "建议的安全排除原则，避免数据库锁档或版本库损坏；若有特殊工作需求可个别切换调整。",
+        .ja: "データベースのロックやリポジトリの破損を防ぐ推奨安全原則です。特別な開発要件がある場合は個別に切り替え可能です。",
+        .th: "หลักความปลอดภัยที่แนะนำเพื่อป้องกันฐานข้อมูลหรือที่เก็บโค้ดเสียหาย สามารถปรับเปลี่ยนได้หากมีความต้องการพิเศษ",
+        .ko: "데이터베이스 잠금 오류나 저장소 손상을 방지하는 권장 안전 원칙입니다. 특수한 작업 요구 시 개별 조정할 수 있습니다."
+    ],
     "settings_exclude_title": [
         .en: "Do Not Sync These Items",
         .zhHant: "不要同步這些項目",
@@ -1600,6 +1608,22 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .ja: "これらを同期から除外",
         .th: "ไม่ต้องซิงค์รายการเหล่านี้",
         .ko: "다음 항목 동기화 제외"
+    ],
+    "switch_to_group": [
+        .en: "Switch",
+        .zhHant: "切換",
+        .zhHans: "切换",
+        .ja: "切り替え",
+        .th: "สลับ",
+        .ko: "전환"
+    ],
+    "active_current": [
+        .en: "Current",
+        .zhHant: "目前",
+        .zhHans: "当前",
+        .ja: "現在",
+        .th: "ปัจจุบัน",
+        .ko: "현재"
     ],
     "settings_language": [
         .en: "Language",
@@ -3103,6 +3127,86 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .th: "กู้คืน %d กลุ่ม %d โฟลเดอร์แล้ว หากโฟลเดอร์แสดงออฟไลน์ ให้เลือกใหม่หนึ่งครั้งเพื่ออนุญาตการเข้าถึง",
         .ko: "%d개 그룹(폴더 %d개)을 복원했습니다. 폴더가 오프라인으로 표시되면 한 번 다시 선택해 접근을 허용하세요."
     ],
+    "backup_restore_stopping": [
+        .en: "Safely stopping sync and any folder scan before restoring… You can cancel while waiting.",
+        .zhHant: "正在安全停止同步與資料夾掃描，再開始還原⋯ 等待期間可以取消。",
+        .zhHans: "正在安全停止同步与文件夹扫描，再开始还原… 等待期间可以取消。",
+        .ja: "復元前に同期とフォルダースキャンを安全に停止しています… 待機中はキャンセルできます。",
+        .th: "กำลังหยุดการซิงค์และการสแกนโฟลเดอร์อย่างปลอดภัยก่อนกู้คืน… ยกเลิกได้ระหว่างรอ",
+        .ko: "복원 전에 동기화와 폴더 스캔을 안전하게 중지하는 중입니다… 기다리는 동안 취소할 수 있습니다."
+    ],
+    "backup_restore_cancelling": [
+        .en: "Cancelling restore and restarting sync safely…",
+        .zhHant: "正在取消還原並安全地重新啟動同步⋯",
+        .zhHans: "正在取消还原并安全地重新启动同步…",
+        .ja: "復元をキャンセルし、同期を安全に再起動しています…",
+        .th: "กำลังยกเลิกการกู้คืนและเริ่มการซิงค์ใหม่อย่างปลอดภัย…",
+        .ko: "복원을 취소하고 동기화를 안전하게 다시 시작하는 중입니다…"
+    ],
+    "backup_restore_cancelled": [
+        .en: "Restore cancelled. Nothing was replaced.",
+        .zhHant: "已取消還原，沒有替換任何資料。",
+        .zhHans: "已取消还原，没有替换任何数据。",
+        .ja: "復元をキャンセルしました。データは置き換えられていません。",
+        .th: "ยกเลิกการกู้คืนแล้ว ไม่มีข้อมูลใดถูกแทนที่",
+        .ko: "복원이 취소되었습니다. 어떤 데이터도 교체되지 않았습니다."
+    ],
+    "backup_restore_applying": [
+        .en: "Sync stopped safely. Verifying and applying the backup…",
+        .zhHant: "同步已安全停止，正在驗證並套用備份⋯",
+        .zhHans: "同步已安全停止，正在验证并应用备份…",
+        .ja: "同期を安全に停止しました。バックアップを検証して適用しています…",
+        .th: "หยุดการซิงค์อย่างปลอดภัยแล้ว กำลังตรวจสอบและใช้ข้อมูลสำรอง…",
+        .ko: "동기화가 안전하게 중지되었습니다. 백업을 확인하고 적용하는 중입니다…"
+    ],
+    "backup_restore_failed": [
+        .en: "Restore failed: %@",
+        .zhHant: "還原失敗：%@",
+        .zhHans: "还原失败：%@",
+        .ja: "復元に失敗しました：%@",
+        .th: "กู้คืนไม่สำเร็จ: %@",
+        .ko: "복원 실패: %@"
+    ],
+    "cloud_space_saving_title": [
+        .en: "Cloud Space Saving Mode",
+        .zhHant: "雲端節省空間模式",
+        .zhHans: "云端节省空间模式",
+        .ja: "クラウド容量節約モード",
+        .th: "โหมดประหยัดพื้นที่คลาวด์",
+        .ko: "클라우드 공간 절약 모드"
+    ],
+    "cloud_space_saving_desc": [
+        .en: "After a cloud placeholder is downloaded or streamed for synchronization, ask iCloud or Google Drive to remove its local content again. The cloud copy remains available.",
+        .zhHant: "雲端 placeholder 因同步而下載或串流完成後，要求 iCloud 或 Google Drive 再次移除其本機內容；雲端檔案仍會保留。",
+        .zhHans: "云端 placeholder 因同步而下载或串流完成后，要求 iCloud 或 Google Drive 再次移除其本机内容；云端文件仍会保留。",
+        .ja: "同期のためにダウンロードまたはストリーミングしたクラウドファイルを、完了後に iCloud または Google Drive へ再度ローカルから解放するよう依頼します。クラウド上のファイルは保持されます。",
+        .th: "หลังดาวน์โหลดหรือสตรีมไฟล์คลาวด์เพื่อซิงค์แล้ว ระบบจะขอให้ iCloud หรือ Google Drive ลบเฉพาะเนื้อหาในเครื่อง โดยไฟล์บนคลาวด์ยังคงอยู่",
+        .ko: "동기화를 위해 다운로드하거나 스트리밍한 클라우드 파일을 완료 후 iCloud 또는 Google Drive에 요청해 로컬 내용만 다시 제거합니다. 클라우드 파일은 유지됩니다."
+    ],
+    "cloud_space_saving_safety": [
+        .en: "Only files that were already placeholders are released, and only after verified copies finish.",
+        .zhHant: "只處理同步前原本就是 placeholder 的檔案，且必須等驗證複製完成後才釋放。",
+        .zhHans: "只处理同步前原本就是 placeholder 的文件，且必须等验证复制完成后才释放。",
+        .ja: "同期前からプレースホルダーだったファイルのみ、検証済みコピーの完了後に解放します。",
+        .th: "ปล่อยเฉพาะไฟล์ที่เป็น placeholder อยู่ก่อนแล้ว และหลังจากยืนยันว่าคัดลอกสำเร็จเท่านั้น",
+        .ko: "동기화 전부터 플레이스홀더였던 파일만 검증된 복사가 끝난 뒤 해제합니다."
+    ],
+    "cloud_space_saving_enabled": [
+        .en: "Cloud Space Saving Mode enabled.",
+        .zhHant: "已開啟雲端節省空間模式。",
+        .zhHans: "已开启云端节省空间模式。",
+        .ja: "クラウド容量節約モードを有効にしました。",
+        .th: "เปิดโหมดประหยัดพื้นที่คลาวด์แล้ว",
+        .ko: "클라우드 공간 절약 모드를 켰습니다."
+    ],
+    "cloud_space_saving_disabled": [
+        .en: "Cloud Space Saving Mode disabled.",
+        .zhHant: "已關閉雲端節省空間模式。",
+        .zhHans: "已关闭云端节省空间模式。",
+        .ja: "クラウド容量節約モードを無効にしました。",
+        .th: "ปิดโหมดประหยัดพื้นที่คลาวด์แล้ว",
+        .ko: "클라우드 공간 절약 모드를 껐습니다."
+    ],
     "core_1d8b28b6": [
         .en: "Folder not found (is the external drive unmounted?)",
         .zhHant: "資料夾不存在（外接碟未掛載？）",
@@ -3872,5 +3976,3 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .ko: "현재 동기화 그룹: %@ (%d개 엔드포인트)"
     ]
 ]
-
-

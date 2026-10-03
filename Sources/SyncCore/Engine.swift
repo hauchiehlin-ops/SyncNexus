@@ -67,6 +67,12 @@ public struct EngineOptions {
     public var freeSpace: ((URL) -> Int64?)?
     /// Test hook: which endpoints count as iCloud / Google Drive for duplicate hints.
     public var isCloudEndpoint: ((EndpointConfig) -> Bool)?
+    /// Return cloud placeholders to an online-only state after every verified copy has finished.
+    public var cloudSpaceSaving = false
+    public var releaseCloudContent: (@Sendable (URL, @escaping @Sendable (Error?) -> Void) -> Void)?
+    /// Cooperative cancellation checked while scanning directory trees. This keeps lifecycle
+    /// operations such as backup restore from waiting for an entire cloud-folder scan.
+    public var shouldCancel: (() -> Bool)?
 
     public init() {}
 }
@@ -101,6 +107,7 @@ public final class Engine {
 
     private var policy: ConflictPolicy = .keepBoth
     private var prefixes: [String]?           // nil = full scan
+    private var cloudEvictionCandidates: [String: URL] = [:]
     private var cfgByID: [String: EndpointConfig] = [:]
     private var cloudKindCache: [String: Bool] = [:]
     private var effectiveIgnore = IgnoreRules.default
@@ -156,7 +163,13 @@ public final class Engine {
                 report.offline.append("\(cfg.id)：\(why)")
             case .online:
                 let scan: ScanResult
-                do { scan = try FileOps.scan(root: URL(fileURLWithPath: cfg.root), ignore: effectiveIgnore, placeholder: options.placeholderCheck, only: prefixes) }
+                do {
+                    scan = try FileOps.scan(root: URL(fileURLWithPath: cfg.root), ignore: effectiveIgnore,
+                                            placeholder: options.placeholderCheck, only: prefixes,
+                                            shouldCancel: options.shouldCancel)
+                } catch is ScanCancelled {
+                    throw ScanCancelled()
+                }
                 catch {
                     // Unreadable (missing permission, I/O error): never treat a partial listing as "files are gone".
                     report.offline.append("\(cfg.id)：無法完整讀取，已停止此端點（請檢查「系統設定 > 隱私權與安全性」的檔案存取授權）。\(error.localizedDescription)")
@@ -302,6 +315,8 @@ public final class Engine {
     // MARK: public entry
 
     public func sync(dryRun: Bool = false, confirmed: Bool = false, scope: SyncScope = .full) throws -> SyncReport {
+        cloudEvictionCandidates.removeAll()
+        defer { releaseMaterializedCloudContent() }
         var report = SyncReport()
         let interrupted = try store.interruptPending()
         if !interrupted.isEmpty {
@@ -782,6 +797,7 @@ public final class Engine {
                 try FileOps.copyAtomically(from: src.url, to: dst, expectHash: want.hash, mtime: src.mtime, durable: cfg.removable)
             }
             failures[failKey] = nil
+            if src.isPlaceholder { cloudEvictionCandidates[src.url.path] = src.url }
             spaceUsed[cfg.root, default: 0] += want.size
             if cfg.removable { ctx.wroteToRemovable.insert(cfg.root) }
         } catch FileOps.CopyError.sourceChanged {
@@ -799,6 +815,24 @@ public final class Engine {
         try store.setRow(cfg.id, path, state: want, mtimeNs: sf.mtimeNs, seenRev: rev)
         report.work += 1
         note(&report, "[\(cfg.id)] 寫入 \(path)")
+    }
+
+    private func releaseMaterializedCloudContent() {
+        guard options.cloudSpaceSaving, let release = options.releaseCloudContent else {
+            cloudEvictionCandidates.removeAll()
+            return
+        }
+        let candidates = Array(cloudEvictionCandidates.values)
+        cloudEvictionCandidates.removeAll()
+        for url in candidates {
+            release(url) { [log = options.log] error in
+                if let error {
+                    log("雲端節省空間：無法釋放 \(url.lastPathComponent) 的本機內容（\(error.localizedDescription)）")
+                } else {
+                    log("雲端節省空間：已釋放 \(url.lastPathComponent) 的本機內容")
+                }
+            }
+        }
     }
 
     private func resolveConflict(_ ctx: Context, _ cfg: EndpointConfig, _ path: String, _ cons: ConsensusEntry,

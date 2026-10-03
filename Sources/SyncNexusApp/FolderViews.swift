@@ -56,17 +56,18 @@ struct FoldersSection: View {
                     .font(.system(size: 11))
                 }
                 .buttonStyle(QuietButton(kind: .plain, compact: true))
-                if model.groups.count > 1 {
-                    Button(action: { model.confirmAndDeleteGroup(g) }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "trash")
-                            Text(loc("group_delete_button"))
-                        }
-                        .font(.system(size: 11))
-                        .foregroundStyle(Theme.bad)
+                .disabled(model.isRestoringBackup)
+                Button(action: { model.confirmAndDeleteGroup(g) }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "trash")
+                        Text(loc("group_delete_button"))
                     }
-                    .buttonStyle(QuietButton(kind: .plain, compact: true))
+                    .font(.system(size: 11))
+                    .foregroundStyle(model.groups.count > 1 ? Theme.bad : Color.secondary)
                 }
+                .buttonStyle(QuietButton(kind: .plain, compact: true))
+                .disabled(model.isRestoringBackup || model.groups.count <= 1)
+                .help(model.groups.count <= 1 ? loc("group_cannot_delete_last") : loc("group_delete_button"))
             }
             .padding(.horizontal, 4)
         }
@@ -80,6 +81,7 @@ struct FoldersSection: View {
             Button(loc("folders_add_button")) { startAdd() }.buttonStyle(QuietButton(kind: .primary))
             if model.snap.endpoints.count < 2 { Text(loc("folders_minimum_warning")).font(.system(size: 13)).foregroundStyle(Theme.warn) }
         }
+        .disabled(model.isRestoringBackup)
         .sheet(item: $draft) { d in AddSheet(model: model, draft: d) { draft = nil } }
         .sheet(isPresented: $showingAddGroup) { AddGroupSheet(model: model) { showingAddGroup = false } }
         .sheet(item: $editingGroup) { g in EditGroupSheet(model: model, group: g) { editingGroup = nil } }
@@ -135,6 +137,7 @@ struct SyncGroupTabBar: View {
                     .font(.system(size: 12, weight: .medium))
                 }
                 .menuStyle(.borderlessButton).fixedSize()
+                .disabled(model.isRestoringBackup)
                 Button(action: { model.importLegacySettings() }) {
                     HStack(spacing: 4) {
                         Image(systemName: "square.and.arrow.down")
@@ -143,6 +146,7 @@ struct SyncGroupTabBar: View {
                     .font(.system(size: 12, weight: .medium))
                 }
                 .buttonStyle(QuietButton(kind: .secondary, compact: true))
+                .disabled(model.isRestoringBackup)
                 Button(action: { showingAddGroup = true }) {
                     HStack(spacing: 4) {
                         Image(systemName: "plus.circle.fill")
@@ -151,6 +155,7 @@ struct SyncGroupTabBar: View {
                     .font(.system(size: 12, weight: .medium))
                 }
                 .buttonStyle(QuietButton(kind: .secondary, compact: true))
+                .disabled(model.isRestoringBackup)
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -180,13 +185,12 @@ struct SyncGroupTabBar: View {
                             Button(loc("group_edit_title")) {
                                 editingGroup = group
                             }
-                            if model.groups.count > 1 {
-                                Button(role: .destructive) {
-                                    confirmDelete(group: group)
-                                } label: {
-                                    Label(loc("group_delete_button"), systemImage: "trash")
-                                }
+                            Button(role: .destructive) {
+                                confirmDelete(group: group)
+                            } label: {
+                                Label(loc("group_delete_button"), systemImage: "trash")
                             }
+                            .disabled(model.groups.count <= 1)
                         }
                     }
                 }
@@ -321,15 +325,15 @@ struct EditGroupSheet: View {
             }
 
             HStack {
-                if model.groups.count > 1 {
-                    Button(role: .destructive) {
-                        close()
-                        confirmDelete()
-                    } label: {
-                        Text(loc("group_delete_button"))
-                    }
-                    .buttonStyle(QuietButton(kind: .secondary))
+                Button(role: .destructive) {
+                    close()
+                    confirmDelete()
+                } label: {
+                    Text(loc("group_delete_button"))
                 }
+                .buttonStyle(QuietButton(kind: .secondary))
+                .disabled(model.groups.count <= 1)
+                .help(model.groups.count <= 1 ? loc("group_cannot_delete_last") : loc("group_delete_button"))
                 Spacer()
                 Button(loc("cancel")) { close() }
                     .buttonStyle(QuietButton(kind: .secondary))

@@ -105,7 +105,28 @@ struct MainWindowView: View {
         .id(l10n.currentLanguage)
         // 快顯提示 (Floating Toast HUD)
         .overlay(alignment: .top) {
-            if let m = model.settingsMessage {
+            if model.isRestoringBackup {
+                HStack(alignment: .center, spacing: 12) {
+                    ProgressView().controlSize(.small)
+                    Text(model.backupRestoreStatus ?? loc("backup_restore_stopping"))
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Color.primary)
+                    Spacer(minLength: 8)
+                    Button(loc("cancel")) { model.cancelBackupRestore() }
+                        .buttonStyle(QuietButton(kind: .secondary, compact: true))
+                        .disabled(!model.canCancelBackupRestore)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(.ultraThickMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.primary.opacity(0.12), lineWidth: 1))
+                .shadow(color: Color.black.opacity(0.18), radius: 16, x: 0, y: 8)
+                .padding(.top, 16)
+                .padding(.horizontal, 40)
+                .frame(maxWidth: 680)
+                .zIndex(1000)
+            } else if let m = model.settingsMessage {
                 HStack(alignment: .center, spacing: 12) {
                     Image(systemName: "info.circle.fill")
                         .font(.system(size: 18))
@@ -204,6 +225,7 @@ func sectionHeader(_ title: String, _ subtitle: String? = nil) -> some View {
 struct OverviewSection: View {
     @ObservedObject var model: AppModel
     @ObservedObject private var l10n = L10n.shared
+    @State private var editingGroup: SyncGroup? = nil
 
     var body: some View {
         sectionHeader(model.overall == .ok ? loc("status_all_normal") : model.overallTitle, overviewSubtitle)
@@ -228,6 +250,17 @@ struct OverviewSection: View {
                                 .foregroundStyle(isActive ? Color.white : Color.primary)
                             }
                             .buttonStyle(.plain)
+                            .contextMenu {
+                                Button(loc("group_edit_title")) {
+                                    editingGroup = group
+                                }
+                                Button(role: .destructive) {
+                                    model.confirmAndDeleteGroup(group)
+                                } label: {
+                                    Label(loc("group_delete_button"), systemImage: "trash")
+                                }
+                                .disabled(model.groups.count <= 1)
+                            }
                         }
                     }
                 }
@@ -291,6 +324,10 @@ struct OverviewSection: View {
                 Text(loc("folders_minimum_warning")).font(.system(size: 14))
                 Spacer(); Button(loc("folders_add_button")) { model.section = .folders }.buttonStyle(QuietButton(kind: .primary)) } }
         }
+        Color.clear.frame(height: 0)
+            .sheet(item: $editingGroup) { group in
+                EditGroupSheet(model: model, group: group) { editingGroup = nil }
+            }
     }
 
     private var overviewSubtitle: String {
@@ -568,9 +605,79 @@ struct SettingsSection: View {
     @ObservedObject private var l10n = L10n.shared
     @Environment(\.openWindow) private var openWindow
     @State private var fullDisk = Permissions.hasFullDiskAccess()
+    @State private var showingAddGroup = false
+    @State private var editingGroup: SyncGroup? = nil
 
     var body: some View {
         sectionHeader(loc("section_settings"))
+        Card {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text(loc("group_selector_title")).font(.system(size: 15, weight: .bold))
+                    Spacer()
+                    Button(action: { showingAddGroup = true }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "plus.circle.fill")
+                            Text(loc("group_add_button"))
+                        }
+                        .font(.system(size: 12, weight: .medium))
+                    }
+                    .buttonStyle(QuietButton(kind: .secondary, compact: true))
+                    .disabled(model.isRestoringBackup)
+                }
+
+                ForEach(model.groups) { group in
+                    let isActive = group.id == model.activeGroupId
+                    let epCount = model.endpointCount(for: group.id)
+                    HStack(spacing: 10) {
+                        Image(systemName: group.icon)
+                            .font(.system(size: 14))
+                            .foregroundStyle(isActive ? Color.accentColor : Color.secondary)
+                            .frame(width: 24)
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 6) {
+                                Text(model.groupName(group))
+                                    .font(.system(size: 13, weight: isActive ? .bold : .medium))
+                                if isActive {
+                                    Chip(text: loc("active_current"), kind: .ok)
+                                }
+                            }
+                            Text(loc("group_endpoints_count", epCount))
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        if !isActive {
+                            Button(loc("switch_to_group")) {
+                                model.selectGroup(id: group.id)
+                            }
+                            .buttonStyle(QuietButton(kind: .secondary, compact: true))
+                            .disabled(model.isRestoringBackup)
+                        }
+                        Button(loc("group_edit_title")) {
+                            editingGroup = group
+                        }
+                        .buttonStyle(QuietButton(kind: .secondary, compact: true))
+                        .disabled(model.isRestoringBackup)
+                        Button(action: { model.confirmAndDeleteGroup(group) }) {
+                            HStack(spacing: 2) {
+                                Image(systemName: "trash")
+                                Text(loc("group_delete_button"))
+                            }
+                            .font(.system(size: 11))
+                            .foregroundStyle(model.groups.count > 1 ? Theme.bad : Color.secondary)
+                        }
+                        .buttonStyle(QuietButton(kind: .plain, compact: true))
+                        .disabled(model.isRestoringBackup || model.groups.count <= 1)
+                        .help(model.groups.count <= 1 ? loc("group_cannot_delete_last") : loc("group_delete_button"))
+                    }
+                    .padding(.vertical, 4)
+                    if group.id != model.groups.last?.id {
+                        Divider()
+                    }
+                }
+            }
+        }
         Card {
             VStack(alignment: .leading, spacing: 12) {
                 Text(loc("settings_conflict_title")).font(.system(size: 15, weight: .bold))
@@ -588,6 +695,7 @@ struct SettingsSection: View {
         Card {
             VStack(alignment: .leading, spacing: 12) {
                 Text(loc("settings_exclude_title")).font(.system(size: 15, weight: .bold))
+                Text(loc("settings_exclude_desc")).font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 ForEach(ExcludePreset.allCases) { p in
                     Toggle(isOn: Binding(get: { model.snap.excludePresets.contains(p) }, set: { model.setExclude(p, on: $0) })) {
                         VStack(alignment: .leading, spacing: 2) {
@@ -598,6 +706,19 @@ struct SettingsSection: View {
                     .toggleStyle(.switch)
                 }
                 Text(loc("settings_exclude_footer")).font(.system(size: 12)).foregroundStyle(.secondary)
+            }
+        }
+        Card {
+            VStack(alignment: .leading, spacing: 10) {
+                Toggle(loc("cloud_space_saving_title"), isOn: Binding(
+                    get: { model.snap.cloudSpaceSaving },
+                    set: { model.setCloudSpaceSaving($0) }
+                ))
+                .toggleStyle(.switch)
+                Text(loc("cloud_space_saving_desc"))
+                    .font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Label(loc("cloud_space_saving_safety"), systemImage: "checkmark.shield")
+                    .font(.system(size: 12)).foregroundStyle(Theme.ok)
             }
         }
         Card {
@@ -646,7 +767,14 @@ struct SettingsSection: View {
                 Text("Sync-Nexus　© B&B Co.　Apache-2.0").font(.system(size: 12)).foregroundStyle(.secondary)
             }
         }
-        Color.clear.frame(height: 0).onAppear { fullDisk = Permissions.hasFullDiskAccess() }
+        Color.clear.frame(height: 0)
+            .onAppear { fullDisk = Permissions.hasFullDiskAccess() }
+            .sheet(isPresented: $showingAddGroup) {
+                AddGroupSheet(model: model) { showingAddGroup = false }
+            }
+            .sheet(item: $editingGroup) { group in
+                EditGroupSheet(model: model, group: group) { editingGroup = nil }
+            }
     }
 }
 

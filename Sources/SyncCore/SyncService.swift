@@ -57,6 +57,7 @@ public final class SyncService: @unchecked Sendable {
         public var integrityIssues: [IntegrityIssue] = []
         public var duplicateHints: [DuplicateHint] = []
         public var conflictPolicy: ConflictPolicy = .keepBoth
+        public var cloudSpaceSaving = false
         public var error: String?
         public static let initial = Snapshot()
     }
@@ -84,6 +85,17 @@ public final class SyncService: @unchecked Sendable {
     private var rerunFull = false
     private var rootMap: [(root: String, resolved: String)] = []
     private var eventIdTimer: DispatchSourceTimer?
+    private let stopLock = NSLock()
+    private var stopRequested = false
+
+    private var shouldStop: Bool {
+        stopLock.lock(); defer { stopLock.unlock() }
+        return stopRequested
+    }
+
+    private func setStopRequested(_ requested: Bool) {
+        stopLock.lock(); stopRequested = requested; stopLock.unlock()
+    }
 
     public init(dbPath: String, versionsDir: URL, logURL: URL?, periodicSeconds: TimeInterval = 300,
                 onUpdate: @escaping @Sendable (Snapshot) -> Void) {
@@ -97,16 +109,27 @@ public final class SyncService: @unchecked Sendable {
     // MARK: control
 
     public func start() {
-        queue.async {
+        setStopRequested(false)
+        queue.async { [self] in
             do {
                 try FileManager.default.createDirectory(atPath: (self.dbPath as NSString).deletingLastPathComponent, withIntermediateDirectories: true)
                 if let log = self.logURL { try FileManager.default.createDirectory(at: log.deletingLastPathComponent(), withIntermediateDirectories: true) }
                 var opts = EngineOptions()
                 opts.versionsDir = self.versionsDir
                 opts.log = { [weak self] in self?.writeLog($0) }
-                let engine = Engine(store: try self.openStoreRecovering(), options: opts)
+                opts.shouldCancel = { [weak self] in self?.shouldStop ?? true }
+                opts.releaseCloudContent = { @Sendable url, completion in
+                    CloudSpaceReclaimer.releaseLocalContent(of: url, completion: completion)
+                }
+                let store = try self.openStoreRecovering()
+                opts.cloudSpaceSaving = (try? store.meta("cloudSpaceSaving")) == "1"
+                let engine = Engine(store: store, options: opts)
                 engine.onContentReady = { [weak self] url in self?.queue.async { self?.markDirty(absolute: url.path); self?.runIfNeeded(confirmed: false, incremental: true) } }
                 self.engine = engine
+                self.snapshot.conflictPolicy = ConflictPolicy(rawValue: (try? store.meta("conflictPolicy")) ?? "") ?? .keepBoth
+                self.snapshot.cloudSpaceSaving = ((try? store.meta("cloudSpaceSaving")) ?? "0") == "1"
+                self.snapshot.excludePresets = IgnoreRules.parsePresets(try? store.meta("excludePresets"))
+                self.publish()
             } catch {
                 self.snapshot.error = "無法開啟資料庫：\(error)"
                 self.publish()
@@ -198,12 +221,30 @@ public final class SyncService: @unchecked Sendable {
     }
 
     public func stop() {
+        setStopRequested(true)
         queue.sync {
-            saveEventId()
-            eventIdTimer?.cancel(); eventIdTimer = nil
-            watcher?.stop(); watcher = nil
-            timer?.cancel(); timer = nil
+            finishStopping()
         }
+    }
+
+    /// Stops after the current filesystem operation reaches a cancellation point, without
+    /// blocking the caller (notably the main actor). The database is closed before this returns.
+    public func stopAndWait() async {
+        setStopRequested(true)
+        await withCheckedContinuation { continuation in
+            queue.async {
+                self.finishStopping()
+                continuation.resume()
+            }
+        }
+    }
+
+    private func finishStopping() {
+        saveEventId()
+        eventIdTimer?.cancel(); eventIdTimer = nil
+        watcher?.stop(); watcher = nil
+        timer?.cancel(); timer = nil
+        engine = nil
     }
 
     public func syncNow(confirmed: Bool = false) { queue.async { self.runIfNeeded(confirmed: confirmed) } }
@@ -247,12 +288,51 @@ public final class SyncService: @unchecked Sendable {
     }
 
     public func setConflictPolicy(_ policy: ConflictPolicy, completion: @escaping @Sendable (Error?) -> Void) {
-        configure(completion) { try $0.setMeta("conflictPolicy", policy.rawValue) }
+        queue.async {
+            guard let engine = self.engine else { completion(DBError(description: "服務尚未啟動")); return }
+            do {
+                try engine.store.setMeta("conflictPolicy", policy.rawValue)
+                self.snapshot.conflictPolicy = policy
+                self.publish()
+                self.watchedRoots = []
+                self.runIfNeeded(confirmed: false)
+                completion(nil)
+            } catch {
+                completion(error)
+            }
+        }
     }
 
     public func setExcludePresets(_ presets: Set<ExcludePreset>, completion: @escaping @Sendable (Error?) -> Void) {
-        configure(completion) { try $0.setMeta("excludePresets", presets.map(\.rawValue).sorted().joined(separator: ",")) }
-        queue.async { self.needFull = true }
+        queue.async {
+            guard let engine = self.engine else { completion(DBError(description: "服務尚未啟動")); return }
+            do {
+                try engine.store.setMeta("excludePresets", presets.map(\.rawValue).sorted().joined(separator: ","))
+                self.snapshot.excludePresets = presets
+                self.publish()
+                self.needFull = true
+                self.watchedRoots = []
+                self.runIfNeeded(confirmed: false)
+                completion(nil)
+            } catch {
+                completion(error)
+            }
+        }
+    }
+
+    public func setCloudSpaceSaving(_ enabled: Bool, completion: @escaping @Sendable (Error?) -> Void) {
+        queue.async {
+            guard let engine = self.engine else { completion(DBError(description: "服務尚未啟動")); return }
+            do {
+                try engine.store.setMeta("cloudSpaceSaving", enabled ? "1" : "0")
+                engine.options.cloudSpaceSaving = enabled
+                self.snapshot.cloudSpaceSaving = enabled
+                self.publish()
+                completion(nil)
+            } catch {
+                completion(error)
+            }
+        }
     }
 
     public func trialRun(completion: @escaping @Sendable (SyncReport?) -> Void) {
@@ -308,7 +388,7 @@ public final class SyncService: @unchecked Sendable {
     }
 
     private func runIfNeeded(confirmed: Bool, incremental: Bool = false) {
-        guard snapshot.phase != .paused, let engine else { return }
+        guard !shouldStop, snapshot.phase != .paused, let engine else { return }
         if running {
             rerun = true; rerunConfirmed = rerunConfirmed || confirmed
             if !incremental { rerunFull = true }
@@ -356,6 +436,9 @@ public final class SyncService: @unchecked Sendable {
             snapshot.confirmation = report.needsConfirmation.map { Confirmation(reason: $0, preview: report.preview) }
             try fillStatus(engine, cfgs)
             ensureWatching(cfgs.map(\.root))
+        } catch is ScanCancelled {
+            // Lifecycle operation (restore/import/quit) requested a clean stop. This is neither
+            // an endpoint failure nor a reason to retry the interrupted scan.
         } catch is SyncBusy {
             needFull = true
             writeLog("另一個同步正在進行（App 或指令列），5 秒後重試")
@@ -369,10 +452,12 @@ public final class SyncService: @unchecked Sendable {
         running = false
         snapshot.phase = snapshot.phase == .paused ? .paused : .idle
         publish()
-        if rerun {
+        if rerun && !shouldStop {
             let c = rerunConfirmed
             rerun = false; rerunConfirmed = false
             queue.async { self.runIfNeeded(confirmed: c, incremental: !(c || self.rerunFull)) }
+        } else if shouldStop {
+            rerun = false; rerunConfirmed = false; rerunFull = false
         }
     }
 
@@ -385,6 +470,7 @@ public final class SyncService: @unchecked Sendable {
         }
         snapshot.trackedFiles = try engine.store.liveConsensusCount()
         snapshot.conflictPolicy = ConflictPolicy(rawValue: try engine.store.meta("conflictPolicy") ?? "") ?? .keepBoth
+        snapshot.cloudSpaceSaving = (try engine.store.meta("cloudSpaceSaving") ?? "0") == "1"
         snapshot.excludePresets = IgnoreRules.parsePresets(try engine.store.meta("excludePresets"))
         snapshot.conflicts = try currentConflicts(engine, cfgs)
         let iso = ISO8601DateFormatter()
