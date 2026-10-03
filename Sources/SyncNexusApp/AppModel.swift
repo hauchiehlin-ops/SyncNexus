@@ -1,5 +1,6 @@
 import AppKit
 import ServiceManagement
+import Combine
 import SwiftUI
 import SyncCore
 import UserNotifications
@@ -36,7 +37,9 @@ enum Overall { case starting, ok, partial, attention, syncing, paused }
 
 @MainActor
 final class AppModel: ObservableObject {
+    /// What the views show: SyncCore's messages translated into the selected language. `snapshots` keeps the raw ones for logic.
     @Published var snap = SyncService.Snapshot.initial
+    private var languageObserver: AnyCancellable?
     @Published var launchAtLogin = false
     @Published var loginNote: String?
     @Published var section: MainSection = .overview
@@ -74,6 +77,10 @@ final class AppModel: ObservableObject {
     init() {
         registry = SyncGroupRegistry(baseAppSupportURL: Self.appSupport)
         groups = registry.allGroups()
+        languageObserver = L10n.shared.$currentLanguage.dropFirst().receive(on: DispatchQueue.main).sink { [weak self] _ in
+            guard let self else { return }
+            self.snap = Self.localized(self.snapshots[self.activeGroupId] ?? .initial)
+        }
         let initialGroup = groups.first?.id ?? "default"
         activeGroupId = initialGroup
 
@@ -117,13 +124,27 @@ final class AppModel: ObservableObject {
 
     // MARK: state
 
+    static func localized(_ s: SyncService.Snapshot) -> SyncService.Snapshot {
+        var o = s
+        o.error = s.error.map(CoreMessages.localize)
+        o.skipped = s.skipped.map(CoreMessages.localize)
+        if let c = s.confirmation { o.confirmation?.reason = CoreMessages.localize(c.reason); o.confirmation?.preview = c.preview.map(CoreMessages.localize) }
+        o.endpoints = s.endpoints.map { var e = $0; e.detail = CoreMessages.localize($0.detail); return e }
+        return o
+    }
+
+    /// The untranslated detail SyncCore reported for an endpoint (for logic that looks for keywords).
+    func rawDetail(_ endpointId: String) -> String {
+        snapshots[activeGroupId]?.endpoints.first { $0.id == endpointId }?.detail ?? ""
+    }
+
     private func apply(groupId: String, snapshot s: SyncService.Snapshot) {
         snapshots[groupId] = s
         if groupId == activeGroupId {
-            snap = s
+            snap = Self.localized(s)
             if let c = s.confirmation, c.reason != lastNotifiedConfirmation {
                 lastNotifiedConfirmation = c.reason
-                notify(loc("status_need_confirm"), c.reason)
+                notify(loc("status_need_confirm"), CoreMessages.localize(c.reason))
             } else if s.confirmation == nil { lastNotifiedConfirmation = nil }
             if s.conflicts.count > lastNotifiedConflicts {
                 let n = s.conflicts.count
@@ -207,7 +228,7 @@ final class AppModel: ObservableObject {
     func reviewConfirmation() {
         guard let c = snap.confirmation else { return }
         let alert = NSAlert()
-        alert.messageText = c.reason
+        alert.messageText = c.reason   // already localized (snap)
         let lines = c.preview.prefix(25).joined(separator: "\n")
         alert.informativeText = lines + (c.preview.count > 25 ? loc("model_and_more_items", c.preview.count - 25) : "")
         alert.addButton(withTitle: loc("model_btn_confirm_exec"))
@@ -221,7 +242,7 @@ final class AppModel: ObservableObject {
     func selectGroup(id: String) {
         guard activeGroupId != id, groups.contains(where: { $0.id == id }) else { return }
         activeGroupId = id
-        snap = snapshots[id] ?? .initial
+        snap = Self.localized(snapshots[id] ?? .initial)
         lastNotifiedConfirmation = snap.confirmation?.reason
         lastNotifiedConflicts = snap.conflicts.count
         loadVersions()
@@ -266,7 +287,7 @@ final class AppModel: ObservableObject {
             if activeGroupId == id {
                 selectGroup(id: groups.first?.id ?? "default")
             }
-            settingsMessage = loc("group_deleted_toast", group.name)
+            settingsMessage = loc("group_deleted_toast", DisplayNames.group(group))
         }
     }
 
@@ -302,7 +323,7 @@ final class AppModel: ObservableObject {
         groups = registry.allGroups()
         for g in groups { startService(for: g) }
         if !groups.contains(where: { $0.id == activeGroupId }) { activeGroupId = groups.first?.id ?? "default" }
-        snap = snapshots[activeGroupId] ?? .initial
+        snap = Self.localized(snapshots[activeGroupId] ?? .initial)
         settingsMessage = message
     }
 
@@ -326,7 +347,7 @@ final class AppModel: ObservableObject {
         groups = registry.allGroups()
         for g in groups { startService(for: g) }
         if !groups.contains(where: { $0.id == activeGroupId }) { activeGroupId = groups.first?.id ?? "default" }
-        snap = snapshots[activeGroupId] ?? .initial
+        snap = Self.localized(snapshots[activeGroupId] ?? .initial)
     }
 
     func endpointCount(for groupId: String) -> Int {
@@ -356,11 +377,12 @@ final class AppModel: ObservableObject {
 
     func validate(path: String, name: String, replacing: String? = nil, portable: Bool = false) -> [ValidationIssue] {
         var issues = EndpointValidator.validate(path: path, name: name, replacing: replacing, existing: existingConfigs, portableNames: portable)
+            .map { ValidationIssue(isError: $0.isError, message: CoreMessages.localize($0.message)) }
         let resPath = EndpointValidator.resolved(path)
         for (gid, s) in snapshots where gid != activeGroupId {
             if let ep = s.endpoints.first(where: { EndpointValidator.resolved($0.root) == resPath }) {
-                let gName = groups.first(where: { $0.id == gid })?.name ?? gid
-                issues.append(ValidationIssue(isError: true, message: loc("folders_used_in_other_group", gName, ep.id)))
+                let gName = groups.first(where: { $0.id == gid }).map(DisplayNames.group) ?? gid
+                issues.append(ValidationIssue(isError: true, message: loc("folders_used_in_other_group", gName, DisplayNames.endpoint(ep.id))))
             }
         }
         return issues
@@ -369,19 +391,19 @@ final class AppModel: ObservableObject {
     func addEndpoint(name: String, path: String, removable: Bool, portable: Bool, archive: Bool = false, bookmarkData: Data? = nil) {
         let cfg = EndpointConfig(id: name.trimmingCharacters(in: .whitespaces), root: path, removable: removable, portableNames: portable, role: archive ? .archive : .mirror, bookmarkData: bookmarkData)
         service.addEndpoint(cfg) { [weak self] err in
-            Task { @MainActor in self?.settingsMessage = err.map { loc("msg_add_failed", "\($0)") } ?? loc("msg_endpoint_added", cfg.id) }
+            Task { @MainActor in self?.settingsMessage = err.map { loc("msg_add_failed", CoreMessages.localize($0)) } ?? loc("msg_endpoint_added", cfg.id) }
         }
     }
 
     func relink(id: String, to path: String, bookmarkData: Data? = nil) {
         service.relinkEndpoint(id: id, root: path, bookmarkData: bookmarkData) { [weak self] err in
-            Task { @MainActor in self?.settingsMessage = err.map { loc("msg_relink_failed", "\($0)") } ?? loc("msg_relinked", id) }
+            Task { @MainActor in self?.settingsMessage = err.map { loc("msg_relink_failed", CoreMessages.localize($0)) } ?? loc("msg_relinked", id) }
         }
     }
 
     func remove(id: String) {
         service.removeEndpoint(id: id) { [weak self] err in
-            Task { @MainActor in self?.settingsMessage = err.map { loc("msg_remove_failed", "\($0)") } ?? loc("msg_removed", id) }
+            Task { @MainActor in self?.settingsMessage = err.map { loc("msg_remove_failed", CoreMessages.localize($0)) } ?? loc("msg_removed", id) }
         }
     }
 
@@ -397,13 +419,13 @@ final class AppModel: ObservableObject {
 
     func setRetention(days: Int) {
         service.setVersionsRetention(days: days) { [weak self] err in
-            Task { @MainActor in self?.settingsMessage = err.map { loc("msg_add_failed", "\($0)") } ?? loc("msg_retention_updated") }
+            Task { @MainActor in self?.settingsMessage = err.map { loc("msg_add_failed", CoreMessages.localize($0)) } ?? loc("msg_retention_updated") }
         }
     }
 
     func setArchiveRetention(days: Int) {
         service.setArchiveRetention(days: days) { [weak self] err in
-            Task { @MainActor in self?.settingsMessage = err.map { loc("msg_add_failed", "\($0)") } ?? loc("msg_archive_retention_updated") }
+            Task { @MainActor in self?.settingsMessage = err.map { loc("msg_add_failed", CoreMessages.localize($0)) } ?? loc("msg_archive_retention_updated") }
         }
     }
 
@@ -432,19 +454,19 @@ final class AppModel: ObservableObject {
     func repair(_ issue: IntegrityIssue, action: IntegrityAction) {
         service.resolveIntegrity(issue, action: action) { [weak self] err in
             Task { @MainActor in
-                self?.settingsMessage = err.map { loc("msg_add_failed", "\($0)") } ?? (action == .restoreFromOthers ? loc("msg_repaired_from_others") : loc("msg_accepted_current"))
+                self?.settingsMessage = err.map { loc("msg_add_failed", CoreMessages.localize($0)) } ?? (action == .restoreFromOthers ? loc("msg_repaired_from_others") : loc("msg_accepted_current"))
             }
         }
     }
 
     /// How many cloud files of this folder are still being read in the background (iCloud / Drive placeholders).
-    func pendingCloud(_ id: String) -> Int { snap.skipped.filter { $0.hasPrefix("[\(id)]") && $0.contains("讀取雲端") }.count }
+    func pendingCloud(_ id: String) -> Int { (snapshots[activeGroupId]?.skipped ?? []).filter { $0.hasPrefix("[\(id)]") && $0.contains("讀取雲端") }.count }
 
     func setExclude(_ preset: ExcludePreset, on: Bool) {
         var p = snap.excludePresets
         if on { p.insert(preset) } else { p.remove(preset) }
         service.setExcludePresets(p) { [weak self] err in
-            Task { @MainActor in self?.settingsMessage = err.map { loc("msg_add_failed", "\($0)") } ?? loc("msg_excludes_updated") }
+            Task { @MainActor in self?.settingsMessage = err.map { loc("msg_add_failed", CoreMessages.localize($0)) } ?? loc("msg_excludes_updated") }
         }
     }
 
@@ -456,14 +478,14 @@ final class AppModel: ObservableObject {
 
     func setPolicy(_ p: ConflictPolicy) {
         service.setConflictPolicy(p) { [weak self] err in
-            Task { @MainActor in self?.settingsMessage = err.map { loc("msg_add_failed", "\($0)") } ?? loc("msg_conflict_policy_updated") }
+            Task { @MainActor in self?.settingsMessage = err.map { loc("msg_add_failed", CoreMessages.localize($0)) } ?? loc("msg_conflict_policy_updated") }
         }
     }
 
     func resolve(_ c: SyncService.ConflictItem, keep: ConflictChoice) {
         service.resolveConflict(id: c.id, keep: keep) { [weak self] err in
             Task { @MainActor in
-                self?.settingsMessage = err.map { loc("msg_add_failed", "\($0)") }
+                self?.settingsMessage = err.map { loc("msg_add_failed", CoreMessages.localize($0)) }
                     ?? (keep == .main ? loc("msg_conflict_kept_main") : loc("msg_conflict_used_extra"))
             }
         }
@@ -484,7 +506,7 @@ final class AppModel: ObservableObject {
     func restore(_ item: VersionItem) {
         service.restoreVersion(item) { [weak self] err in
             Task { @MainActor in
-                self?.settingsMessage = err.map { loc("msg_restore_failed", "\($0)") } ?? loc("msg_version_restored", (item.path as NSString).lastPathComponent)
+                self?.settingsMessage = err.map { loc("msg_restore_failed", CoreMessages.localize($0)) } ?? loc("msg_version_restored", (item.path as NSString).lastPathComponent)
                 self?.loadVersions()
             }
         }

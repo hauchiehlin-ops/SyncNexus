@@ -88,7 +88,7 @@ public enum EndpointValidator {
             warn("若已開啟 iCloud「桌面與文件」同步，這個資料夾也會被 iCloud 自己同步，可能造成雙重同步")
         }
         if d.suggestPortableNames && !portableNames {
-            warn("這顆碟是 \(d.format ?? "FAT 系列") 格式，建議開啟「檔名須相容 exFAT / Windows」")
+            warn("這顆碟是 \(d.format ?? "FAT") 格式，建議開啟「檔名須相容 exFAT / Windows」")
         }
         return out
     }

@@ -45,7 +45,7 @@ struct FoldersSection: View {
         if let g = model.activeGroup {
             HStack(spacing: 8) {
                 Image(systemName: g.icon).font(.system(size: 14)).foregroundStyle(Color.accentColor)
-                Text(loc("group_active_banner", g.name, model.snap.endpoints.count))
+                Text(loc("group_active_banner", DisplayNames.group(g), model.snap.endpoints.count))
                     .font(.system(size: 13, weight: .semibold))
                 Spacer()
                 Button(action: { editingGroup = g }) {
@@ -79,7 +79,7 @@ struct FoldersSection: View {
         let d = EndpointValidator.describe(path: picked.path)
         let base: String
         switch d.kind {
-        case .local: base = loc("kind_local")
+        case .local: base = "Local"
         case .icloud: base = "iCloud"
         case .googleDrive: base = "GoogleDrive"
         case .external: base = d.volumeName ?? loc("kind_external")
@@ -151,7 +151,7 @@ struct SyncGroupTabBar: View {
                             HStack(spacing: 6) {
                                 Image(systemName: group.icon)
                                     .font(.system(size: 13))
-                                Text(group.name)
+                                Text(DisplayNames.group(group))
                                     .font(.system(size: 13, weight: isActive ? .bold : .medium))
                                 Text("\(epCount)")
                                     .font(.system(size: 10, weight: .semibold))
@@ -189,7 +189,7 @@ struct SyncGroupTabBar: View {
 
     private func confirmDelete(group: SyncGroup) {
         let alert = NSAlert()
-        alert.messageText = loc("group_delete_confirm_title", group.name)
+        alert.messageText = loc("group_delete_confirm_title", DisplayNames.group(group))
         alert.informativeText = loc("group_delete_confirm_desc")
         alert.addButton(withTitle: loc("group_delete_button"))
         alert.addButton(withTitle: loc("cancel"))
@@ -339,7 +339,7 @@ struct EditGroupSheet: View {
 
     private func confirmDelete() {
         let alert = NSAlert()
-        alert.messageText = loc("group_delete_confirm_title", group.name)
+        alert.messageText = loc("group_delete_confirm_title", DisplayNames.group(group))
         alert.informativeText = loc("group_delete_confirm_desc")
         alert.addButton(withTitle: loc("group_delete_button"))
         alert.addButton(withTitle: loc("cancel"))
@@ -362,7 +362,7 @@ struct FolderRow: View {
                 Image(systemName: kind.symbol).font(.system(size: 18)).frame(width: 36, height: 36).background(Theme.tile, in: RoundedRectangle(cornerRadius: 10))
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
-                        Text(ep.id).font(.system(size: 15, weight: .bold))
+                        Text(DisplayNames.endpoint(ep.id)).font(.system(size: 15, weight: .bold))
                         Chip(text: ep.online ? loc("online") : loc("offline"), kind: ep.online ? .ok : .warn)
                         if ep.role == .archive { Chip(text: loc("archive_badge"), kind: .neutral) }
                         if ep.removable { Chip(text: loc("removable_badge"), kind: .neutral) }
@@ -372,7 +372,7 @@ struct FolderRow: View {
                     if !ep.online {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(ep.detail).font(.system(size: 12)).foregroundStyle(Theme.warn).fixedSize(horizontal: false, vertical: true)
-                            if ep.detail.contains("標記檔") || ep.detail.contains("UUID") || ep.detail.contains("marker") {
+                            if model.rawDetail(ep.id).contains("標記檔") || model.rawDetail(ep.id).contains("UUID") {
                                 Text(loc("folder_marker_help"))
                                     .font(.system(size: 11))
                                     .foregroundStyle(.secondary)
@@ -391,11 +391,11 @@ struct FolderRow: View {
     }
 
     private func change() {
-        guard let picked = pickFolder(message: loc("folders_change_prompt", ep.id)) else { return }
+        guard let picked = pickFolder(message: loc("folders_change_prompt", DisplayNames.endpoint(ep.id))) else { return }
         let issues = model.validate(path: picked.path, name: ep.id, replacing: ep.id, portable: ep.portableNames)
         if let e = issues.first(where: \.isError) { let a = NSAlert(); a.messageText = loc("folders_cannot_use_title"); a.informativeText = e.message; a.runModal(); return }
         let a = NSAlert()
-        a.messageText = loc("folders_relink_title", ep.id)
+        a.messageText = loc("folders_relink_title", DisplayNames.endpoint(ep.id))
         a.informativeText = loc("folders_relink_desc") + issues.map(\.message).joined(separator: "\n")
         a.addButton(withTitle: loc("folders_btn_relink")); a.addButton(withTitle: loc("cancel"))
         if a.runModal() == .alertFirstButtonReturn { model.relink(id: ep.id, to: picked.path, bookmarkData: picked.bookmarkData) }
@@ -403,7 +403,7 @@ struct FolderRow: View {
 
     private func remove() {
         let a = NSAlert()
-        a.messageText = loc("folders_remove_title", ep.id)
+        a.messageText = loc("folders_remove_title", DisplayNames.endpoint(ep.id))
         a.informativeText = loc("folders_remove_desc")
         a.addButton(withTitle: loc("remove")); a.addButton(withTitle: loc("cancel"))
         if a.runModal() == .alertFirstButtonReturn { model.remove(id: ep.id) }

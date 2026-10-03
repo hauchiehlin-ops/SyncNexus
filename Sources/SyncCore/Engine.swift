@@ -417,7 +417,6 @@ public final class Engine {
                 let row = ctx.rows[cfg.id]![path]
                 let cur = state(of: l)
                 let isDir = (cur ?? row?.state ?? cons?.state)?.kind == .directory
-                let what = isDir ? "資料夾 " : ""
                 let d = effective(Reconciler.decide(PathObservation(snapshot: row?.state, current: cur, seenRev: row?.seenRev ?? 0), consensus: cons), cfg, cons)
                 switch d {
                 case .noop, .markSeen: continue
@@ -425,13 +424,13 @@ public final class Engine {
                     if cur == nil {
                         let others = ctx.online.filter { $0.id != cfg.id && ctx.files[$0.id]![path] != nil }.count
                         if !isDir { deleted.insert(path); deletedAt[cfg.id, default: 0] += 1 }
-                        lines.append("[\(cfg.id)] 刪除\(what)\(path)（將移除其他 \(others) 端的副本）")
+                        lines.append(isDir ? "[\(cfg.id)] 刪除資料夾 \(path)（將移除其他 \(others) 端的副本）" : "[\(cfg.id)] 刪除\(path)（將移除其他 \(others) 端的副本）")
                     } else {
-                        lines.append("[\(cfg.id)] 新增/修改\(what)\(path) → 其他端點")
+                        lines.append(isDir ? "[\(cfg.id)] 新增/修改資料夾 \(path) → 其他端點" : "[\(cfg.id)] 新增/修改\(path) → 其他端點")
                     }
                 case .applyConsensus:
-                    if cons?.state == nil { if cur != nil { if !isDir { deleted.insert(path) }; lines.append("[\(cfg.id)] 移到垃圾桶 \(what)\(path)") } }
-                    else { lines.append("[\(cfg.id)] 取得\(what)\(path)") }
+                    if cons?.state == nil { if cur != nil { if !isDir { deleted.insert(path) }; lines.append(isDir ? "[\(cfg.id)] 移到垃圾桶 資料夾 \(path)" : "[\(cfg.id)] 移到垃圾桶 \(path)") } }
+                    else { lines.append(isDir ? "[\(cfg.id)] 取得資料夾 \(path)" : "[\(cfg.id)] 取得\(path)") }
                 case .conflict:
                     lines.append("[\(cfg.id)] 衝突 \(path)")
                 }
@@ -665,7 +664,7 @@ public final class Engine {
             try store.setConsensus(path, state: cur, rev: rev)
             try store.setRow(cfg.id, path, state: cur, mtimeNs: file?.mtimeNs ?? 0, seenRev: rev)
             report.work += 1
-            note(&report, "[\(cfg.id)] \(cur == nil ? "偵測到刪除" : "偵測到變更") \(path)")
+            note(&report, cur == nil ? "[\(cfg.id)] 偵測到刪除 \(path)" : "[\(cfg.id)] 偵測到變更 \(path)")
         case .applyConsensus:
             try applyConsensus(ctx, cfg, path, cons, file, &report)
         case .conflict:

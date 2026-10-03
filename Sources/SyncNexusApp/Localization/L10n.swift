@@ -66,7 +66,9 @@ public final class L10n: ObservableObject {
 }
 
 // Global helper function for UI
-public func loc(_ key: String, _ args: CVarArg...) -> String {
+public func loc(_ key: String, _ args: CVarArg...) -> String { loc(key, arguments: args) }
+
+public func loc(_ key: String, arguments args: [CVarArg]) -> String {
     let lang = L10n.shared.currentLanguage
     let template = StringsTable[key]?[lang] ?? StringsTable[key]?[.en] ?? key
     if args.isEmpty {

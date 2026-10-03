@@ -220,7 +220,7 @@ struct OverviewSection: View {
                             Button(action: { model.selectGroup(id: group.id) }) {
                                 HStack(spacing: 4) {
                                     Image(systemName: group.icon).font(.system(size: 11))
-                                    Text(group.name).font(.system(size: 12, weight: isActive ? .bold : .regular))
+                                    Text(DisplayNames.group(group)).font(.system(size: 12, weight: isActive ? .bold : .regular))
                                 }
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 4)
@@ -312,7 +312,7 @@ struct EndpointCard: View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     Image(systemName: kind.symbol).font(.system(size: 17))
-                    Text(ep.id).font(.system(size: 15, weight: .bold))
+                    Text(DisplayNames.endpoint(ep.id)).font(.system(size: 15, weight: .bold))
                     Spacer()
                     Chip(text: ep.online ? loc("online") : loc("offline"), kind: ep.online ? .ok : .warn)
                 }
@@ -356,7 +356,7 @@ struct ConflictsSection: View {
                                 Image(systemName: "doc.on.doc").foregroundStyle(.secondary)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text((h.path as NSString).lastPathComponent).font(.system(size: 14, weight: .semibold))
-                                    Text(loc("conflicts_duplicate_differs_from", (h.basePath as NSString).lastPathComponent, h.endpoint)).font(.system(size: 12)).foregroundStyle(.secondary)
+                                    Text(loc("conflicts_duplicate_differs_from", (h.basePath as NSString).lastPathComponent, DisplayNames.endpoint(h.endpoint))).font(.system(size: 12)).foregroundStyle(.secondary)
                                 }
                                 Spacer()
                                 Button(loc("btn_reveal_in_finder")) { model.revealInEndpoint(h.endpoint, h.path) }.buttonStyle(QuietButton(kind: .plain))
@@ -381,16 +381,16 @@ struct ConflictCard: View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
                 Text((c.path as NSString).lastPathComponent).font(.system(size: 22, weight: .bold)).tracking(-0.3)
-                Text(loc("conflicts_happened_on", c.path, c.endpoint)).font(.system(size: 13)).foregroundStyle(.secondary)
+                Text(loc("conflicts_happened_on", c.path, DisplayNames.endpoint(c.endpoint))).font(.system(size: 13)).foregroundStyle(.secondary)
             }
             HStack(alignment: .top, spacing: 16) {
                 version(title: loc("conflicts_current_version"), note: loc("conflicts_consistent_note"), size: c.mainSize, modified: c.mainModified, newer: !extraNewer,
                         path: c.mainPath, keep: loc("conflicts_keep_this"), primary: true) { model.resolve(c, keep: .main) }
-                version(title: loc("conflicts_version_on_endpoint", c.endpoint), note: loc("conflicts_local_only_note"), size: c.extraSize, modified: c.extraModified, newer: extraNewer,
+                version(title: loc("conflicts_version_on_endpoint", DisplayNames.endpoint(c.endpoint)), note: loc("conflicts_local_only_note"), size: c.extraSize, modified: c.extraModified, newer: extraNewer,
                         path: c.extraPath, keep: loc("conflicts_use_this"), primary: false) { model.resolve(c, keep: .conflict) }
             }
             if !c.endpointOnline {
-                Label(loc("conflicts_endpoint_offline", c.endpoint), systemImage: "externaldrive.badge.xmark").font(.system(size: 13)).foregroundStyle(Theme.warn)
+                Label(loc("conflicts_endpoint_offline", DisplayNames.endpoint(c.endpoint)), systemImage: "externaldrive.badge.xmark").font(.system(size: 13)).foregroundStyle(Theme.warn)
             }
         }
         .padding(18)
@@ -489,7 +489,7 @@ struct VersionsSection: View {
                             Image(systemName: "doc").frame(width: 24).foregroundStyle(.secondary)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text((item.path as NSString).lastPathComponent).font(.system(size: 14, weight: .semibold)).lineLimit(1)
-                                Text("\(item.endpoint)　· \(item.path)").font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                                Text("\(DisplayNames.endpoint(item.endpoint))　· \(item.path)").font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
                             }
                             Spacer()
                             Text("\(bytes(item.size))　\(item.stamp.formatted(date: .abbreviated, time: .shortened))").font(.system(size: 12)).foregroundStyle(.secondary).monospacedDigit()
@@ -528,7 +528,7 @@ struct VerificationSection: View {
                     Label(loc("verification_issue_title"), systemImage: "exclamationmark.triangle").font(.system(size: 14, weight: .bold)).foregroundStyle(Theme.warn)
                     ForEach(model.snap.integrityIssues) { issue in
                         VStack(alignment: .leading, spacing: 8) {
-                            Text(loc("verification_issue_location", issue.path, issue.endpoint)).font(.system(size: 13, weight: .semibold)).textSelection(.enabled)
+                            Text(loc("verification_issue_location", issue.path, DisplayNames.endpoint(issue.endpoint))).font(.system(size: 13, weight: .semibold)).textSelection(.enabled)
                             HStack {
                                 Button(loc("verification_btn_repair_others")) { model.repair(issue, action: .restoreFromOthers) }.buttonStyle(QuietButton(kind: .primary, compact: true))
                                 Button(loc("verification_btn_accept_current")) { model.repair(issue, action: .acceptCurrent) }.buttonStyle(QuietButton(kind: .secondary, compact: true))
@@ -690,7 +690,7 @@ struct DiffPreviewSection: View {
                             ForEach(Array(report.preview.enumerated()), id: \.offset) { _, line in
                                 HStack(alignment: .top, spacing: 8) {
                                     diffIcon(for: line)
-                                    Text(line).font(.system(size: 13, design: .monospaced))
+                                    Text(CoreMessages.localize(line)).font(.system(size: 13, design: .monospaced))
                                 }
                             }
                         }
