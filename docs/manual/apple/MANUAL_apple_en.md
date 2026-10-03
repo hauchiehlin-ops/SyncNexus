@@ -1,7 +1,7 @@
 # SyncNexus User Operation Manual — Apple (macOS) Complete Guide
 
 > **Applicable Platform**: macOS 14.0 (Sonoma) and later  
-> **Current Version**: 1.0.12 (build 20)  
+> **Current Version**: 1.2.0 (build 22)  
 > **Core Architecture**: Local-First, Zero-Cloud Server Binding, Absolute Data Protection (Trash-First & History-Protected)
 
 ---
@@ -35,7 +35,13 @@ At the very top of the main window, the global navigation header is arranged as 
 ### 1.1 Purpose and Objectives
 The **Overview** is SyncNexus's **global health dashboard**. Without having to inspect individual files, you can see system health at a glance, monitor total tracked files, check the last deep verification timestamp, view history capacity, and verify storage endpoint statuses.
 
-### 1.2 Buttons and Controls
+### 1.2 【Zero-Foundation Beginner Tutorial: Step-by-Step Instructions】
+- **【Step 1: Check Header Quick Bar】**: The top-right header features the Language Picker, 'User Manual 📖', and 'Privacy 🛡️' buttons. Click anytime to switch between 6 languages or open this in-app manual without browser redirects.
+- **【Step 2: Check Global Health Badge】**: Glance at the top-left badge: Green "All Normal" means all systems are healthy; Yellow "Warning" alerts you to offline folders, pending conflicts, or anomalous events.
+- **【Step 3: Handle Mass Deletion Safeguard】**: If >25 files or >25% of files are deleted at once, a safety banner pops up below the header and halts sync; click "Review and Confirm" on the right to examine the file list and choose "Confirm Deletion" or "Cancel & Restore".
+- **【Step 4: Check Endpoints & LAN P2P】**: The center grid shows online/offline status for all folders in the active group; nearby Macs or Android devices on the same Wi-Fi are automatically discovered and displayed as "Online" P2P peers.
+
+### 1.3 Controls, UI Locations & Safety Safeguards
 
 | Control / Element | UI Location | Purpose & Objective | How to Operate | Expected Outcome & Safeguards |
 | :--- | :--- | :--- | :--- | :--- |
@@ -47,6 +53,9 @@ The **Overview** is SyncNexus's **global health dashboard**. Without having to i
 | **Endpoint Status Cards** | Central grid area | Shows status, directory path, and filesystem attributes of each folder | View card info | Shows green "Online" or yellow "Offline" chip; external drives display "Removable / ExFAT". |
 | **LAN P2P Direct Card** | Bottom network area | Automatically discovers peer Macs or Android devices running SyncNexus on the same Wi-Fi | Continuous discovery | Displays discovered peer device name with green "Online" chip for point-to-point direct syncing. |
 
+### 1.4 Best Practices
+- As long as the top badge shows green "All Normal", all folders are in full sync. You never need to click any manual buttons during daily work.
+
 ---
 
 ## Chapter 2: Diff Preview
@@ -56,7 +65,13 @@ The **Overview** is SyncNexus's **global health dashboard**. Without having to i
 ### 2.1 Purpose and Objectives
 Before committing changes to disk, **Diff Preview** provides a **Dry-Run Simulation**. For developers and power users managing critical assets, this lets you inspect upcoming copies, renames, and deletions with zero risk.
 
-### 2.2 Buttons and Controls
+### 2.2 【Zero-Foundation Beginner Tutorial: Step-by-Step Instructions】
+- **【Step 1: Click Run Trial Simulation】**: Click the blue "Run Trial Simulation" button on the top-left card. The button changes to "Simulating..." while calculating all differences in memory without altering any disk files.
+- **【Step 2: Create APFS Snapshot (Optional)】**: Before massive operations, click "APFS Snapshot Safeguard" to create a macOS restore point; if sandboxed, a top floating Toast HUD confirms that Trash and Version archives remain fully active as backup shields.
+- **【Step 3: Review Change List & Symbols】**: A tree appears below: Green `+` for additions/copies; Blue `➔` for smart renames; Red `−` for deletions (marked Trash-first). If no differences exist, a green checkmark shows "All endpoints are identical".
+- **【Step 4: Click Confirm and Sync】**: After inspecting the operations, click the blue "Confirm and Sync" button at the bottom right. Changes are written across all endpoints, and a top Toast HUD announces completion.
+
+### 2.3 Controls, UI Locations & Safety Safeguards
 
 | Button / Control | UI Location | Purpose & Objective | How to Operate | Expected Outcome & Safeguards |
 | :--- | :--- | :--- | :--- | :--- |
@@ -71,6 +86,9 @@ Before committing changes to disk, **Diff Preview** provides a **Dry-Run Simulat
 > - 🔵 **`➔` (Blue)**: File scheduled to be renamed locally (eliminating redundant re-downloads).
 > - 🔴 **`−` (Red)**: File scheduled for deletion (**Guaranteed: Moved to macOS Trash first, never permanently wiped**).
 
+### 2.4 Best Practices
+- Before large project cleanups or bulk deletions, click "Run Trial Simulation" to preview the change list and verify every operation with peace of mind.
+
 ---
 
 ## Chapter 3: Folders
@@ -81,35 +99,35 @@ Before committing changes to disk, **Diff Preview** provides a **Dry-Run Simulat
 The **Folders** tab manages synchronization targets. SyncNexus adopts an industry-leading **Folder Groups architecture model**:
 - **Multi-Task Independent Sync**: You can create multiple independent Sync Groups simultaneously (e.g., "Work Projects", "Family Photos", "Personal Finance").
 - **Full Pipeline & Schedule Isolation**: Each group maintains its own set of 2~N endpoint folders, its own SQLite consensus database, file monitoring pipeline, and SyncLock. Group A syncing a 10 GB archive will never block or slow down Group B syncing small documents!
-- **Group Management Walkthrough**:
-  1. **Create Group**: Click "**+ New Group**" on the top group bar, choose a name and custom icon (e.g. briefcase or camera), and click create.
-  2. **Switch Groups**: Click on group chips to instantly view and manage endpoints belonging to that specific profile.
-  3. **Edit & Delete**: Right-click or click the edit icon on a group chip to rename, update icon, or safely remove the group (actual files on disk remain untouched).
 
-### 3.2 Grounded Guide to Adding Storage Endpoints
+### 3.2 【Zero-Foundation Beginner Tutorial: Step-by-Step Instructions】
+- **【Step 1: Create & Switch Sync Groups】**:
+  1. Click "**+ New Group**" on the top group bar, enter a name (e.g. Work Projects, Family Photos) and pick an icon, then click create.
+  2. Click on group chips to instantly view and manage endpoints belonging to that specific profile.
+  3. Click "**✎ Edit Sync Group**" to rename, update icon, or safely remove the group (actual files on disk remain untouched).
+- **【Step 2: Click Add Folder...】**: Click the blue "**Add Folder...**" button at the bottom of the page to open the Finder selection dialog (at least 2 folders required per group to establish a sync mesh).
+- **【Step 3: Pick from 4 Storage Locations】**:
+  1. **Local Mac Directory**: Open Finder ➔ click "Documents" or user folder in sidebar ➔ select target folder.
+  2. **iCloud Drive**: Open Finder ➔ click "iCloud Drive" in sidebar ➔ select target folder. SyncNexus automatically handles cloud placeholders to ensure local hydration.
+  3. **Google Drive**: Open Finder ➔ click "Google Drive" ➔ "My Drive" ➔ select target folder.
+  4. **External USB Flash / Portable Drive**: Plug in USB drive ➔ Open Finder ➔ click drive under "Locations" ➔ select folder (**Formatting as ExFAT is strongly recommended**).
+- **【Step 4: Relink or Remove】**: If moved, click "**Change Folder...**" on the card to update path; click "**Remove...**" to unbind (unlinking never deletes physical files).
 
-Click "**Add Folder...**" at the bottom of the page and select at least 2 directories you wish to keep in sync:
+### 3.3 Controls, UI Locations & Safety Safeguards
 
-1. **Local Mac Directory**:
-   - Open Finder, click "Documents" or your home folder on the left sidebar, and choose your folder.
-2. **iCloud Drive**:
-   - Open Finder, click "iCloud Drive" on the left sidebar, and select your target directory. SyncNexus automatically handles cloud placeholders to ensure local hydration.
-3. **Google Drive**:
-   - Open Finder, click "Google Drive" on the left sidebar, navigate to "My Drive", and pick your target directory.
-4. **External USB Flash / Portable Drive**:
-   - Plug your USB disk into your Mac, open Finder, click the disk name under "Locations" on the left sidebar, and pick your directory.
-   - **Recommended Format**: Format the drive as **ExFAT**. SyncNexus automatically activates "ExFAT / Windows compatible filename" filters to guarantee cross-platform compatibility!
-
-### 3.3 Buttons and Marker Safeguards
-
-| Button / Control | UI Location | Purpose & Objective | How to Operate | Expected Outcome & Safeguards |
+| Control / Element | UI Location | Purpose & Objective | How to Operate | Expected Outcome & Safeguards |
 | :--- | :--- | :--- | :--- | :--- |
-| **Add Folder...** | Bottom primary blue button | Authorizes and adds a new folder into the mesh sync network | Click and select directory in Finder | Writes unique `.syncnexus-endpoint` UUID marker and establishes App Sandbox security bookmark. |
-| **Change Folder...** | First button on each endpoint row | Re-links directory if moved or remounted | Click and select new path | Validates marker file and resumes syncing; alerts if invalid path. |
-| **Remove...** | Second button on each endpoint row | Safely unbinds folder from sync network | Click and confirm in dialog | Detaches folder from sync engine; **never deletes your physical files**. |
-| **Marker Mismatch Guard** | Endpoint card status area | Prevents data overwrite if a different drive is plugged into the same mount path | Automatic verification | Displays "Marker does not match endpoint... stopped, no changes propagated" (see below), isolating the endpoint safely! |
+| **+ New Group** | Top Sync Groups bar | Creates a new independent synchronization group | Click and enter name & icon | New group chip appears; automatically switches to empty state. |
+| **✎ Edit Sync Group** | Right side of active group info | Renames, updates icon, or deletes group | Click to open edit sheet | Supports rename and icon change; deletion unlinks without touching physical files. |
+| **Add Folder...** | Bottom of folder list (Blue button) | Authorizes and adds a directory to sync mesh | Click and select directory in Finder | Writes unique `.syncnexus-endpoint` UUID marker and creates App Sandbox bookmark. |
+| **Change Folder...** | Right side of each endpoint card | Relinks path if folder moved or remounted | Click and select new path | Verifies marker and restores connection automatically. |
+| **Remove...** | Right side of each endpoint card | Unbinds folder from active group | Click and confirm dialog | Unbinds folder from sync, **never deletes physical files**. |
+| **Marker Safeguard** | Endpoint card status area | Protects against wrong USB drive insertions | Continuous automatic validation | If wrong drive is plugged in, shows "Marker does not match, stopped propagating" (see below), isolating automatically! |
 
-![Marker Guard Alert](../assets/03_folders_offline_marker.png)
+![Marker Safeguard Alert](../assets/03_folders_offline_marker.png)
+
+### 3.4 Best Practices
+- Formatting USB drives as ExFAT enables SyncNexus's automatic portable filename filters, guaranteeing flawless cross-platform sync across Mac and Windows.
 
 ---
 
@@ -118,38 +136,57 @@ Click "**Add Folder...**" at the bottom of the page and select at least 2 direct
 ![Conflicts Screen](../assets/04_conflicts.png)
 
 ### 4.1 Purpose and Objectives
-When a file is modified independently on two offline endpoints (e.g. Mac edited line 5 while Windows edited line 10), typical tools blindly overwrite one copy. SyncNexus strictly adheres to the **"Zero-Overwrite" Rule**: conflicting versions are preserved as `Filename (conflict ...)`, gathered here for easy side-by-side arbitration.
+When a file is modified independently on two offline endpoints, SyncNexus enforces a strict **Zero-Overwrite policy**. Conflicting versions are preserved as `Filename (conflict ...)`, gathered here for side-by-side comparison and resolution.
 
-### 4.2 Buttons and Dual-Version Resolution
+### 4.2 【Zero-Foundation Beginner Tutorial: Step-by-Step Instructions】
+- **【Step 1: Check Red Conflict Badge】**: When concurrent edits occur offline, a red count badge appears on the sidebar "Conflicts" icon. Click to open the conflict resolver.
+- **【Step 2: Inspect Dual-Column Cards】**: The view presents side-by-side cards: the left card shows the "Current Version", and the right card shows the "Endpoint Version" (with a green "Newer" badge), detailing sizes, modified timestamps, and folder sources.
+- **【Step 3: Reveal in Finder for Content Diff】**: To inspect line-by-line differences, click "Reveal in Finder" in either card to highlight the files in Finder and compare them in your favorite editor.
+- **【Step 4: Choose Resolution Action】**:
+  - Click left "**Keep This Version**": Keeps the primary file, pushes it to all endpoints, and archives the conflict copy.
+  - Click right "**Use This Version**": Promotes the conflict copy to official primary file, backing up previous primary to Versions.
+  - The red badge clears to 0 and all endpoints align cleanly.
 
-Each conflict item is presented as a side-by-side dual-card:
+### 4.3 Controls, UI Locations & Safety Safeguards
 
 | Button / Control | UI Location | Purpose & Objective | How to Operate | Expected Outcome & Safeguards |
 | :--- | :--- | :--- | :--- | :--- |
-| **Keep This Version** | Left card ("Current Version") bottom | Keeps the current primary file as canonical | Click button | Primary file stays intact and propagates to other endpoints; conflict file is safely archived. |
-| **Use This Version** | Right card ("Conflict Version" marked with green "Newer" badge) | Overwrites primary with the conflict copy | Click button | Conflict copy becomes the canonical file; previous primary is backed up into the Versions archive. |
-| **Reveal in Finder** | Available on both cards | Directly navigates to the physical file in macOS Finder | Click button | Automatically opens Finder and highlights the file, enabling you to inspect contents in any text/diff editor. |
-| **Zero-Conflict State** | Center when no conflicts | Confirms all endpoints are cleanly aligned | Read-only | Shows green checkmark with "No pending conflicts, all files identical". |
+| **Keep This Version** | Bottom of left "Current Version" card | Resolves conflict by keeping current primary file | Click button | Primary file stays canonical and propagates to other endpoints; conflict copy is safely archived. |
+| **Use This Version** | Bottom of right "Endpoint Version" card (Green "Newer" tag) | Resolves conflict by adopting incoming version | Click button | Conflict copy becomes canonical file; former primary file is safely archived in Versions history. |
+| **Reveal in Finder** | Inside both version cards | Reveals physical file in macOS Finder | Click button | Opens Finder and highlights file for manual text inspection or diffing. |
+| **No Conflicts State** | Empty state when all resolved | Confirms all files are aligned | Read-only | Displays green checkmark "No pending conflicts, all files are identical". |
+
+### 4.4 Best Practices
+- If changes from both versions are needed, click "Reveal in Finder", merge the edits into the primary file using your text editor, and then click "Keep This Version".
 
 ---
 
-## Chapter 5: Versions (History)
+## Chapter 5: Versions
 
 ![Versions Screen](../assets/05_versions.png)
 
 ### 5.1 Purpose and Objectives
-**Versions** is your **time machine and recovery center**. Whenever a file is overwritten by sync or user edit, previous iterations are archived in `.syncnexus-history`, enabling one-click restoration of previous drafts or mistakenly replaced files.
+**Versions** is your personal **history time machine**. Whenever a file is overwritten or updated by sync, superseded iterations are preserved in `.syncnexus-history`. Even if you mistakenly overwrite important content, you can recover yesterday's revision with a single click.
 
-### 5.2 Buttons and History Management
+### 5.2 【Zero-Foundation Beginner Tutorial: Step-by-Step Instructions】
+- **【Step 1: Set Retention Policy】**: Choose retention duration (7 / 30 / 90 days or Permanent) in the top dropdown; outdated revisions are pruned automatically in the background to reclaim disk space.
+- **【Step 2: Search Target Revision】**: Type a filename or folder keyword into the search bar at the top right; the list instantly filters matching historical revisions.
+- **【Step 3: Click Restore to Recover File】**: Click the "Restore" button on the revision card. The file is instantly recovered to your working directory, a top Toast HUD confirms success, and all other endpoints sync within 2 seconds.
+- **【Step 4: Storage Maintenance (Optional)】**: Click "Clean Expired Now" to purge outdated backups, or click "Clear All" to wipe historical archives after confirming the dialog (active working files are never affected).
+
+### 5.3 Controls, UI Locations & Safety Safeguards
 
 | Button / Control | UI Location | Purpose & Objective | How to Operate | Expected Outcome & Safeguards |
 | :--- | :--- | :--- | :--- | :--- |
-| **Retention Policy Menu** | Top card "Auto Clean" dropdown | Configures automatic expiration period for archived files | Choose: 7 / 30 / 90 days / Permanent | Expired versions are pruned in the background, keeping disk usage under control. |
-| **Clean Expired Now** | Next to retention menu | Manually triggers immediate removal of expired files | Click button | Immediately frees storage space occupied by outdated versions and refreshes capacity stats. |
-| **Clear All** | Next to "Clean Expired" button | Wipes all historical versions (requires caution) | Click and confirm in modal dialog | Only deletes archived history copies; **never touches your current active files**. |
-| **Search Filter** | Top right of versions list | Quickly filters history items by filename or endpoint | Type keywords to filter | Real-time filtering matching paths and extensions. |
-| **Reveal in Finder** | Next to search filter | Reveals `.syncnexus-history` in Finder | Click button | Opens the local history storage folder in macOS Finder. |
-| **Restore** | Right side of each history entry | Restores specific revision back to your working directory | Click "**Restore**" | Overwrites current file with selected historical version and syncs across all endpoints. |
+| **Retention Policy Menu** | Right of "Auto Cleanup" on top card | Configures maximum retention duration for history files | Select: 7 / 30 / 90 days or Permanent | Files older than specified days are automatically pruned in the background to conserve disk space. |
+| **Clean Expired Now** | Next to retention menu | Manually purges expired revisions immediately | Click button | Immediately frees up disk space occupied by expired versions and updates top stats. |
+| **Clear All** | Next to "Clean Expired Now" | Completely empties history archive (use with care) | Click and confirm 2-step alert | Clears historical archive only; **never affects active files currently in use**. |
+| **Search Filter** | Top-right of version list | Filters revisions by filename or endpoint | Type keywords | Instantly filters the list; supports path, name, and extension filtering. |
+| **Reveal in Finder** | Right side of search filter | Opens `.syncnexus-history` directory in Finder | Click button | Opens Finder directly at the local history archive folder. |
+| **Restore** | Right side of each version record | Recovers selected revision back to working directory | Click "**Restore**" | Overwrites active file with selected revision and automatically syncs across all other endpoints. |
+
+### 5.4 Best Practices
+- If you accidentally delete or corrupt a document, open Versions, search for the filename, and click "Restore". Your work is recovered immediately!
 
 ---
 
@@ -158,16 +195,27 @@ Each conflict item is presented as a side-by-side dual-card:
 ![Verification Screen](../assets/06_verification.png)
 
 ### 6.1 Purpose and Objectives
-Drives can suffer from silent bit-rot, and networks can drop fragments. SyncNexus uses industry-standard **SHA-256 hashes** to perform byte-by-byte verification across all storage endpoints, guaranteeing 100% data integrity.
+To protect against silent bit-rot and transmission corruption, SyncNexus uses industrial-grade **SHA-256 hashing** to verify every byte across all endpoints, ensuring 100% data integrity.
 
-### 6.2 Buttons and Integrity Operations
+### 6.2 【Zero-Foundation Beginner Tutorial: Step-by-Step Instructions】
+- **【Step 1: Start Deep Verification】**: Click the blue "Start Verification Now" button on the center card. SyncNexus computes cryptographic SHA-256 hashes across all files on all endpoints in the background.
+- **【Step 2: Review Verification Report】**: Upon completion, the "Last Deep Verify" timestamp updates. A green badge indicates "All Normal, No Anomalies"; if bit-rot or corruption is detected, affected files are listed.
+- **【Step 3: Repair Corrupted Files】**:
+  - Click "**Repair from Others**": Downloads a pristine bit-accurate copy from a healthy endpoint to replace the damaged file (backing up the damaged file to history first).
+  - Click "**Accept Current Content**": If the change was intentional, recalculates baseline hash and clears the alert.
+- **【Step 4: Review Four Core Shields】**: The bottom card summarizes: SHA-256 verified on every copy, cache-bypass USB readback, auto-versioning before delete, and pause on mass deletions.
+
+### 6.3 Controls, UI Locations & Safety Safeguards
 
 | Button / Control | UI Location | Purpose & Objective | How to Operate | Expected Outcome & Safeguards |
 | :--- | :--- | :--- | :--- | :--- |
-| **Start Verification Now** | Central card right side | Launches deep SHA-256 integrity scan across all endpoints | Click "**Verify Now**" | Calculates hashes in background, updating "Last Deep Verify" timestamp and reporting corruptions. |
-| **Repair from Others** | Appears when a corrupted file is detected (Primary) | Downloads pristine copy from a healthy endpoint to replace corrupt file | Click to repair | Fetches clean copy from healthy peer; damaged copy is safely archived first before overwriting. |
-| **Accept Current Content** | Appears when corruption detected (Secondary) | Marks current file as intentional and updates baseline hash | Click to accept | Recomputes baseline hash in database, clearing integrity alert. |
-| **Safeguards Checklist** | Bottom card | Summarizes SyncNexus's built-in multi-layered safety shields | Read-only | Outlines Trash-First, Marker Lock, Mass Deletion Interception, and SHA-256 Continuous Monitoring. |
+| **Start Verification Now** | Center card right side (Blue button) | Launches deep SHA-256 hash calculation across all endpoints | Click "**Start Verification Now**" | Background computation; updates timestamp and anomaly list when finished. |
+| **Repair from Others** | Appears when corrupted files detected (Primary) | Downloads correct file from healthy endpoint | Click to repair | Downloads pristine copy from healthy endpoint; superseded corrupt file is preserved in history. |
+| **Accept Current Content** | Appears when corrupted files detected (Secondary) | Confirms change was intentional and updates baseline hash | Click to accept | Recalculates baseline hash in consensus store; removes warning badge. |
+| **Built-in Shields Card** | Bottom card of page | Summarizes 4-tier protection architecture | Read-only | Details: Trash-First, Marker UUID, Mass Deletion Intercept, Real-time SHA-256. |
+
+### 6.4 Best Practices
+- We recommend clicking "Start Verification Now" once a month to perform a comprehensive health audit across all your backup drives.
 
 ---
 
@@ -176,26 +224,35 @@ Drives can suffer from silent bit-rot, and networks can drop fragments. SyncNexu
 ![Settings Screen](../assets/07_settings.png)
 
 ### 7.1 Purpose and Objectives
-**Settings** provides granular configuration for conflict policies, exclusion rules, system integration, and macOS Full Disk Access permissions.
+Settings provides granular configuration for conflict arbitration, exclusion filters to protect databases and code projects, system auto-start, and macOS Full Disk Access guidance.
 
-### 7.2 Settings and Preferences
+### 7.2 【Zero-Foundation Beginner Tutorial: Step-by-Step Instructions】
+- **【Step 1: Choose Conflict Policy】**: In the first card, choose "Keep both, let me choose (Recommended)" to create conflict copies for manual review, or "Newer wins, old saved to versions" for automatic timestamp arbitration.
+- **【Step 2: Configure Exclusion Switches】**: In the second card, toggle exclusions for `node_modules`, `.git`, SQLite lock files (`-wal`, `-shm`), and Apple Photos (`.photoslibrary`). Excluded files are left untouched and never transferred.
+- **【Step 3: Set Language & Launch at Login】**: In the third card, select your preferred language from the 6 options; toggle "Launch at Login" to have SyncNexus run quietly in your Mac menu bar upon startup.
+- **【Step 4: Grant Full Disk Access】**: In the permissions card, if marked yellow "Unauthorized", click "Open System Settings" to jump directly to macOS "Privacy & Security ➔ Full Disk Access" and enable SyncNexus; click "Open Log File" below for diagnostic logs.
 
-| Setting Item | UI Location | Purpose & Objective | Options & How to Use | Expected Outcome & Safeguards |
+### 7.3 Controls, UI Locations & Safety Safeguards
+
+| Setting Item | UI Location | Purpose & Objective | Options & Operation | Expected Outcome & Safeguards |
 | :--- | :--- | :--- | :--- | :--- |
-| **Conflict Policy** | Top card | Sets default arbitration rule when dual edits occur | Radio options:<br>1. **Keep both, let me choose** (Default & Recommended)<br>2. **Newer wins, old saved to versions** | Option 1 creates conflict copies for manual resolution. Option 2 automatically keeps newest modification time while backing up superseded copies to history. |
-| **Exclude Presets** | Second card | Excludes ephemeral or volatile directories to prevent corruption | Toggle switches:<br>• `node_modules`<br>• `.git`<br>• Database journals (`-wal`, `-shm`)<br>• Photos libraries (`.photoslibrary`) | Excluded directories remain untouched across all endpoints, significantly saving bandwidth and disk I/O. |
-| **Language** | Third card top | Configures application display language | Dropdown menu with 6 languages | Switches entire app language instantly. |
-| **Launch at Login** | Switch below language menu | Launches SyncNexus daemon upon macOS login | Toggle switch ON / OFF | Runs quietly in menu bar upon login to maintain synchronization. |
-| **Full Disk Access** | Permissions card | Verifies file read/write permissions | Displays "Authorized" (green) or "Unauthorized" (yellow) | If unauthorized, click "**Open System Settings**" to open macOS "Privacy & Security ➔ Full Disk Access" (see below), and toggle SyncNexus ON. |
-| **Open Log File** | Bottom-left button | Inspects real-time diagnostic and sync events | Click button | Opens active log in Console or default text editor for troubleshooting. |
-| **Show Instructions** | Next to "Open Log File" | Re-displays the initial onboarding walkthrough | Click button | Opens the Onboarding wizard to review initial quickstart steps. |
+| **Conflict Policy** | Top card | Sets arbitration behavior when simultaneous edits occur | Radio choice:<br>1. **Keep both, let me choose** (Recommended, Default)<br>2. **Newer wins, old saved to versions** | Option 1 saves `.conflict` files for review; Option 2 automatically picks newest timestamp and archives superseded version. |
+| **Exclusion Switches** | Second card | Prevents unnecessary or volatile system files from syncing | Independent switches:<br>• `node_modules` (Packages)<br>• `.git` (Repo metadata)<br>• Database locks (`-wal`, `-shm`)<br>• Photos (`.photoslibrary`) | When enabled, matching files are left intact and skipped during sync, saving bandwidth and preventing database locking issues. |
+| **Interface Language** | Top of third card | Configures display language | Dropdown menu with 6 languages | Switches entire application UI language instantly. |
+| **Launch at Login** | Below language picker | Sets whether SyncNexus starts automatically upon login | Toggle Switch | Runs in menu bar quietly upon login, keeping sync always active. |
+| **Disk Access Permission** | Permission card | Verifies full filesystem read/write authorization | Green "Authorized" or Yellow "Unauthorized" | If unauthorized, click "**Open System Settings**" to open macOS "Privacy & Security ➔ Full Disk Access" and enable SyncNexus. |
+| **Open Log File** | Bottom-left button | Views real-time synchronization diagnostics | Click button | Opens live log in Console or default text editor. |
+| **Onboarding Guide** | Next to "Open Log File" | Re-opens initial welcome wizard | Click button | Pops up onboarding wizard for reviewing beginner walkthroughs. |
 
-![macOS Full Disk Access Permissions](../assets/07_settings_permissions.png)
+![macOS Full Disk Access](../assets/07_settings_permissions.png)
+
+### 7.4 Best Practices
+- Developers should always enable the `node_modules` exclusion switch. This saves tens of thousands of tiny files from transferring, dramatically boosting sync speed.
 
 ---
 
-## Summary: Best Practices
+## Summary: Everyday Peace of Mind Rules
 
-1. **Set and Forget**: When all endpoints show "Online", any file saved or renamed will sync across all other folders within 2 seconds.
-2. **Simulate First**: Before large reorganizations or deletions, visit **Diff Preview** and click "**Run Trial Simulation**".
-3. **No Fear of Mistakes**: Check macOS **Trash** first; if emptied, go to **Versions** and click "**Restore**" — your files are always safeguarded!
+1. **Relax and Work without Manual Clicks**: As long as folders show "Online", editing or renaming any file syncs to all endpoints within 2 seconds.
+2. **When in Doubt, Run Simulation**: Before bulk reorganizing or deleting files, visit "Diff Preview" and click "Run Trial Simulation" for peace of mind.
+3. **Never Panic Over Deleted Files**: First check the macOS Trash; if emptied, open "Versions", search for the file, and click "Restore". Your work is always safe!
