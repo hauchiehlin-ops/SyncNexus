@@ -67,4 +67,58 @@ struct SyncGroupTests {
         #expect(removedSecond)
         #expect(reg.allGroups().count == 1)
     }
+
+    // MARK: manual legacy import
+
+    private func makeLegacy(_ dir: URL, groups: [SyncGroup], endpoints: [String: Int]) throws {
+        let enc = JSONEncoder()
+        try enc.encode(groups).write(to: dir.appendingPathComponent("groups.json"))
+        for (gid, n) in endpoints {
+            let db = gid == "default" ? dir.appendingPathComponent("state.db")
+                                      : dir.appendingPathComponent("Groups/\(gid)/state.db")
+            try FileManager.default.createDirectory(at: db.deletingLastPathComponent(), withIntermediateDirectories: true)
+            let d = try Database(path: db.path)
+            try d.exec("CREATE TABLE endpoints(id TEXT)")
+            for i in 0..<n { try d.exec("INSERT INTO endpoints(id) VALUES(?)", [.text("e\(i)")]) }
+        }
+    }
+
+    @Test func importRestoresFirstGroupAndKeepsExistingSecond() throws {
+        let legacy = try tmpDir(), cur = try tmpDir()
+        defer { try? FileManager.default.removeItem(at: legacy); try? FileManager.default.removeItem(at: cur) }
+        // current (sandbox) state: empty default + a configured second group
+        let reg = SyncGroupRegistry(baseAppSupportURL: cur)
+        reg.addGroup(name: "第二次測試")
+        let second = reg.allGroups()[1]
+        try makeLegacy(legacy, groups: [SyncGroup(id: "default", name: "測試群組", icon: "doc.text"),
+                                        SyncGroup(id: second.id, name: "第二次測試")],
+                       endpoints: ["default": 4, second.id: 4])
+        try FileManager.default.createDirectory(at: URL(fileURLWithPath: reg.dbPath(for: second.id)).deletingLastPathComponent(), withIntermediateDirectories: true)
+        let curDB = try Database(path: reg.dbPath(for: second.id))
+        try curDB.exec("CREATE TABLE endpoints(id TEXT)")
+        for i in 0..<2 { try curDB.exec("INSERT INTO endpoints(id) VALUES(?)", [.text("e\(i)")]) }
+
+        let r = try reg.importLegacySettings(from: legacy)
+        #expect(r.imported == ["測試群組"])
+        #expect(r.endpointCount == 4)
+        #expect(reg.group(id: "default")?.name == "測試群組")
+        let d = try Database(path: reg.dbPath(for: "default"))
+        #expect(try d.query("SELECT COUNT(*) FROM endpoints")[0][0].intValue == 4)
+        // existing second group untouched (still its own 2 endpoints)
+        let d2 = try Database(path: reg.dbPath(for: second.id))
+        #expect(try d2.query("SELECT COUNT(*) FROM endpoints")[0][0].intValue == 2)
+        #expect(reg.allGroups().count == 2)
+    }
+
+    @Test func importAcceptsParentFolderAndRejectsEmpty() throws {
+        let parent = try tmpDir(), cur = try tmpDir()
+        defer { try? FileManager.default.removeItem(at: parent); try? FileManager.default.removeItem(at: cur) }
+        let reg = SyncGroupRegistry(baseAppSupportURL: cur)
+        #expect(throws: SyncGroupRegistry.LegacyImportError.self) { try reg.importLegacySettings(from: parent) }
+        let inner = parent.appendingPathComponent("SyncNexus")
+        try FileManager.default.createDirectory(at: inner, withIntermediateDirectories: true)
+        try makeLegacy(inner, groups: [SyncGroup(id: "default", name: "A")], endpoints: ["default": 3])
+        let r = try reg.importLegacySettings(from: parent)
+        #expect(r.imported == ["A"])
+    }
 }

@@ -190,6 +190,112 @@ public final class SyncGroupRegistry: @unchecked Sendable {
         }
     }
 
+    // MARK: manual import of legacy settings (sandbox-safe)
+
+    public enum LegacyImportError: Error { case nothingFound }
+
+    public struct LegacyImportResult: Sendable {
+        public var imported: [String] = []      // group names brought in
+        public var kept: [String] = []          // group names left untouched (already configured here)
+        public var endpointCount = 0            // endpoints imported
+    }
+
+    /// Imports sync groups and their endpoint databases from a folder the user picked
+    /// (e.g. the non-sandboxed `~/Library/Application Support/SyncNexus`). The caller must hold
+    /// security-scoped access to `folder`. Groups already configured here are never overwritten.
+    /// Callers must stop the running services of affected groups before calling.
+    public func importLegacySettings(from folder: URL) throws -> LegacyImportResult {
+        let fm = FileManager.default
+        var src = folder
+        if !fm.fileExists(atPath: src.appendingPathComponent("groups.json").path),
+           !fm.fileExists(atPath: src.appendingPathComponent("state.db").path) {
+            src = folder.appendingPathComponent("SyncNexus")
+        }
+        let legacyGroupsURL = src.appendingPathComponent("groups.json")
+        let hasLegacyDefaultDB = fm.fileExists(atPath: src.appendingPathComponent("state.db").path)
+
+        var legacy: [SyncGroup] = []
+        if let data = try? Data(contentsOf: legacyGroupsURL) {
+            legacy = (try? JSONDecoder().decode([SyncGroup].self, from: data)) ?? []
+        }
+        if legacy.isEmpty && hasLegacyDefaultDB {
+            legacy = [SyncGroup(id: "default", name: "預設群組")]
+        }
+        guard !legacy.isEmpty else { throw LegacyImportError.nothingFound }
+
+        lock.lock()
+        defer { lock.unlock() }
+        var result = LegacyImportResult()
+        let stamp = Int(Date().timeIntervalSince1970)
+
+        for lg in legacy {
+            let srcDB = lg.id == "default" ? src.appendingPathComponent("state.db")
+                                           : src.appendingPathComponent("Groups/\(lg.id)/state.db")
+            guard fm.fileExists(atPath: srcDB.path),
+                  let snapshot = Self.consolidatedCopy(of: srcDB) else { continue }
+            defer { try? fm.removeItem(at: snapshot.deletingLastPathComponent()) }
+            let incoming = Self.endpointCount(at: snapshot)
+            guard incoming > 0 else { continue }
+
+            let dest = URL(fileURLWithPath: dbPath(for: lg.id))
+            let existingIdx = groups.firstIndex { $0.id == lg.id }
+            if existingIdx != nil, Self.endpointCount(at: dest) > 0 {
+                result.kept.append(groups[existingIdx!].name)
+                continue
+            }
+            try fm.createDirectory(at: dest.deletingLastPathComponent(), withIntermediateDirectories: true)
+            for ext in ["", "-wal", "-shm"] {
+                let f = URL(fileURLWithPath: dest.path + ext)
+                if fm.fileExists(atPath: f.path) {
+                    // never destroy: keep what was here as a backup
+                    let bak = URL(fileURLWithPath: f.path + ".pre-import-\(stamp)")
+                    try? fm.removeItem(at: bak)
+                    try fm.moveItem(at: f, to: bak)
+                }
+            }
+            try fm.copyItem(at: snapshot, to: dest)
+            if let i = existingIdx {
+                groups[i].name = lg.name; groups[i].icon = lg.icon; groups[i].retentionDays = lg.retentionDays
+            } else {
+                groups.append(lg)
+            }
+            result.imported.append(lg.name)
+            result.endpointCount += incoming
+        }
+        guard !result.imported.isEmpty || !result.kept.isEmpty else { throw LegacyImportError.nothingFound }
+        if !result.imported.isEmpty { save() }
+        return result
+    }
+
+    /// Copies db(+wal/shm) to a private temp dir and checkpoints it, so a live WAL database yields a consistent single file.
+    private static func consolidatedCopy(of db: URL) -> URL? {
+        let fm = FileManager.default
+        let tmp = fm.temporaryDirectory.appendingPathComponent("syncnexus-import-\(UUID().uuidString)")
+        guard (try? fm.createDirectory(at: tmp, withIntermediateDirectories: true)) != nil else { return nil }
+        let out = tmp.appendingPathComponent("state.db")
+        do {
+            for ext in ["", "-wal", "-shm"] {
+                let f = URL(fileURLWithPath: db.path + ext)
+                if fm.fileExists(atPath: f.path) { try fm.copyItem(at: f, to: URL(fileURLWithPath: out.path + ext)) }
+            }
+            let d = try Database(path: out.path)
+            try d.exec("PRAGMA wal_checkpoint(TRUNCATE)")
+        } catch {
+            try? fm.removeItem(at: tmp)
+            return nil
+        }
+        for ext in ["-wal", "-shm"] { try? fm.removeItem(atPath: out.path + ext) }
+        return out
+    }
+
+    private static func endpointCount(at db: URL) -> Int {
+        guard FileManager.default.fileExists(atPath: db.path),
+              let d = try? Database(path: db.path),
+              let r = try? d.query("SELECT COUNT(*) FROM endpoints"),
+              let n = r.first?.first?.intValue else { return 0 }
+        return Int(n)
+    }
+
     private func save() {
         let fm = FileManager.default
         try? fm.createDirectory(at: registryURL.deletingLastPathComponent(), withIntermediateDirectories: true)

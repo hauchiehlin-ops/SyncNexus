@@ -216,3 +216,17 @@
 * **資料 100% 即時復原與雙群組即時運作**：
   - 已自沙盒容器完整復原使用者的「測試群組」與「第二次測試」兩大同步群組，以及各群組下的 4 大儲存端點（Mobil、本機、iCloud、GoogleDrive）。
   - 兩大群組各自獨立的背景常駐對帳服務（`syncnexus.log` 與 `syncnexus_group_50faffa5.log`）均已啟動並正常同步中。
+
+---
+
+### [2026-10-03] 更正：沙盒版更新後第一群組端點遺失 — 改為「手動匯入舊設定」（版本號未動）
+#### 1. 先前修復為何未落地（更正前述紀錄）
+* 前述「跨環境雙向自動遷移與鏡像」**只在非沙盒執行時有效**：`migrateFromContainerIfNeeded()` 在沙盒版因路徑含 `/Containers/` 直接 return；鏡像只複製 `groups.json`，未含 `state.db`／`Groups/*/state.db`；沙盒版本來就讀不到 `~/Library/Application Support/SyncNexus/`。
+* 實際執行的 `/Applications/SyncNexus.app` 為沙盒版（`com.apple.security.app-sandbox`），故第一群組（`default`，端點僅存於本機 state.db）在容器內為空，第二群組（在沙盒內建立）則保留。本機資料完整未遺失。
+* 教訓：驗證必須以**實際發行的沙盒簽章版**進行，不可只驗檔案內容。
+
+#### 2. 解法：使用者授權的手動匯入（App Store 合規）
+* 資料夾頁「匯入舊設定」按鈕 → `NSOpenPanel` 由使用者選取舊設定資料夾（亦接受上一層 Application Support）→ `SyncGroupRegistry.importLegacySettings(from:)`。
+* 規則：已設定且有端點的群組**絕不覆寫**；本機群組為空才以舊資料取代，被取代的檔案改名為 `.pre-import-<時間戳>` 備份；新群組直接加入。WAL 資料庫先複製到暫存並 checkpoint 後再落地，確保一致。
+* 匯入前停止所有服務、匯入後重啟；Toast 回報結果（六語系）。若端點資料夾於沙盒內顯示離線，需重新選取一次以重新授權 bookmark。
+* 新增 2 項單元測試（共 101 項全通過）。未匯入 `Versions/` 歷史庫。

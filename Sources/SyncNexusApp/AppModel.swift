@@ -270,6 +270,42 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Lets the user pick an old (e.g. non-sandboxed) SyncNexus settings folder and merges it in.
+    /// Sandbox-safe: access to the folder is granted by the user via the open panel.
+    func importLegacySettings() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.allowsMultipleSelection = false
+        panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
+        panel.message = loc("import_legacy_prompt"); panel.prompt = loc("choose")
+        NSApp.activate(ignoringOtherApps: true)
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+
+        // Release databases before they may be replaced.
+        for s in services.values { s.stop() }
+        services.removeAll()
+        snapshots.removeAll()
+
+        var message: String
+        do {
+            let r = try registry.importLegacySettings(from: url)
+            message = r.imported.isEmpty ? loc("import_legacy_nothing_new")
+                                         : loc("import_legacy_ok", r.imported.count, r.endpointCount)
+        } catch SyncGroupRegistry.LegacyImportError.nothingFound {
+            message = loc("import_legacy_not_found")
+        } catch {
+            message = loc("import_legacy_failed", "\(error)")
+        }
+
+        groups = registry.allGroups()
+        for g in groups { startService(for: g) }
+        if !groups.contains(where: { $0.id == activeGroupId }) { activeGroupId = groups.first?.id ?? "default" }
+        snap = snapshots[activeGroupId] ?? .initial
+        settingsMessage = message
+    }
+
     func endpointCount(for groupId: String) -> Int {
         snapshots[groupId]?.endpoints.count ?? 0
     }

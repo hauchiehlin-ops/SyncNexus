@@ -3007,6 +3007,54 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .th: "อัปเดตกลุ่มการซิงค์ '%@' เรียบร้อยแล้ว",
         .ko: "'%@' 동기화 그룹이 업데이트되었습니다."
     ],
+    "import_legacy_button": [
+        .en: "Import Old Settings",
+        .zhHant: "匯入舊設定",
+        .zhHans: "导入旧设置",
+        .ja: "旧設定を読み込む",
+        .th: "นำเข้าการตั้งค่าเดิม",
+        .ko: "이전 설정 가져오기"
+    ],
+    "import_legacy_prompt": [
+        .en: "Choose the old SyncNexus settings folder (the one containing groups.json and state.db), e.g. Library ▸ Application Support ▸ SyncNexus.",
+        .zhHant: "請選取舊版 SyncNexus 設定資料夾（內含 groups.json 與 state.db），例如「資源庫 ▸ Application Support ▸ SyncNexus」。",
+        .zhHans: "请选取旧版 SyncNexus 设置文件夹（内含 groups.json 与 state.db），例如“资源库 ▸ Application Support ▸ SyncNexus”。",
+        .ja: "旧 SyncNexus の設定フォルダ（groups.json と state.db を含む）を選択してください。例：ライブラリ ▸ Application Support ▸ SyncNexus",
+        .th: "เลือกโฟลเดอร์การตั้งค่า SyncNexus เดิม (ที่มี groups.json และ state.db) เช่น Library ▸ Application Support ▸ SyncNexus",
+        .ko: "이전 SyncNexus 설정 폴더(groups.json과 state.db 포함)를 선택하세요. 예: 라이브러리 ▸ Application Support ▸ SyncNexus"
+    ],
+    "import_legacy_ok": [
+        .en: "Imported %d group(s) with %d folder(s). Existing groups were not overwritten. If a folder shows offline, re-select it once to grant access.",
+        .zhHant: "已匯入 %d 個群組、%d 個資料夾；既有群組不會被覆寫。若資料夾顯示離線，請重新選取一次以授權存取。",
+        .zhHans: "已导入 %d 个群组、%d 个文件夹；既有群组不会被覆盖。若文件夹显示离线，请重新选取一次以授权访问。",
+        .ja: "%d 個のグループ（フォルダ %d 件）を読み込みました。既存のグループは上書きされません。フォルダがオフラインの場合は、もう一度選択してアクセスを許可してください。",
+        .th: "นำเข้า %d กลุ่ม %d โฟลเดอร์ กลุ่มที่มีอยู่จะไม่ถูกเขียนทับ หากโฟลเดอร์แสดงออฟไลน์ ให้เลือกใหม่หนึ่งครั้งเพื่ออนุญาตการเข้าถึง",
+        .ko: "%d개 그룹(폴더 %d개)을 가져왔습니다. 기존 그룹은 덮어쓰지 않습니다. 폴더가 오프라인으로 표시되면 한 번 다시 선택해 접근을 허용하세요."
+    ],
+    "import_legacy_nothing_new": [
+        .en: "Nothing to import: the groups in that folder are already configured here.",
+        .zhHant: "沒有需要匯入的項目：該資料夾內的群組在此已設定完成。",
+        .zhHans: "没有需要导入的项目：该文件夹内的群组在此已设置完成。",
+        .ja: "読み込む項目がありません。そのフォルダのグループはすでに設定済みです。",
+        .th: "ไม่มีรายการที่ต้องนำเข้า: กลุ่มในโฟลเดอร์นั้นถูกตั้งค่าไว้แล้ว",
+        .ko: "가져올 항목이 없습니다. 해당 폴더의 그룹은 이미 설정되어 있습니다."
+    ],
+    "import_legacy_not_found": [
+        .en: "No SyncNexus settings found in that folder (groups.json / state.db missing).",
+        .zhHant: "在該資料夾中找不到 SyncNexus 設定（缺少 groups.json / state.db）。",
+        .zhHans: "在该文件夹中找不到 SyncNexus 设置（缺少 groups.json / state.db）。",
+        .ja: "そのフォルダに SyncNexus の設定が見つかりません（groups.json / state.db がありません）。",
+        .th: "ไม่พบการตั้งค่า SyncNexus ในโฟลเดอร์นั้น (ไม่มี groups.json / state.db)",
+        .ko: "해당 폴더에서 SyncNexus 설정을 찾을 수 없습니다(groups.json / state.db 없음)."
+    ],
+    "import_legacy_failed": [
+        .en: "Import failed: %@",
+        .zhHant: "匯入失敗：%@",
+        .zhHans: "导入失败：%@",
+        .ja: "読み込みに失敗しました：%@",
+        .th: "นำเข้าไม่สำเร็จ: %@",
+        .ko: "가져오기 실패: %@"
+    ],
     "group_deleted_toast": [
         .en: "Sync group '%@' deleted.",
         .zhHant: "已刪除同步群組「%@」",

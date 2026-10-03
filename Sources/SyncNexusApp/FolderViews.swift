@@ -105,6 +105,14 @@ struct SyncGroupTabBar: View {
                 Text(loc("group_selector_title"))
                     .font(.system(size: 14, weight: .bold))
                 Spacer()
+                Button(action: { model.importLegacySettings() }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "square.and.arrow.down")
+                        Text(loc("import_legacy_button"))
+                    }
+                    .font(.system(size: 12, weight: .medium))
+                }
+                .buttonStyle(QuietButton(kind: .secondary, compact: true))
                 Button(action: { showingAddGroup = true }) {
                     HStack(spacing: 4) {
                         Image(systemName: "plus.circle.fill")
