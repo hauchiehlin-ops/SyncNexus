@@ -12,6 +12,9 @@ rm -rf "$APP"; mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$(swift build -c release --show-bin-path)/SyncNexusApp" "$APP/Contents/MacOS/SyncNexus"
 cp Scripts/Info.plist "$APP/Contents/Info.plist"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+if [[ -d Resources/ManualAssets ]]; then
+  cp -r Resources/ManualAssets "$APP/Contents/Resources/"
+fi
 # Sign with the stable local identity or Apple Developer identity.
 SANDBOX_ARGS=()
 APP_STORE_BUILD=false
@@ -93,6 +96,9 @@ elif [[ -z "$APP_SIGN_IDENTITY" ]]; then
     APP_SIGN_IDENTITY=$(security find-identity -v -p codesigning | grep "Apple Distribution" | head -n 1 | sed -E 's/.*"([^"]+)".*/\1/' || true)
   fi
 fi
+
+# Clear extended attributes before signing to prevent 'resource fork, Finder information, or similar detritus not allowed'
+xattr -cr "$APP" 2>/dev/null || true
 
 if [[ -n "$APP_SIGN_IDENTITY" ]]; then
   echo "==> 使用官方憑證簽署: $APP_SIGN_IDENTITY"

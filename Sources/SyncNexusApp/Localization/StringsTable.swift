@@ -2400,5 +2400,295 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .ja: "誤削除防止",
         .th: "ปลอดภัยจากการลบผิด",
         .ko: "오삭제 방지"
+    ],
+    // 7 大主題操作手冊專屬語系定義
+    "manual_topic_overview_title": [
+        .en: "Chapter 1: Overview — Health Dashboard",
+        .zhHant: "第一章：概覽 (Overview) — 全局健康儀表板",
+        .zhHans: "第一章：概览 (Overview) — 全局健康仪表板",
+        .ja: "第1章：概要 (Overview) — 全体健全性ダッシュボード",
+        .th: "บทที่ 1: ภาพรวม (Overview) — แดชบอร์ดสถานะสุขภาพระบบ",
+        .ko: "제1장: 개요 (Overview) — 전체 건전성 대시보드"
+    ],
+    "manual_topic_overview_desc": [
+        .en: "The Overview provides a complete bird's-eye view of your synchronization system. It combines global health status indicators, mass deletion safeguards, live tracked file counts, deep SHA-256 verification timestamps, historical version storage metrics, and LAN P2P direct discovery on the same Wi-Fi.",
+        .zhHant: "「概覽」讓您看一眼就能全面掌握檔案同步系統的健康狀態。此頁整合了全局綠黃燈燈號、異常大量刪除攔截卡片、追蹤檔案數即時統計、上次深層 SHA-256 驗證時間與舊版本所佔用的儲存空間，並提供同一 Wi-Fi 區域網路內其他 Mac 或 Android 設備的 P2P 局域直連狀態。",
+        .zhHans: "“概览”让您看一眼就能全面掌握文件同步系统的健康状态。此页整合了全局绿黄灯指示、异常大量删除拦截卡片、追踪文件数即时统计、上次深层 SHA-256 验证时间与旧版本所占用的存储空间，并提供同一 Wi-Fi 局域网内其他 Mac 或 Android 设备的 P2P 局域直连状态。",
+        .ja: "「概要」では同期システムの健全性を一目で把握できます。全体ステータス、大量削除保護、監視対象ファイル数、最終深層 SHA-256 検証日時、履歴ストレージ使用量、同一 Wi-Fi 内の P2P 直接接続状態を表示します。",
+        .th: "หน้า 'ภาพรวม' ช่วยให้คุณเข้าใจสถานะสุขภาพของระบบซิงค์ไฟล์ได้ทันที รวมไฟสถานะโดยรวม การสกัดกั้นการลบจำนวนมาก จำนวนไฟล์ที่ติดตาม การตรวจสอบ SHA-256 พื้นที่ประวัติ และการค้นหาอุปกรณ์ P2P บน Wi-Fi เดียวกัน",
+        .ko: "'개요'는 동기화 시스템의 전반적인 상태를 한눈에 파악할 수 있는 대시보드입니다. 전체 상태 표시, 대량 삭제 차단 카드, 추적 파일 수, SHA-256 심층 검증 시간, 이전 버전 저장 용량 및 동일 Wi-Fi 내 P2P 기기 탐색 상태를 제공합니다."
+    ],
+    "manual_topic_overview_f1_title": [
+        .en: "Global Health Status & Mass Deletion Safeguard",
+        .zhHant: "全局狀態指示燈號與大量刪除確認",
+        .zhHans: "全局状态指示灯号与大量删除确认",
+        .ja: "全体ステータスインジケーターと大量削除保護",
+        .th: "ไฟสถานะโดยรวมและการยืนยันการลบจำนวนมาก",
+        .ko: "전체 상태 표시기 및 대량 삭제 방지"
+    ],
+    "manual_topic_overview_f1_desc": [
+        .en: "• Green 'All Normal': All endpoints are online and files are consistent.\n• Yellow 'Warning': One or more endpoints are offline, or conflicts require attention.\n• Mass Deletion Guard: When >25 files or >25% of files are deleted at once, syncing is paused automatically with a 'Review and Confirm' card to prevent accidental data loss.",
+        .zhHant: "• 綠燈「全部正常」：所有資料夾均在線且內容同步無礙。\n• 黃燈「警告」：有端點離線或有待決衝突。\n• 大量刪除防護卡片：若單次刪除超過 25 個檔案或佔比 > 25%，系統自動攔截並暫停同步，點擊「審核並確認」可自主決定是否放行。",
+        .zhHans: "• 绿灯“全部正常”：所有文件夹均在线且内容同步无碍。\n• 黄灯“警告”：有端点离线或有待决冲突。\n• 大量删除防护卡片：若单次删除超过 25 个文件或占比 > 25%，系统自动拦截并暂停同步，点击“审核并确认”可自主决定是否放行。",
+        .ja: "• 緑「すべて正常」: すべてのフォルダがオンラインで完全に一致。\n• 黄「警告」: オフラインの端点や未解決の競合が存在。\n• 大量削除ガード: 一度に25個または25%以上のファイルが削除された場合、自動的に同期を一時停止し「確認して承認」カードを表示して誤削除を防止します。",
+        .th: "• สีเขียว 'ปกติทั้งหมด': ทุกโฟลเดอร์ออนไลน์และไฟล์ตรงกันอย่างสมบูรณ์\n• สีเหลือง 'คำเตือน': มีโฟลเดอร์ออฟไลน์หรือมีข้อขัดแย้ง\n• การป้องกันการลบจำนวนมาก: เมื่อมีการลบมากกว่า 25 ไฟล์หรือมากกว่า 25% ระบบจะหยุดซิงค์ชั่วคราวและแสดงการแจ้งเตือนเพื่อยืนยัน ป้องกันข้อมูลสูญหาย",
+        .ko: "• 녹색 '모두 정상': 모든 폴더가 온라인이며 파일이 일치합니다.\n• 노란색 '경고': 오프라인 폴더가 있거나 충돌이 발생했습니다.\n• 대량 삭제 방지: 한 번에 25개 이상 또는 25% 이상의 파일이 삭제되면 자동으로 동기화를 일시 중단하고 '검토 및 확인' 카드를 표시하여 실수를 방지합니다."
+    ],
+    "manual_topic_diff_title": [
+        .en: "Chapter 2: Diff Preview — Dry-Run Simulation",
+        .zhHant: "第二章：差異預覽 (Diff Preview) — 模擬對帳試跑",
+        .zhHans: "第二章：差异预览 (Diff Preview) — 模拟对账试跑",
+        .ja: "第2章：差分プレビュー (Diff Preview) — ドライランシミュレーション",
+        .th: "บทที่ 2: ตัวอย่างความแตกต่าง (Diff Preview) — จำลองการซิงค์",
+        .ko: "제2장: 차이 미리보기 (Diff Preview) — 시뮬레이션 테스트"
+    ],
+    "manual_topic_diff_desc": [
+        .en: "Before writing any changes to disk, Diff Preview offers a risk-free Dry-Run simulation. It compares all endpoints and clearly lists scheduled copy (+), rename (➔), and deletion (−) actions with color-coded badges, enabling you to inspect changes before confirming.",
+        .zhHant: "在正式將任何檔案寫入磁碟前，「差異預覽」為您提供零風險的模擬對帳試跑（Dry-Run）。系統會逐一比對各端點的所有檔案差異，以清楚的顏色與符號標示預計執行的複製、改名與刪除項目，確認無誤後再執行同步。",
+        .zhHans: "在正式将任何文件写入磁盘前，“差异预览”为您提供零风险的模拟对账试跑（Dry-Run）。系统会逐一比对各端点的所有文件差异，以清楚的颜色与符号标示预计执行的复制、改名与删除项目，确认无误后再执行同步。",
+        .ja: "ディスクに変更を書き込む前に、差分プレビューで安全なドライランシミュレーションが実行できます。各端点間のすべての差分を照合し、コピー (+)、名前変更 (➔)、削除 (−) の予定を色分け表示して確認できます。",
+        .th: "ก่อนเขียนไฟล์ลงดิสก์ ตัวอย่างความแตกต่างให้คุณจำลองการซิงค์โดยไม่มีความเสี่ยง เปรียบเทียบไฟล์ในทุกโฟลเดอร์ และแสดงรายการที่กำหนดจะคัดลอก (+) เปลี่ยนชื่อ (➔) หรือลบ (−) อย่างชัดเจน",
+        .ko: "디스크에 실제로 변경 사항을 쓰기 전에, 차이 미리보기에서 안전한 시뮬레이션을 실행할 수 있습니다. 각 폴더 간의 모든 차이를 대조하여 복사(+), 이름 변경(➔), 삭제(−) 항목을 색상별로 명확하게 표시합니다."
+    ],
+    "manual_topic_diff_f1_title": [
+        .en: "'Run Trial Simulation' & Change Preview List",
+        .zhHant: "「執行試跑模擬」按鈕與預覽清單",
+        .zhHans: "“执行试跑模拟”按钮与预览清单",
+        .ja: "「シミュレーション実行」ボタンとプレビュー一覧",
+        .th: "ปุ่ม 'ดำเนินการจำลอง' และรายการแสดงตัวอย่าง",
+        .ko: "'시뮬레이션 실행' 버튼 및 변경 목록"
+    ],
+    "manual_topic_diff_f1_desc": [
+        .en: "• Location: Top-left blue primary button on the Diff Preview card.\n• How to Use: Click 'Run Trial Simulation'. The button switches to 'Simulating...'.\n• Output: Displays a detailed preview list with items marked as '+' (Copy), '➔' (Rename), or '−' (Move to Trash). Click 'Confirm and Sync' to apply verified changes.",
+        .zhHant: "• 實際位置：差異預覽卡片頂部左側藍色主要按鈕。\n• 操作方式：點擊「執行試跑模擬」，系統立即展開對帳計算，按鈕轉為「模擬計算中...」。\n• 產出現象：計算完成後顯示預計變更項目清單，以「+（綠色複製）」、「➔（藍色更名）」、「−（紅色刪除）」呈現。核對無誤後點擊「確定執行同步」完成寫入。",
+        .zhHans: "• 实际位置：差异预览卡片顶部左侧蓝色主要按钮。\n• 操作方式：点击“执行试跑模拟”，系统立即展开对账计算，按钮转为“模拟计算中...”。\n• 产出现象：计算完成后显示预计变更项目清单，以“+（绿色复制）”、“➔（蓝色更名）”、“−（红色删除）”呈现。核对无误后点击“确定执行同步”完成写入。",
+        .ja: "• 位置: 差分プレビューカード上部左側の青いプライマリボタン。\n• 操作: 「シミュレーション実行」をクリックすると計算が開始されます。\n• 結果: コピー (+)、名前変更 (➔)、ゴミ箱へ移動 (−) の予定一覧が表示されます。確認後「同期を実行」で適用できます。",
+        .th: "• ตำแหน่ง: ปุ่มสีน้ำเงินด้านซ้ายบนของบัตรตัวอย่างความแตกต่าง\n• วิธีใช้: คลิก 'ดำเนินการจำลอง' เพื่อเริ่มคำนวณ\n• ผลลัพธ์: แสดงรายการเปลี่ยนแปลงที่มีสัญลักษณ์ '+' (คัดลอก), '➔' (เปลี่ยนชื่อ), หรือ '−' (ย้ายไปถังขยะ) เมื่อตรวจสอบแล้วคลิก 'ยืนยันและซิงค์' เพื่อดำเนินการ",
+        .ko: "• 위치: 차이 미리보기 카드 상단 좌측의 파란색 기본 버튼.\n• 조작: '시뮬레이션 실행'을 클릭하면 즉시 대조 계산이 시작됩니다.\n• 결과: 복사(+), 이름 변경(➔), 휴지통 이동(−) 항목 목록이 표시됩니다. 확인 후 '동기화 확인'을 클릭하여 적용합니다."
+    ],
+    "manual_topic_diff_f2_title": [
+        .en: "APFS Snapshot Safeguard & Toast HUD Alerts",
+        .zhHant: "「APFS 快照安全防護」與頂部快顯提示 (Toast)",
+        .zhHans: "“APFS 快照安全防护”与顶部快显提示 (Toast)",
+        .ja: "APFS スナップショット保護とトースト通知",
+        .th: "การป้องกันด้วยสแนปช็อต APFS และการแจ้งเตือน Toast",
+        .ko: "APFS 스냅샷 보호 및 토스트 알림"
+    ],
+    "manual_topic_diff_f2_desc": [
+        .en: "• Location: Next to the 'Run Trial Simulation' button.\n• How to Use: Click to trigger an Apple APFS system snapshot.\n• Output: On success, a floating toast confirms 'APFS snapshot created'. If unsupported or restricted by sandbox permissions, a non-intrusive floating toast HUD appears at the top explaining the sandbox safety protections.",
+        .zhHant: "• 實際位置：「執行試跑模擬」按鈕右側。\n• 操作方式：點擊可建立 macOS 系統級 APFS 安全快照還原點。\n• 產出現象：成功時頂部浮動快顯提示「已成功建立 APFS 安全快照」；若受限於沙盒或無管理員權限，頂部 Toast HUD 會跳出快顯訊息，說明已啟動系統垃圾桶與歷史版本備份防護。",
+        .zhHans: "• 实际位置：“执行试跑模拟”按钮右侧。\n• 操作方式：点击可建立 macOS 系统级 APFS 安全快照还原点。\n• 产出现象：成功时顶部浮动快显提示“已成功建立 APFS 安全快照”；若受限于沙盒或无管理员权限，顶部 Toast HUD 会跳出快显讯息，说明已启动系统废纸篓与历史版本备份防护。",
+        .ja: "• 位置: 「シミュレーション実行」ボタンの右隣。\n• 操作: クリックして macOS の APFS スナップショット復元ポイントを作成します。\n• 結果: 成功すると「APFS スナップショット作成完了」が表示されます。権限不足等の場合は上部にトースト HUD が表示され、ゴミ箱および履歴アーカイブ保護が有効であることを案内します。",
+        .th: "• ตำแหน่ง: ถัดจากปุ่ม 'ดำเนินการจำลอง'\n• วิธีใช้: คลิกเพื่อสร้างจุดคืนค่าสแนปช็อต APFS ของ macOS\n• ผลลัพธ์: เมื่อสำเร็จจะแสดงการแจ้งเตือนแบบ Toast ยืนยัน หากติดสิทธิ์ Sandbox จะแสดง Toast HUD ด้านบนเพื่อแจ้งว่าระบบใช้ถังขยะและประวัติในการสำรองข้อมูลแทนอย่างปลอดภัย",
+        .ko: "• 위치: '시뮬레이션 실행' 버튼 우측.\n• 조작: 클릭하여 macOS 시스템 수준의 APFS 스냅샷 복원 지점을 생성합니다.\n• 결과: 성공 시 상단에 'APFS 스냅샷 생성 완료' 토스트가 뜹니다. 권한 부족 시 상단 토스트 HUD가 나타나 휴지통 및 버전 히스토리 보호가 활성화되어 있음을 안내합니다."
+    ],
+    "manual_topic_folders_title": [
+        .en: "Chapter 3: Folders — Storage Endpoints Setup",
+        .zhHant: "第三章：資料夾 (Folders) — 多端點同步配置",
+        .zhHans: "第三章：文件夹 (Folders) — 多端点同步配置",
+        .ja: "第3章：フォルダ (Folders) — 同期ストレージの設定",
+        .th: "บทที่ 3: โฟลเดอร์ (Folders) — การตั้งค่าโฟลเดอร์ซิงค์",
+        .ko: "제3장: 폴더 (Folders) — 동기화 폴더 설정"
+    ],
+    "manual_topic_folders_desc": [
+        .en: "The Folders tab configures your synchronization mesh. SyncNexus connects local Mac folders, iCloud Drive, Google Drive, and external USB/Type-C drives into an automatic synchronization group. Modifying files in any one location updates all other folders automatically within 2 seconds.",
+        .zhHant: "「資料夾」是配置同步端點的核心基地。SyncNexus 支援在 Mac 本機資料夾、iCloud 雲碟、Google 雲端硬碟、外接 USB/Type-C 隨身碟之間建立多向同步群組。任一處變更，其他處自動在 2 秒內同步更新。",
+        .zhHans: "“文件夹”是配置同步端点的核心基地。SyncNexus 支持在 Mac 本机文件夹、iCloud 云盘、Google 云端硬盘、外接 USB/Type-C 随身碟之间建立多向同步群组。任一处变更，其他处自动在 2 秒内同步更新。",
+        .ja: "「フォルダ」は同期先を設定・管理する場所です。Mac ローカル、iCloud Drive、Google Drive、外付け USB/Type-C ドライブ間でメッシュ同期を構築します。いずれかの場所で変更が生じると、2秒以内に他すべてに自動反映されます。",
+        .th: "แท็บ 'โฟลเดอร์' ใช้สำหรับจัดการตำแหน่งซิงค์ SyncNexus รองรับการเชื่อมต่อโฟลเดอร์ใน Mac, iCloud Drive, Google Drive และแฟลชไดรฟ์ USB/Type-C เมื่อแก้ไขไฟล์ในโฟลเดอร์ใด โฟลเดอร์อื่นจะอัปเดตตรงกันโดยอัตโนมัติภายใน 2 วินาที",
+        .ko: "'폴더'는 동기화 대상을 설정하는 곳입니다. Mac 로컬 폴더, iCloud Drive, Google Drive, 외장 USB/Type-C 드라이브 간에 자동 동기화 네트워크를 구성합니다. 한 곳에서 파일을 변경하면 2초 내에 다른 모든 곳에 자동 반영됩니다."
+    ],
+    "manual_topic_folders_f1_title": [
+        .en: "Grounded Guide to Adding 4 Storage Locations",
+        .zhHant: "4 大儲存端點接地氣加入步驟",
+        .zhHans: "4 大存储端点接地气加入步骤",
+        .ja: "4つのストレージ追加ガイド",
+        .th: "ขั้นตอนการเพิ่มโฟลเดอร์จาก 4 แหล่งเก็บข้อมูล",
+        .ko: "4가지 저장 위치 추가 단계 안내"
+    ],
+    "manual_topic_folders_f1_desc": [
+        .en: "Click 'Add Folder...' at the bottom and pick directories in Finder (at least 2 required):\n1. Local Mac: Open Finder ➔ click 'Documents' or your home folder on the left sidebar.\n2. iCloud Drive: Open Finder ➔ click 'iCloud Drive' on the sidebar ➔ select your folder.\n3. Google Drive: Open Finder ➔ click 'Google Drive' on the sidebar ➔ 'My Drive' ➔ select folder.\n4. External USB Drive: Plug in USB drive, open Finder ➔ click drive name under 'Locations' ➔ select folder. Formatting as ExFAT is strongly recommended for seamless compatibility across Mac and Windows!",
+        .zhHant: "點擊底部「加入資料夾...」，在訪達（Finder）中選取目錄（至少需 2 個）：\n1. 電腦本機：點開 Finder ➔ 側邊欄「文件」或個人專屬目錄。\n2. iCloud 雲碟：點開 Finder ➔ 側邊欄「iCloud 雲碟」➔ 選取目標資料夾。\n3. Google 雲端硬碟：點開 Finder ➔ 側邊欄「Google Drive」➔「我的雲端硬碟」➔ 選取目標資料夾。\n4. 外接隨身碟：插上隨身碟，點開 Finder ➔ 側邊欄「位置」選取隨身碟目錄。強烈建議格式化為 ExFAT，方便在 Mac 與 Windows 之間通用！",
+        .zhHans: "点击底部“加入文件夹...”，在访达（Finder）中选取目录（至少需 2 个）：\n1. 电脑本机：点开 Finder ➔ 侧边栏“文稿”或个人专属目录。\n2. iCloud 云盘：点开 Finder ➔ 侧边栏“iCloud 云盘”➔ 选取目标文件夹。\n3. Google 云端硬盘：点开 Finder ➔ 侧边栏“Google Drive”➔“我的云端硬盘”➔ 选取目标文件夹。\n4. 外接随身碟：插上随身碟，点开 Finder ➔ 侧边栏“位置”选取随身碟目录。强烈建议格式化为 ExFAT，方便在 Mac 与 Windows 之间通用！",
+        .ja: "下部の「フォルダを追加...」をクリックし、Finder でフォルダを選択します (最低2つ必要):\n1. Mac ローカル: Finder を開き、左サイドバーの「書類」または個人フォルダを選択。\n2. iCloud Drive: Finder を開き、サイドバーの「iCloud Drive」を選択。\n3. Google Drive: Finder を開き、サイドバーの「Google Drive」➔「マイドライブ」を選択。\n4. 外付け USB メモリ: USB を接続し、Finder のサイドバー「場所」からドライブを選択。Mac と Windows の両方で使えるよう ExFAT 形式を強く推奨します！",
+        .th: "คลิก 'เพิ่มโฟลเดอร์...' ด้านล่างและเลือกไดเรกทอรีใน Finder (ต้องมีอย่างน้อย 2 โฟลเดอร์):\n1. โฟลเดอร์ในเครื่อง Mac: เปิด Finder ➔ คลิก 'Documents' หรือโฟลเดอร์ส่วนตัวที่แถบด้านข้าง\n2. iCloud Drive: เปิด Finder ➔ คลิก 'iCloud Drive' ที่แถบด้านข้าง ➔ เลือกโฟลเดอร์เป้าหมาย\n3. Google Drive: เปิด Finder ➔ คลิก 'Google Drive' ➔ 'My Drive' ➔ เลือกโฟลเดอร์\n4. แฟลชไดรฟ์ USB: เสียบแฟลชไดรฟ์ เปิด Finder ➔ คลิกชื่อไดรฟ์ใต้ 'Locations' แนะนำให้ฟอร์แมตเป็น ExFAT เพื่อให้ใช้งานร่วมกับ Windows ได้อย่างราบรื่น!",
+        .ko: "하단의 '폴더 추가...'를 클릭하고 Finder에서 디렉터리를 선택합니다 (최소 2개 필요):\n1. Mac 로컬: Finder 실행 ➔ 좌측 사이드바의 '문서' 또는 사용자 폴더 선택.\n2. iCloud Drive: Finder 실행 ➔ 사이드바의 'iCloud Drive' 선택.\n3. Google Drive: Finder 실행 ➔ 사이드바의 'Google Drive' ➔ '내 드라이브' 선택.\n4. 외장 USB 드라이브: USB 연결 후 Finder 사이드바 '위치' 아래 드라이브 선택. Mac과 Windows 간 원활한 호환을 위해 ExFAT 포맷을 적극 권장합니다!"
+    ],
+    "manual_topic_folders_f2_title": [
+        .en: "Marker Guard & 'Change / Remove' Buttons",
+        .zhHant: "防偽標記檔保護與「更換 / 移除」按鈕",
+        .zhHans: "防伪标记档保护与“更换 / 移除”按钮",
+        .ja: "マーカー保護と「変更 / 削除」ボタン",
+        .th: "การป้องกันด้วยไฟล์มาร์กเกอร์และปุ่ม 'เปลี่ยน / ลบ'",
+        .ko: "마커 파일 보호 및 '변경 / 제거' 버튼"
+    ],
+    "manual_topic_folders_f2_desc": [
+        .en: "• Marker Protection: A unique `.syncnexus-endpoint` UUID file is created inside each folder. If an incorrect USB drive is inserted, syncing stops immediately with 'Marker does not match' to prevent data overwrites.\n• Change Folder: Re-links directory if moved or remounted.\n• Remove: Detaches folder from sync mesh without deleting physical files.",
+        .zhHant: "• 防偽標記：加入資料夾時自動寫入 `.syncnexus-endpoint`。若插錯隨身碟或標記遺失，端點會標註黃色「離線」並顯示「標記檔不符，已停止傳播」，保護資料不被錯蓋。\n• 更換資料夾：路徑搬移或代號變更時重新關聯。\n• 移除：解除同步關係，絕不刪除資料夾內的實體檔案。",
+        .zhHans: "• 防伪标记：加入文件夹时自动写入 `.syncnexus-endpoint`。若插错随身碟或标记遗失，端点会标注黄色“离线”并显示“标记档不符，已停止传播”，保护数据不被错盖。\n• 更换文件夹：路径搬移或代号变更时重新关联。\n• 移除：解除同步关系，绝不删除文件夹内的实体文件。",
+        .ja: "• マーカー保護: フォルダ追加時に `.syncnexus-endpoint` を自動生成します。別の USB が挿入された場合、「マーカー不一致」として即時停止し、誤った上書きを防ぎます。\n• フォルダ変更: パス変更時に再紐付けします。\n• 削除: 同期から除外しますが、実際のファイルは一切削除されません。",
+        .th: "• การป้องกันด้วยมาร์กเกอร์: สร้างไฟล์ `.syncnexus-endpoint` ในโฟลเดอร์โดยอัตโนมัติ หากเสียบแฟลชไดรฟ์ผิดตัว ระบบจะหยุดซิงค์ทันทีและแจ้งเตือนมาร์กเกอร์ไม่ตรงกัน\n• เปลี่ยนโฟลเดอร์: เชื่อมโยงเส้นทางใหม่เมื่อโฟลเดอร์ถูกย้าย\n• ลบ: ยกเลิกการซิงค์โฟลเดอร์ โดยไม่ลบไฟล์จริงใดๆ ทั้งสิ้น",
+        .ko: "• 마커 보호: 폴더 추가 시 `.syncnexus-endpoint`가 자동 생성됩니다. 다른 USB가 연결되면 '마커 불일치'로 즉시 동기화가 중단되어 덮어쓰기를 방지합니다.\n• 폴더 변경: 경로 이동 시 다시 연결합니다.\n• 제거: 동기화 목록에서만 해제되며 실제 파일은 절대 삭제되지 않습니다."
+    ],
+    "manual_topic_conflicts_title": [
+        .en: "Chapter 4: Conflicts — Dual-Version Arbitration",
+        .zhHant: "第四章：衝突 (Conflicts) — 雙版本智慧保留與仲裁",
+        .zhHans: "第四章：冲突 (Conflicts) — 双版本智慧保留与仲裁",
+        .ja: "第4章：競合 (Conflicts) — 2バージョンの安全保持と裁定",
+        .th: "บทที่ 4: ข้อขัดแย้ง (Conflicts) — การเก็บรักษาและการตัดสินสองเวอร์ชัน",
+        .ko: "제4장: 충돌 (Conflicts) — 두 버전 보존 및 중재"
+    ],
+    "manual_topic_conflicts_desc": [
+        .en: "When a file is modified independently on two offline endpoints, SyncNexus enforces a strict 'Zero-Overwrite' policy. Conflicting versions are preserved as `Filename (conflict ...)`, gathered here for side-by-side comparison and resolution.",
+        .zhHant: "當您在無網路或離線時，同時在兩處修改了同一個檔案，SyncNexus 堅持「絕不覆蓋任何一方」。系統會將另一份修改妥善保存為帶有時間戳記的衝突副本（例如 檔名 (conflict ...)），集中於本頁讓您自主比對與挑選。",
+        .zhHans: "当您在无网络或离线时，同时在两处修改了同一个文件，SyncNexus 坚持“绝不覆盖任何一方”。系统会将另一份修改妥善保存为带有时间戳记的冲突副本（例如 文件名 (conflict ...)），集中于本页让您自主比对与挑选。",
+        .ja: "オフライン時に両方で同じファイルが編集された場合、SyncNexus は一切上書きしません。競合バージョンを `ファイル名 (conflict ...)` として保持し、この画面で左右並べて比較・解決できます。",
+        .th: "เมื่อไฟล์ถูกแก้ไขพร้อมกันในสองเครื่องขณะออฟไลน์ SyncNexus จะไม่เขียนทับฝ่ายใดทั้งสิ้น ระบบจะเก็บสำเนาข้อขัดแย้งไว้เป็น `ชื่อไฟล์ (conflict ...)` ให้คุณเปรียบเทียบและเลือกเวอร์ชันที่ต้องการในหน้านี้",
+        .ko: "오프라인 상태에서 두 장치에서 동일한 파일이 수정된 경우, SyncNexus는 어느 한쪽도 덮어쓰지 않습니다. 충돌 파일을 `파일명 (conflict ...)`으로 안전하게 보존하여 이 화면에서 나란히 비교하고 해결할 수 있습니다."
+    ],
+    "manual_topic_conflicts_f1_title": [
+        .en: "Dual-Card Comparison & Resolution Buttons",
+        .zhHant: "雙版本對比卡片與仲裁按鈕",
+        .zhHans: "双版本对比卡片与仲裁按钮",
+        .ja: "2バージョン比較カードと解決ボタン",
+        .th: "การเปรียบเทียบสองเวอร์ชันและปุ่มการตัดสิน",
+        .ko: "두 버전 비교 카드 및 해결 버튼"
+    ],
+    "manual_topic_conflicts_f1_desc": [
+        .en: "• 'Keep This Version': Keeps the left primary version and propagates it; archives the conflict copy.\n• 'Use This Version': Adopts the right version (marked with green 'Newer' badge) as canonical; previous version is backed up to history.\n• 'Reveal in Finder': Highlights the file in Finder for inspection in any diff editor.",
+        .zhHant: "• 「保留此版本」：以左側主要版本為準，推播至所有端點，衝突副本安全歸檔。\n• 「改用此版本」：以右側標註綠色「較新」的衝突副本覆蓋為主要檔案，舊版本自動移入「舊版本庫」備份。\n• 「在 Finder 中顯示」：在訪達中直接定位實體檔案，便於以文字編輯器或比對工具深入比對內容。",
+        .zhHans: "• “保留此版本”：以左侧主要版本为准，推播至所有端点，冲突副本安全归档。\n• “改用此版本”：以右侧标注绿色“较新”的冲突副本覆盖为主要文件，旧版本自动移入“旧版本库”备份。\n• “在 Finder 中显示”：在访达中直接定位实体文件，便于以文本编辑器或比对工具深入比对内容。",
+        .ja: "• 「このバージョンを保持」: 左のプライマリを正式採用し、競合コピーを安全に退避。\n• 「このバージョンを採用」: 右の「新しい」バッジが付いた競合コピーを採用し、旧版は履歴に退避。\n• 「Finder で表示」: Finder でファイルを開いて差分比較ツールで確認できます。",
+        .th: "• 'เก็บเวอร์ชันนี้': ยึดเวอร์ชันหลักทางซ้ายเป็นมาตรฐานและซิงค์ไปยังโฟลเดอร์อื่น สำเนาขัดแย้งจะถูกเก็บถาวร\n• 'ใช้เวอร์ชันนี้': นำเวอร์ชันทางขวา (ที่มีป้ายสีเขียว 'ใหม่กว่า') มาใช้แทน เวอร์ชันเดิมจะถูกสำรองไว้ในประวัติ\n• 'แสดงใน Finder': เปิดไฟล์ใน Finder เพื่อตรวจสอบความแตกต่าง",
+        .ko: "• '이 버전 유지': 좌측 기본 버전을 채택하여 동기화하고 충돌 복사본을 보관합니다.\n• '이 버전 사용': 우측 '더 최신' 표시가 있는 충돌 복사본을 정식 파일로 채택하고 기존 파일은 히스토리에 백업합니다.\n• 'Finder에서 보기': Finder에서 파일을 열어 비교 도구로 내용을 확인할 수 있습니다."
+    ],
+    "manual_topic_versions_title": [
+        .en: "Chapter 5: Versions — History Time Machine",
+        .zhHant: "第五章：舊版本 (Versions) — 歷史時光機與防手殘",
+        .zhHans: "第五章：旧版本 (Versions) — 历史时光机与防手残",
+        .ja: "第5章：履歴 (Versions) — タイムマシンと復元",
+        .th: "บทที่ 5: เวอร์ชันเก่า (Versions) — ไทม์แมชชีนและการกู้คืน",
+        .ko: "제5장: 이전 버전 (Versions) — 타임머신 및 복구 센터"
+    ],
+    "manual_topic_versions_desc": [
+        .en: "Versions is your personal time machine. Whenever a file is overwritten or updated by sync, superseded iterations are preserved in `.syncnexus-history`. Even if you mistakenly overwrite important content, you can recover yesterday's revision with a single click.",
+        .zhHant: "「舊版本」是您的個人資料時光機。每當檔案被修改覆寫或同步取代時，被替換的舊內容會完整封存於 `.syncnexus-history`。即使不小心儲存了錯誤內容，隨時可以在此找回昨天的版本並一鍵救回。",
+        .zhHans: "“旧版本”是您的个人数据时光机。每当文件被修改覆写或同步取代时，被替换的旧内容会完整封存于 `.syncnexus-history`。即使不小心保存了错误内容，随时可以在此找回昨天的版本并一键救回。",
+        .ja: "「履歴」はあなたのタイムマシンです。ファイルが更新または同期で上書きされるたびに、古い内容が `.syncnexus-history` に保存されます。誤って上書きしてしまっても、いつでもワンクリックで復元可能です。",
+        .th: "หน้านี้คือไทม์แมชชีนของคุณ ทุกครั้งที่ไฟล์ถูกบันทึกทับหรือแก้ไขจากการซิงค์ เนื้อหาเดิมจะถูกเก็บไว้ใน `.syncnexus-history` ช่วยให้คุณกู้คืนเวอร์ชันของเมื่อวานได้ด้วยคลิกเดียว",
+        .ko: "'이전 버전'은 파일 타임머신입니다. 파일이 수정되거나 동기화로 덮어씌워질 때마다 이전 내용이 `.syncnexus-history`에 안전하게 보관되어 언제든 클릭 한 번으로 이전 버전을 되살릴 수 있습니다."
+    ],
+    "manual_topic_versions_f1_title": [
+        .en: "Retention Policies & Purge Controls",
+        .zhHant: "歷史保留期限與清理按鈕",
+        .zhHans: "历史保留期限与清理按钮",
+        .ja: "保持期間設定とクリーンアップ",
+        .th: "ระยะเวลาการเก็บรักษาและปุ่มล้างข้อมูล",
+        .ko: "보관 기간 설정 및 정리 버튼"
+    ],
+    "manual_topic_versions_f1_desc": [
+        .en: "• Retention Menu: Choose 7 / 30 / 90 days or Permanent. Expired files are pruned automatically.\n• 'Clean Expired Now': Manually purges outdated revisions to immediately reclaim disk space.\n• 'Clear All': Wipes historical archives after a confirmation dialog without affecting current active files.",
+        .zhHant: "• 保留期限選單：可選 7天 / 30天 / 90天 / 永久，逾期自動清理以節省磁碟空間。\n• 「立即清理過期版本」：手動觸發立即清除已逾期的舊檔案。\n• 「清空全部」：徹底釋放所有歷史版本庫空間（具備二次確認防呆彈窗，絕不影響當前使用中的正式檔案）。",
+        .zhHans: "• 保留期限菜单：可选 7天 / 30天 / 90天 / 永久，逾期自动清理以节省磁盘空间。\n• “立即清理过期版本”：手动触发立即清除已逾期的旧文件。\n• “清空全部”：彻底释放所有历史版本库空间（具备二次确认防呆弹窗，绝不影响当前使用中的正式文件）。",
+        .ja: "• 保持期間メニュー: 7日 / 30日 / 90日 / 無期限 から選択。期限切れは自動削除されます。\n• 「期限切れをクリーンアップ」: 即座に期限切れファイルを削除して容量を解放。\n• 「すべてクリア」: 確認後に履歴アーカイブ全体をクリアします（現在作業中のファイルには影響しません）。",
+        .th: "• เมนูระยะเวลาการเก็บรักษา: เลือกได้ระหว่าง 7 / 30 / 90 วัน หรือถาวร\n• 'ล้างเวอร์ชันที่หมดอายุทันที': ลบไฟล์ประวัติที่เกินกำหนดเพื่อคืนพื้นที่ดิสก์\n• 'ล้างทั้งหมด': ล้างไฟล์ประวัติทั้งหมดหลังยืนยัน โดยไม่กระทบต่อไฟล์ปัจจุบันที่ใช้งานอยู่",
+        .ko: "• 보관 기간 메뉴: 7일 / 30일 / 90일 / 영구 보관 중 선택. 만료된 파일은 자동 정리됩니다.\n• '만료된 버전 정리': 기한이 지난 이전 버전을 즉시 정리하여 디스크 공간을 확보합니다.\n• '모두 지우기': 확인 팝업을 거쳐 히스토리 전체를 비웁니다 (현재 작업 중인 실제 파일에는 영향 없음)."
+    ],
+    "manual_topic_versions_f2_title": [
+        .en: "Search Filter & 'Restore' Action",
+        .zhHant: "搜尋過濾與「還原」按鈕",
+        .zhHans: "搜索过滤与“还原”按钮",
+        .ja: "検索フィルターと「復元」ボタン",
+        .th: "ตัวกรองการค้นหาและปุ่ม 'กู้คืน'",
+        .ko: "검색 필터 및 '복구' 버튼"
+    ],
+    "manual_topic_versions_f2_desc": [
+        .en: "• Search Field: Type keywords to filter revisions by filename or endpoint.\n• 'Restore' Button: Overwrites your current working directory with the selected historical revision and syncs across all endpoints.",
+        .zhHant: "• 搜尋框：即時輸入關鍵字過濾檔名或端點。\n• 「還原」按鈕：點擊即可將該歷史版本提取還原回指定資料夾，並立即同步至所有其他端點。",
+        .zhHans: "• 搜索框：即时输入关键字过滤文件名或端点。\n• “还原”按钮：点击即可将该历史版本提取还原回指定文件夹，并立即同步至所有其他端点。",
+        .ja: "• 検索ボックス: キーワード入力でファイル名や端点を即時絞り込み。\n• 「復元」ボタン: 選択した過去バージョンを作業フォルダに書き戻し、全端点に同期します。",
+        .th: "• ช่องค้นหา: พิมพ์คำค้นหาเพื่อกรองตามชื่อไฟล์หรือโฟลเดอร์\n• ปุ่ม 'กู้คืน': นำเวอร์ชันประวัตินั้นกลับมาทับในโฟลเดอร์ทำงานและซิงค์ไปยังทุกโฟลเดอร์ทันที",
+        .ko: "• 검색창: 키워드를 입력하여 파일명 또는 폴더별로 빠르게 필터링.\n• '복구' 버튼: 선택한 과거 버전을 작업 폴더로 복원하고 모든 엔드포인트에 즉시 동기화합니다."
+    ],
+    "manual_topic_verification_title": [
+        .en: "Chapter 6: Verification — SHA-256 Deep Integrity",
+        .zhHant: "第六章：驗證紀錄 (Verification) — SHA-256 深度比對",
+        .zhHans: "第六章：验证纪录 (Verification) — SHA-256 深度比对",
+        .ja: "第6章：検証記録 (Verification) — SHA-256 完全性検証",
+        .th: "บทที่ 6: บันทึกการตรวจสอบ (Verification) — ตรวจสอบ SHA-256 เชิงลึก",
+        .ko: "제6장: 검증 기록 (Verification) — SHA-256 무결성 검증"
+    ],
+    "manual_topic_verification_desc": [
+        .en: "To protect against silent bit-rot and transmission corruption, SyncNexus uses industrial-grade SHA-256 hashing to verify every byte across all endpoints, ensuring 100% data integrity.",
+        .zhHant: "為防範硬碟壞軌導致的無聲資料損壞（Silent Bit-rot）或網路傳輸掉包，SyncNexus 採用工業級 SHA-256 雜湊技術，對所有端點的所有檔案進行逐 Byte 深度比對，確保每一份檔案都真實可靠。",
+        .zhHans: "为防范硬盘坏道导致的无声数据损坏（Silent Bit-rot）或网络传输掉包，SyncNexus 采用工业级 SHA-256 哈希技术，对所有端点的所有文件进行逐 Byte 深度比对，确保每一份文件都真实可靠。",
+        .ja: "サイレントビットロットやネットワーク転送エラーを防ぐため、工業規格の SHA-256 ハッシュを用いてすべての端点のファイルを1バイトずつ検証し、完全性を保証します。",
+        .th: "เพื่อป้องกันข้อมูลเสียหายจากบิตดิสก์เสื่อมสภาพ (Bit-rot) หรือการส่งข้อมูลไม่สมบูรณ์ SyncNexus ใช้การแฮช SHA-256 ระดับอุตสาหกรรมตรวจสอบความถูกต้องของไฟล์แบบไบต์ต่อไบต์",
+        .ko: "하드디스크 불량 섹터로 인한 사일런트 비트 로트(Silent Bit-rot)나 네트워크 전송 오류를 방지하기 위해, 산업 표준 SHA-256 해시를 사용하여 모든 엔드포인트의 파일을 바이트 단위로 검증합니다."
+    ],
+    "manual_topic_verification_f1_title": [
+        .en: "'Start Verification Now' & Auto-Repair",
+        .zhHant: "「立即執行完整驗證」按鈕與自動修復",
+        .zhHans: "“立即执行完整验证”按钮与自动修复",
+        .ja: "「今すぐ完全検証を実行」と自動修復",
+        .th: "ปุ่ม 'เริ่มการตรวจสอบทันที' และการซ่อมแซมอัตโนมัติ",
+        .ko: "'지금 전체 검증 실행' 버튼 및 자동 복구"
+    ],
+    "manual_topic_verification_f1_desc": [
+        .en: "• Location: Blue button on the Verification card.\n• How to Use: Click 'Verify Now' to calculate hashes across all files.\n• Output: If all pass, shows green 'No anomalies'. If corruption is detected, gives two repair options:\n  1. 'Repair from Others': Downloads clean copy from healthy peer.\n  2. 'Accept Current Content': Re-hashes the file as the new baseline.",
+        .zhHant: "• 實際位置：驗證卡片右側藍色按鈕。\n• 操作方式：點擊「立即驗證」，背景自動逐一運算校驗全端點所有檔案。\n• 產出現象：若全數通過，綠燈顯示「沒有異常」；若發現損毀，列出異常項目並提供：\n  1. 「從其他端點修復」：從健全端點下載正確副本覆蓋修復受損檔。\n  2. 「接受目前內容」：將目前檔案內容重新計算為基準雜湊。",
+        .zhHans: "• 实际位置：验证卡片右侧蓝色按钮。\n• 操作方式：点击“立即验证”，背景自动逐一运算校验全端点所有文件。\n• 产出现象：若全数通过，绿灯显示“没有异常”；若发现损毁，列出异常项目并提供：\n  1. “从其他端点修复”：从健全端点下载正确副本覆盖修复受损文件。\n  2. “接受目前内容”：将目前文件内容重新计算为基准哈希。",
+        .ja: "• 位置: 検証カード右側の青いボタン。\n• 操作: 「今すぐ検証」をクリックしてハッシュ計算を開始。\n• 結果: 異常がなければ緑の「異常なし」を表示。破損が見つかった場合:\n  1. 「他の端点から修復」: 正常な端点から正常なファイルをコピーして修復。\n  2. 「現在の内容を受け入れる」: 現在の内容を新しい基準として更新。",
+        .th: "• ตำแหน่ง: ปุ่มสีน้ำเงินทางขวาของบัตรการตรวจสอบ\n• วิธีใช้: คลิก 'ตรวจสอบทันที' เพื่อคำนวณแฮชทั้งหมด\n• ผลลัพธ์: หากปกติจะแสดงสีเขียว 'ไม่มีความผิดปกติ' หากพบไฟล์เสียหายจะมี 2 ทางเลือก:\n  1. 'ซ่อมแซมจากโฟลเดอร์อื่น': ดึงสำเนาที่สมบูรณ์มาเขียนทับ\n  2. 'ยอมรับเนื้อหาปัจจุบัน': อัปเดตแฮชฐานใหม่",
+        .ko: "• 위치: 무결성 검증 카드 우측의 파란색 버튼.\n• 조작: '지금 검증'을 클릭하여 백그라운드에서 전체 해시를 검증합니다.\n• 결과: 통과 시 녹색 '이상 없음' 표시. 손상이 발견된 경우:\n  1. '다른 폴더에서 복구': 정상적인 폴더에서 올바른 사본을 가져와 복구합니다.\n  2. '현재 내용 수락': 현재 파일 내용을 새 기준 해시로 업데이트합니다."
+    ],
+    "manual_topic_settings_title": [
+        .en: "Chapter 7: Settings — Policies, Exclusions & Permissions",
+        .zhHant: "第七章：設定 (Settings) — 衝突原則、排除規則與權限",
+        .zhHans: "第七章：设置 (Settings) — 冲突原则、排除规则与权限",
+        .ja: "第7章：設定 (Settings) — ポリシー、除外、権限",
+        .th: "บทที่ 7: การตั้งค่า (Settings) — นโยบาย กฎการยกเว้น และสิทธิ์",
+        .ko: "제7장: 설정 (Settings) — 정책, 제외 규칙 및 권한"
+    ],
+    "manual_topic_settings_desc": [
+        .en: "Settings provides configuration for conflict arbitration, exclusion filters to protect databases and code projects, system auto-start, and macOS Full Disk Access guidance.",
+        .zhHant: "「設定」提供個人化的同步偏好微調，讓您自由掌控衝突處理模式、排除可能干擾同步的暫存檔案，以及配置 macOS 系統權限與開機自啟動。",
+        .zhHans: "“设置”提供个性化的同步偏好微调，让您自由掌控冲突处理模式、排除可能干扰同步的暂存文件，以及配置 macOS 系统权限与开机自启动。",
+        .ja: "「設定」では、競合ポリシーの調整、不要な一時ファイルの除外ルール設定、macOS のフルディスクアクセス権限、ログイン時自動起動を設定できます。",
+        .th: "หน้า 'การตั้งค่า' ให้คุณปรับแต่งนโยบายข้อขัดแย้ง กฎการยกเว้นไฟล์ชั่วคราว การเริ่มทำงานอัตโนมัติเมื่อเปิดเครื่อง และสิทธิ์การเข้าถึงดิสก์ของ macOS",
+        .ko: "'설정'에서는 충돌 해결 모드 선택, 임시 파일 제외 규칙, 자동 실행 설정 및 macOS 전체 디스크 접근 권한 안내를 제공합니다."
+    ],
+    "manual_topic_settings_f1_title": [
+        .en: "Conflict Policy & Exclusion Presets",
+        .zhHant: "衝突原則與排除規則",
+        .zhHans: "冲突原则与排除规则",
+        .ja: "競合ポリシーと除外プリセット",
+        .th: "นโยบายข้อขัดแย้งและกฎการยกเว้น",
+        .ko: "충돌 정책 및 제외 프리셋"
+    ],
+    "manual_topic_settings_f1_desc": [
+        .en: "• Conflict Policy: 'Keep both, let me choose' (Recommended) vs 'Newer wins, old saved to versions'.\n• Exclusion Presets: Toggle exclusion for `node_modules`, `.git`, database locks (`-wal`, `-shm`), and Apple Photos libraries (`.photoslibrary`) to safeguard files and conserve bandwidth.",
+        .zhHant: "• 衝突處理原則：單選「保留兩份，由我挑選（預設，推薦）」或「自動採用較新，舊的存進舊版本」。\n• 排除規則開關：可勾選排除 `node_modules`、`.git`、資料庫暫存檔（`-wal`, `-shm`）、照片圖庫（`.photoslibrary`），大幅節省傳輸頻寬並保護資料庫安全。",
+        .zhHans: "• 冲突处理原则：单选“保留两份，由我挑选（默认，推荐）”或“自动采用较新，旧的存进旧版本”。\n• 排除规则开关：可勾选排除 `node_modules`、`.git`、数据库暂存文件（`-wal`, `-shm`）、照片图库（`.photoslibrary`），大幅节省传输带宽并保护数据库安全。",
+        .ja: "• 競合ポリシー: 「両方保持して手動選択 (推奨)」または「新しい方を自動採用」。\n• 除外プリセット: `node_modules`、`.git`、データベース一時ファイル (`-wal`, `-shm`)、写真ライブラリ (`.photoslibrary`) を除外設定できます。",
+        .th: "• นโยบายข้อขัดแย้ง: 'เก็บทั้งสองเวอร์ชันและเลือกเอง' (แนะนำ) หรือ 'ใช้เวอร์ชันใหม่กว่าโดยอัตโนมัติ'\n• กฎการยกเว้น: สามารถเลือกยกเว้น `node_modules`, `.git`, ไฟล์ฐานข้อมูลชั่วคราว (`-wal`, `-shm`), และคลังรูปภาพ Photos เพื่อประหยัดแบนด์วิดท์และรักษาความปลอดภัยของไฟล์",
+        .ko: "• 충돌 정책: '두 버전 모두 유지하고 수동 선택(권장)' 또는 '새로운 버전 자동 채택'.\n• 제외 규칙: `node_modules`, `.git`, 데이터베이스 임시 파일(`-wal`, `-shm`), 사진 보관함(`.photoslibrary`)을 제외하여 대역폭을 절약하고 손상을 방지합니다."
+    ],
+    "manual_topic_settings_f2_title": [
+        .en: "Launch at Login & Full Disk Access",
+        .zhHant: "開機自啟動與「完全取用磁碟」權限",
+        .zhHans: "开机自启动与“完全取用磁盘”权限",
+        .ja: "ログイン時起動とフルディスクアクセス",
+        .th: "เปิดใช้งานเมื่อเข้าสู่ระบบและสิทธิ์เข้าถึงดิสก์",
+        .ko: "로그인 시 자동 실행 및 전체 디스크 접근 권한"
+    ],
+    "manual_topic_settings_f2_desc": [
+        .en: "• Launch at Login: Automatically runs SyncNexus quietly in the menu bar on macOS login.\n• Full Disk Access: If unauthorized, click 'Open System Settings' to directly jump to macOS 'Privacy & Security ➔ Full Disk Access' and enable SyncNexus.",
+        .zhHant: "• 開機自動啟動：開機登入 Mac 時自動於選單列後台守護。\n• 完全取用磁碟權限：若顯示未授權，點擊「開啟系統設定」直達 macOS「隱私權與安全性 ➔ 完全取用磁碟」，將 SyncNexus 勾選開啟即可。",
+        .zhHans: "• 开机自动启动：开机登录 Mac 时自动于菜单栏后台守护。\n• 完全取用磁盘权限：若显示未授权，点击“打开系统设置”直达 macOS“隐私与安全性 ➔ 完全磁盘访问权限”，将 SyncNexus 勾选开启即可。",
+        .ja: "• ログイン時自動起動: Mac ログイン時にメニューバーのバックグラウンドで自動待機します。\n• フルディスクアクセス: 「未認可」の場合、「システム設定を開く」をクリックして「プライバシーとセキュリティ ➔ フルディスクアクセス」を開き、SyncNexus を有効にしてください。",
+        .th: "• เริ่มทำงานเมื่อเปิดเครื่อง: เปิด SyncNexus ในแถบเมนูด้านบนอัตโนมัติเมื่อเข้าสู่ระบบ Mac\n• สิทธิ์การเข้าถึงดิสก์เต็มรูปแบบ: หากยังไม่ได้รับอนุญาต คลิก 'เปิดการตั้งค่าระบบ' เพื่อไปที่การตั้งค่าความเป็นส่วนตัวและความปลอดภัยของ macOS และเปิดใช้งาน SyncNexus",
+        .ko: "• 로그인 시 자동 실행: Mac 로그인 시 메뉴바 백그라운드에서 자동으로 상주합니다.\n• 전체 디스크 접근 권한: '권한 없음'으로 표시되면 '시스템 설정 열기'를 클릭하여 '개인정보 보호 및 보안 ➔ 전체 디스크 접근 권한'에서 SyncNexus를 켭니다."
     ]
 ]
+
