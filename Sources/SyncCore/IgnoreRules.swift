@@ -43,7 +43,7 @@ public struct IgnoreRules: Sendable {
 
 /// Unsafe live data that is always excluded and left untouched everywhere (never deleted).
 public enum ExcludePreset: String, CaseIterable, Sendable, Identifiable {
-    case nodeModules, git, databases, photosLibraries
+    case nodeModules, git, databases, photosLibraries, buildCaches
     public var id: String { rawValue }
     public static let defaults = Set(ExcludePreset.allCases)
 
@@ -53,6 +53,7 @@ public enum ExcludePreset: String, CaseIterable, Sendable, Identifiable {
         case .git: ".git（版本控制資料夾）"
         case .databases: "資料庫暫存檔（-wal、-shm、-journal）"
         case .photosLibraries: "照片圖庫（.photoslibrary）"
+        case .buildCaches: "專案編譯快取（.build、target、build、.gradle、DerivedData、Pods）"
         }
     }
 
@@ -62,6 +63,7 @@ public enum ExcludePreset: String, CaseIterable, Sendable, Identifiable {
         case .git: "同步到一半的 .git 可能損壞版本庫，請直接使用 Git 管理。"
         case .databases: "使用中的資料庫會得到不一致的複本。"
         case .photosLibraries: "照片圖庫是一個正在使用的資料庫，同步它會損壞圖庫。"
+        case .buildCaches: "編譯產物瑣碎且可隨時重新產生，同步會產生大量衝突並耗損傳輸效能。"
         }
     }
 }
@@ -75,6 +77,7 @@ extension IgnoreRules {
             case .git: r.exactNames.insert(".git")
             case .databases: r.suffixes += ["-wal", "-shm", "-journal", ".sqlite-wal", ".sqlite-shm"]
             case .photosLibraries: r.suffixes += [".photoslibrary", ".photolibrary"]
+            case .buildCaches: r.exactNames.formUnion([".build", "build", "target", ".gradle", "DerivedData", "Pods"])
             }
         }
         return r

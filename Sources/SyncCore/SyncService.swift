@@ -390,9 +390,26 @@ public final class SyncService: @unchecked Sendable {
 
     public func resolveConflict(id: Int64, keep: ConflictChoice, completion: @escaping @Sendable (Error?) -> Void) {
         queue.async {
-            guard let engine = self.engine else { completion(DBError(description: "服務尚未啟動")); return }
-            do { try engine.resolveConflictRecord(id, keep: keep); completion(nil) } catch { completion(error) }
-            self.runIfNeeded(confirmed: false)     // spreads the chosen version and refreshes the list
+            self.attemptResolveConflict(id: id, keep: keep, retriesLeft: 30, completion: completion)
+        }
+    }
+
+    private func attemptResolveConflict(id: Int64, keep: ConflictChoice, retriesLeft: Int, completion: @escaping @Sendable (Error?) -> Void) {
+        guard let engine = self.engine else { completion(DBError(description: "服務尚未啟動")); return }
+        do {
+            try engine.resolveConflictRecord(id, keep: keep)
+            let cfgs = (try? engine.store.endpoints()) ?? []
+            self.snapshot.conflicts = (try? self.currentConflicts(engine, cfgs)) ?? []
+            self.publish()
+            completion(nil)
+            self.runIfNeeded(confirmed: false)     // spreads the chosen version
+        } catch is SyncBusy where retriesLeft > 0 {
+            // Background sync is active; retry after a short delay once lock is released
+            self.queue.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                self?.attemptResolveConflict(id: id, keep: keep, retriesLeft: retriesLeft - 1, completion: completion)
+            }
+        } catch {
+            completion(error)
         }
     }
 
@@ -433,6 +450,10 @@ public final class SyncService: @unchecked Sendable {
         if running {
             rerun = true; rerunConfirmed = rerunConfirmed || confirmed
             if !incremental { rerunFull = true }
+            if confirmed {
+                snapshot.confirmation = nil
+                publish()
+            }
             return
         }
         // Incremental only when asked for by the watcher and nothing doubtful is pending; every other trigger (start, wake,
@@ -446,6 +467,9 @@ public final class SyncService: @unchecked Sendable {
         snapshot.phase = .syncing
         snapshot.progress = SyncProgress(stage: .preparing, fraction: 0)
         snapshot.error = nil
+        if confirmed {
+            snapshot.confirmation = nil
+        }
         publish()
 
         maintainVersionsIfDue(engine)

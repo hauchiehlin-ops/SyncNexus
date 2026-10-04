@@ -209,6 +209,14 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .th: "เก็บฉบับนี้ไว้",
         .ko: "이 버전 유지"
     ],
+    "conflicts_sync_in_progress_queued": [
+        .en: "Sync in progress. Resolution will be applied automatically once current task finishes.",
+        .zhHant: "正在同步中，將於當前作業完成後自動套用",
+        .zhHans: "正在同步中，将于当前作业完成后自动应用",
+        .ja: "同期中です。現在の処理が完了次第、自動的に適用されます",
+        .th: "กำลังซิงค์อยู่ จะมีผลโดยอัตโนมัติเมื่องานปัจจุบันเสร็จสิ้น",
+        .ko: "동기화 진행 중입니다. 현재 작업이 완료된 후 자동으로 적용됩니다."
+    ],
     "conflicts_local_only_note": [
         .en: "Only in this folder",
         .zhHant: "只在這個資料夾",
@@ -1360,6 +1368,22 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .ja: "ファイル数が多く、いつでも再インストール可能です。",
         .th: "มีไฟล์ย่อยจำนวนมากและสามารถติดตั้งใหม่ได้ตลอดเวลา",
         .ko: "파일 수가 매우 많고 언제든 다시 설치할 수 있습니다."
+    ],
+    "preset_build_caches_title": [
+        .en: "Build Caches (.build, target, build, .gradle, DerivedData, Pods)",
+        .zhHant: "專案編譯快取（.build、target、build、.gradle、DerivedData、Pods）",
+        .zhHans: "项目编译缓存（.build、target、build、.gradle、DerivedData、Pods）",
+        .ja: "ビルドキャッシュ（.build、target、build、.gradle、DerivedData、Pods）",
+        .th: "แคชบิลด์โปรเจกต์ (.build, target, build, .gradle, DerivedData, Pods)",
+        .ko: "프로젝트 빌드 캐시 (.build, target, build, .gradle, DerivedData, Pods)"
+    ],
+    "preset_build_caches_why": [
+        .en: "Compiler outputs are fragmented and regenerable; syncing them wastes I/O and causes massive conflicts.",
+        .zhHant: "編譯產物瑣碎且可隨時重新產生，同步會產生大量衝突並耗損傳輸效能。",
+        .zhHans: "编译产物琐碎且可随时重新生成，同步会产生大量冲突并耗损传输效能。",
+        .ja: "ビルド生成物は断片化しており再生成可能です。同期すると大量の競合と転送コストが発生します。",
+        .th: "ผลลัพธ์จากการบิลด์มีไฟล์ย่อยมากและสร้างใหม่ได้ตลอด การซิงค์จะทำให้เกิดข้อขัดแย้งและเปลืองแบนด์วิดท์",
+        .ko: "빌드 산출물은 언제든 재생성 가능하며 동기화 시 대량의 충돌과 전송 지연을 유발합니다."
     ],
     "preset_photos_title": [
         .en: "Photos Libraries (.photoslibrary)",

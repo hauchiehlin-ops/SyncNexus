@@ -368,7 +368,15 @@ final class AppModel: ObservableObject {
         alert.addButton(withTitle: loc("model_btn_confirm_exec"))
         alert.addButton(withTitle: loc("cancel"))
         NSApp.activate(ignoringOtherApps: true)
-        if alert.runModal() == .alertFirstButtonReturn { service.syncNow(confirmed: true) }
+        if alert.runModal() == .alertFirstButtonReturn {
+            snap.confirmation = nil
+            if let gid = activeGroup?.id {
+                snapshots[gid]?.confirmation = nil
+            }
+            lastNotifiedConfirmation = nil
+            objectWillChange.send()
+            service.syncNow(confirmed: true)
+        }
     }
 
     // MARK: sync groups management
@@ -740,11 +748,24 @@ final class AppModel: ObservableObject {
         }
     }
 
+    @Published var resolvingConflictIds: Set<Int64> = []
+
     func resolve(_ c: SyncService.ConflictItem, keep: ConflictChoice) {
+        resolvingConflictIds.insert(c.id)
         service.resolveConflict(id: c.id, keep: keep) { [weak self] err in
             Task { @MainActor in
-                self?.settingsMessage = err.map { loc("msg_add_failed", CoreMessages.localize($0)) }
-                    ?? (keep == .main ? loc("msg_conflict_kept_main") : loc("msg_conflict_used_extra"))
+                self?.resolvingConflictIds.remove(c.id)
+                if let err {
+                    self?.settingsMessage = loc("msg_add_failed", CoreMessages.localize(err))
+                } else {
+                    withAnimation(.easeInOut(duration: 0.35)) {
+                        self?.snap.conflicts.removeAll { $0.id == c.id }
+                        if let gid = self?.activeGroupId {
+                            self?.snapshots[gid]?.conflicts.removeAll { $0.id == c.id }
+                        }
+                    }
+                    self?.settingsMessage = keep == .main ? loc("msg_conflict_kept_main") : loc("msg_conflict_used_extra")
+                }
             }
         }
     }

@@ -8,6 +8,7 @@ extension ExcludePreset {
     var localizedTitle: String {
         switch self {
         case .nodeModules: return loc("preset_node_modules_title")
+        case .buildCaches: return loc("preset_build_caches_title")
         case .git: return loc("preset_git_title")
         case .databases: return loc("preset_databases_title")
         case .photosLibraries: return loc("preset_photos_title")
@@ -17,6 +18,7 @@ extension ExcludePreset {
     var localizedWhy: String {
         switch self {
         case .nodeModules: return loc("preset_node_modules_why")
+        case .buildCaches: return loc("preset_build_caches_why")
         case .git: return loc("preset_git_why")
         case .databases: return loc("preset_databases_why")
         case .photosLibraries: return loc("preset_photos_why")
@@ -461,6 +463,7 @@ struct ConflictCard: View {
     let c: SyncService.ConflictItem
     private func date(_ d: Date?) -> String { d?.formatted(date: .abbreviated, time: .shortened) ?? "—" }
     private var extraNewer: Bool { (c.extraModified ?? .distantPast) > (c.mainModified ?? .distantPast) }
+    private var isResolving: Bool { model.resolvingConflictIds.contains(c.id) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -474,6 +477,15 @@ struct ConflictCard: View {
                 version(title: loc("conflicts_version_on_endpoint", DisplayNames.endpoint(c.endpoint)), note: loc("conflicts_local_only_note"), size: c.extraSize, modified: c.extraModified, newer: extraNewer,
                         path: c.extraPath, keep: loc("conflicts_use_this"), primary: false) { model.resolve(c, keep: .conflict) }
             }
+            if isResolving {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text(loc("conflicts_sync_in_progress_queued"))
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.accent)
+                }
+                .padding(.vertical, 2)
+            }
             if !c.endpointOnline {
                 Label(loc("conflicts_endpoint_offline", DisplayNames.endpoint(c.endpoint)), systemImage: "externaldrive.badge.xmark").font(.system(size: 13)).foregroundStyle(Theme.warn)
             }
@@ -481,6 +493,7 @@ struct ConflictCard: View {
         .padding(18)
         .background(Theme.card, in: RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.line, lineWidth: 1))
+        .opacity(isResolving ? 0.75 : 1.0)
     }
 
     private func version(title: String, note: String, size: Int64?, modified: Date?, newer: Bool, path: String,
@@ -495,8 +508,19 @@ struct ConflictCard: View {
                 Text(note).font(.system(size: 12)).foregroundStyle(.secondary)
             }
             HStack {
-                Button(keep, action: action).buttonStyle(QuietButton(kind: primary ? .primary : .secondary)).disabled(!c.endpointOnline)
-                Button(loc("btn_reveal_in_finder")) { model.reveal(path) }.buttonStyle(QuietButton(kind: .plain))
+                Button(action: action) {
+                    HStack(spacing: 6) {
+                        if isResolving {
+                            ProgressView().controlSize(.mini)
+                        }
+                        Text(keep)
+                    }
+                }
+                .buttonStyle(QuietButton(kind: primary ? .primary : .secondary))
+                .disabled(!c.endpointOnline || isResolving)
+                Button(loc("btn_reveal_in_finder")) { model.reveal(path) }
+                    .buttonStyle(QuietButton(kind: .plain))
+                    .disabled(isResolving)
             }
         }
         .padding(14)
