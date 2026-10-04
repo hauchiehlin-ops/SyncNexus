@@ -358,6 +358,24 @@ struct HardeningTests {
         #expect(try FileOps.hashIfStable(e.url("a", "f.txt"), size: st.size, mtimeNs: st.mtimeNs - 1) == nil)   // changed meanwhile
     }
 
+    @Test func apfsCloneOrAtomicCopyPreservesContentAndMetadata() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("copy-test-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let src = root.appendingPathComponent("source.txt")
+        let dst = root.appendingPathComponent("dest.txt")
+        let text = "Fast Zero Copy Data on APFS"
+        try text.write(to: src, atomically: true, encoding: .utf8)
+        let hash = try FileOps.sha256(of: src)
+        let mtime = Date(timeIntervalSince1970: 1_700_000_000)
+
+        try FileOps.copyAtomically(from: src, to: dst, expectHash: hash, mtime: mtime)
+        #expect(try String(contentsOf: dst, encoding: .utf8) == text)
+        let st = try #require(FileOps.statInfo(dst))
+        #expect(st.size == Int64(text.utf8.count))
+        #expect(abs(Double(st.mtimeNs) / 1e9 - 1_700_000_000) < 1.0)
+    }
+
     @Test func deletedFilesAreArchivedBeforeGoingToTheTrash() throws {
         let e = try Env2(["a", "b"])
         try e.write("a", "precious.txt", "do not lose me"); try e.sync()

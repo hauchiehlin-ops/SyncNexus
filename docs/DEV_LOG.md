@@ -312,3 +312,16 @@
   - `StringsTable.swift` 補充繁中、簡中、英文、日文、泰文、韓文六國語言之取消、進度階段、強制排除原則說明及狀態橫幅字串。
   - Swift 單元測試增至 111 項全數通過（新增進度單調性與中斷清理等單元測試）；Android 單元測試及 Release 打包驗證均成功。
 
+### [2026-10-04] 大規模海量檔案同步極限加速：APFS 零拷貝、多核自適應雜湊與資料庫性能調優
+* **APFS 寫入時複製（Copy-on-Write / `clonefile(2)`）零拷貝加速**：
+  - 在 `FileOps.copyAtomically` 引入 macOS 原生 `clonefile` 支援。當同步來源與目的地處於相同 APFS 卷冊時，利用 Extents 引用共享實現零 I/O 實體拷貝，大檔與海量檔案複製從數分鐘縮短至毫秒級；非 APFS 或跨卷冊/抽取式儲存設備自動安全降級為串流寫入。
+  - 新增單元測試 `apfsCloneOrAtomicCopyPreservesContentAndMetadata` 驗證內容一致性與時間戳元數據保留。
+* **CPU 多核心自適應雜湊擴展（Prehash Scaling & Zero-Contention）**：
+  - 解除原本固定的 4 worker 限制，改為依據 `ProcessInfo.activeProcessorCount` 動態分配（最高 16 workers），徹底發揮 Apple Silicon M 系列多核能力。
+  - 工作執行緒改用各自獨立的局部字典收集雜湊結果，消除在海量檔案雜湊時的高頻 `NSLock` 競爭。
+* **SQLite 核心記憶體調優（Cache Size & In-Memory Temp Store）**：
+  - 啟用 `PRAGMA cache_size=-64000;`（64MB 快取池）與 `PRAGMA temp_store=MEMORY;`，確保在十萬至百萬筆檔案記錄的索引比對與 B-Tree 搜尋時完全駐留記憶體，免除頻繁磁碟換頁。
+* **驗證結果**：
+  - Swift 全套 19 個測試套件共 112 項測試全數通過（9.5 秒內完成）；Android 單元測試通過；官方憑證簽署建置成功。
+
+

@@ -202,35 +202,61 @@ public enum FileOps {
         var written: Int64 = 0
         let totalBytes = max(1, statInfo(src)?.size ?? 1)
         let tmp = dst.deletingLastPathComponent().appendingPathComponent(".nexus-\(UUID().uuidString).nexus-part")
-        guard fm.createFile(atPath: tmp.path, contents: nil) else { throw CocoaError(.fileWriteUnknown) }
-        do {
-            let input = try FileHandle(forReadingFrom: src)
-            let output = try FileHandle(forWritingTo: tmp)
-            defer { try? input.close(); try? output.close() }
-            var hasher = SHA256()
-            var more = true
-            while more {
-                if shouldCancel?() == true { throw ScanCancelled() }
-                try autoreleasepool {
-                    if let chunk = try input.read(upToCount: 1 << 20), !chunk.isEmpty {
-                        hasher.update(data: chunk)
-                        try output.write(contentsOf: chunk)
-                        written += Int64(chunk.count)
-                        progress?(written, totalBytes)
-                    } else { more = false }
+        var cloned = false
+
+        #if canImport(Darwin)
+        if !durable, shouldCancel?() != true {
+            let before = statInfo(src)
+            if clonefile(src.path, tmp.path, 0) == 0 {
+                let after = statInfo(src)
+                if let before, let after, before.size == after.size, before.mtimeNs == after.mtimeNs {
+                    cloned = true
+                    written = totalBytes
+                    progress?(written, totalBytes)
+                    if let mtime { try? fm.setAttributes([.modificationDate: mtime], ofItemAtPath: tmp.path) }
+                } else {
+                    try? fm.removeItem(at: tmp)
+                    throw CopyError.sourceChanged
                 }
             }
-            if durable && written >= fullSyncThreshold { fullSync(fd: output.fileDescriptor) } else { try output.synchronize() }
-            let got = hasher.finalize().map { String(format: "%02x", $0) }.joined()
-            guard got == expectHash else { throw CopyError.sourceChanged }
+        }
+        #endif
 
-            #if canImport(Darwin)
-            _ = copyfile(src.path, tmp.path, nil, copyfile_flags_t(COPYFILE_SECURITY | COPYFILE_XATTR))
-            #endif
-            if let mtime { try fm.setAttributes([.modificationDate: mtime], ofItemAtPath: tmp.path) }
-        } catch {
+        if !cloned {
+            guard fm.createFile(atPath: tmp.path, contents: nil) else { throw CocoaError(.fileWriteUnknown) }
+            do {
+                let input = try FileHandle(forReadingFrom: src)
+                let output = try FileHandle(forWritingTo: tmp)
+                defer { try? input.close(); try? output.close() }
+                var hasher = SHA256()
+                var more = true
+                while more {
+                    if shouldCancel?() == true { throw ScanCancelled() }
+                    try autoreleasepool {
+                        if let chunk = try input.read(upToCount: 1 << 20), !chunk.isEmpty {
+                            hasher.update(data: chunk)
+                            try output.write(contentsOf: chunk)
+                            written += Int64(chunk.count)
+                            progress?(written, totalBytes)
+                        } else { more = false }
+                    }
+                }
+                if durable && written >= fullSyncThreshold { fullSync(fd: output.fileDescriptor) } else { try output.synchronize() }
+                let got = hasher.finalize().map { String(format: "%02x", $0) }.joined()
+                guard got == expectHash else { throw CopyError.sourceChanged }
+
+                #if canImport(Darwin)
+                _ = copyfile(src.path, tmp.path, nil, copyfile_flags_t(COPYFILE_SECURITY | COPYFILE_XATTR))
+                #endif
+                if let mtime { try fm.setAttributes([.modificationDate: mtime], ofItemAtPath: tmp.path) }
+            } catch {
+                try? fm.removeItem(at: tmp)
+                throw error
+            }
+        }
+        if shouldCancel?() == true {
             try? fm.removeItem(at: tmp)
-            throw error
+            throw ScanCancelled()
         }
         guard rename(tmp.path, dst.path) == 0 else {
             let err = POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)

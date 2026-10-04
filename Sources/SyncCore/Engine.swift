@@ -579,20 +579,27 @@ public final class Engine {
             }
         }
         guard jobs.count >= 8 else { return }
-        let workers = min(4, max(2, ProcessInfo.processInfo.activeProcessorCount))
+        let cores = ProcessInfo.processInfo.activeProcessorCount
+        let workers = max(2, min(cores, 16))
+        var workerResults: [[String: FileState]] = Array(repeating: [:], count: workers)
         let lock = NSLock()
-        var results: [String: FileState] = [:]
         DispatchQueue.concurrentPerform(iterations: workers) { w in
+            var local: [String: FileState] = [:]
             for i in stride(from: w, to: jobs.count, by: workers) {
                 if self.options.shouldCancel?() == true { break }
                 let j = jobs[i]
                 if let h = try? FileOps.hashIfStable(j.url, size: j.size, mtimeNs: j.mtimeNs,
                                                      shouldCancel: self.options.shouldCancel) {
-                    lock.lock(); results[j.key] = FileState(hash: h, size: j.size); lock.unlock()
+                    local[j.key] = FileState(hash: h, size: j.size)
                 }
             }
+            lock.lock()
+            workerResults[w] = local
+            lock.unlock()
         }
-        for (k, v) in results { ctx.hashes[k] = v }
+        for partial in workerResults {
+            for (k, v) in partial { ctx.hashes[k] = v }
+        }
     }
 
     private func runPass(_ ctx: Context, _ report: inout SyncReport) throws {

@@ -23,7 +23,7 @@ public final class Database {
     public init(path: String) throws {
         let rc = sqlite3_open_v2(path, &handle, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, nil)
         guard rc == SQLITE_OK else { throw DBError(description: "cannot open \(path): \(String(cString: sqlite3_errstr(rc)))") }
-        try exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;")
+        try exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000; PRAGMA cache_size=-64000; PRAGMA temp_store=MEMORY;")
     }
 
     deinit { sqlite3_close(handle) }
