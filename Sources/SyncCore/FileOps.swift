@@ -80,6 +80,10 @@ public enum FileOps {
                 discovered += 1
                 progress?(rel, discovered)
                 if st.isDir {
+                    // Early pruning: Never descend into ignored directories (e.g. target, .build, node_modules, .git)
+                    if ignore.isIgnored(component: name) || ignore.isIgnored(relativePath: rel) {
+                        continue
+                    }
                     result.files[rel] = ScannedFile(rel: rel, url: url, size: 0, mtimeNs: st.mtimeNs,
                                                     mtime: Date(timeIntervalSince1970: Double(st.mtimeNs) / 1e9),
                                                     isPlaceholder: false, isDirectory: true)

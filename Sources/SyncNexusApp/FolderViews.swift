@@ -43,11 +43,34 @@ struct FoldersSection: View {
 
         // Active Group Info Banner
         if let g = model.activeGroup {
+            let isPaused = model.snap.phase == .paused
             HStack(spacing: 8) {
                 Image(systemName: g.icon).font(.system(size: 14)).foregroundStyle(Color.accentColor)
                 Text(loc("group_active_banner", model.groupName(g), model.snap.endpoints.count))
                     .font(.system(size: 13, weight: .semibold))
+                if isPaused {
+                    Chip(text: loc("status_paused"), kind: .warn)
+                }
                 Spacer()
+                if isPaused {
+                    Button(action: { model.resumeGroup(id: g.id) }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "play.fill")
+                            Text(loc("popover_resume_sync"))
+                        }
+                        .font(.system(size: 11, weight: .medium))
+                    }
+                    .buttonStyle(QuietButton(kind: .primary, compact: true))
+                } else {
+                    Button(action: { model.syncGroupNow(id: g.id) }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.clockwise")
+                            Text(loc("popover_sync_now"))
+                        }
+                        .font(.system(size: 11))
+                    }
+                    .buttonStyle(QuietButton(kind: .secondary, compact: true))
+                }
                 Button(action: { editingGroup = g }) {
                     HStack(spacing: 4) {
                         Image(systemName: "pencil")
@@ -182,6 +205,20 @@ struct SyncGroupTabBar: View {
                         }
                         .buttonStyle(.plain)
                         .contextMenu {
+                            let isPaused = model.isGroupPaused(id: group.id)
+                            if isPaused {
+                                Button(loc("popover_resume_sync")) {
+                                    model.resumeGroup(id: group.id)
+                                }
+                            } else {
+                                Button(loc("popover_sync_now")) {
+                                    model.syncGroupNow(id: group.id)
+                                }
+                                Button(loc("popover_pause_sync")) {
+                                    model.pauseGroup(id: group.id)
+                                }
+                            }
+                            Divider()
                             Button(loc("group_edit_title")) {
                                 editingGroup = group
                             }

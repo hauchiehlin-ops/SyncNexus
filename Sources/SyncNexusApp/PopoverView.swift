@@ -68,6 +68,11 @@ struct PopoverView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Text(model.progressStage(live.progress)).font(.system(size: 13, weight: .semibold))
+                if live.progress.stage == .scanning && live.progress.completed > 0 {
+                    Text("（已發現 \(live.progress.completed.formatted()) 項）")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
                 if model.groups.count > 1 {
                     Text(live.groupName).font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
                 }
@@ -131,26 +136,57 @@ struct PopoverView: View {
             case .starting: (loc("status_starting"), .ok)
             }
         }()
-        return Button {
-            model.selectGroup(id: state.group.id)
-            openMain(.folders)
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: state.group.icon).font(.system(size: 13)).foregroundStyle(Color.accentColor).frame(width: 20)
-                Text(model.groupName(state.group)).font(.system(size: 13, weight: .bold)).lineLimit(1)
-                Text("\(state.snap.endpoints.count)")
-                    .font(.system(size: 10, weight: .semibold)).padding(.horizontal, 6).padding(.vertical, 2)
-                    .background(Theme.line, in: Capsule())
-                Spacer(minLength: 0)
-                Chip(text: chipText, kind: chipKind)
-                Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold)).foregroundStyle(.tertiary)
+        return HStack(spacing: 8) {
+            Button {
+                model.selectGroup(id: state.group.id)
+                openMain(.folders)
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: state.group.icon).font(.system(size: 13)).foregroundStyle(Color.accentColor).frame(width: 20)
+                    Text(model.groupName(state.group)).font(.system(size: 13, weight: .bold)).lineLimit(1)
+                    Text("\(state.snap.endpoints.count)")
+                        .font(.system(size: 10, weight: .semibold)).padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Theme.line, in: Capsule())
+                }
             }
-            .padding(.horizontal, 20).padding(.vertical, 8)
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+
+            Spacer(minLength: 0)
+
+            if state.overall == .paused {
+                Button {
+                    model.resumeGroup(id: state.group.id)
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "play.fill").font(.system(size: 9))
+                        Text(loc("status_paused"))
+                    }
+                }
+                .buttonStyle(QuietButton(kind: .secondary, compact: true))
+                .help(loc("popover_resume_sync"))
+            } else {
+                Button {
+                    model.selectGroup(id: state.group.id)
+                    openMain(.folders)
+                } label: {
+                    HStack(spacing: 4) {
+                        Chip(text: chipText, kind: chipKind)
+                        Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold)).foregroundStyle(.tertiary)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 20).padding(.vertical, 8)
         .padding(.top, 6)
-        .help(loc("group_edit_title"))
+        .contextMenu {
+            if state.overall == .paused {
+                Button(loc("popover_resume_sync")) { model.resumeGroup(id: state.group.id) }
+            } else {
+                Button(loc("popover_sync_now")) { model.syncGroupNow(id: state.group.id) }
+                Button(loc("popover_pause_sync")) { model.pauseGroup(id: state.group.id) }
+            }
+        }
     }
 
     // MARK: header

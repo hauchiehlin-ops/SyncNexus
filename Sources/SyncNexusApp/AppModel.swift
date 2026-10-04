@@ -274,7 +274,14 @@ final class AppModel: ObservableObject {
         return Self.title(of: w.snap, popoverOverall == .paused ? .paused : w.overall)
     }
     var popoverDetail: String {
-        if let live = primaryProgress { return progressDetail(live.progress) }
+        if primaryProgress != nil {
+            // Live progress is already displayed prominently in the dedicated progress bar,
+            // keep the header concise so it doesn't duplicate the exact same text and percentage.
+            if let w = worstGroup, groups.count > 1 {
+                return groupName(w.group)
+            }
+            return ""
+        }
         guard let w = worstGroup else { return overallDetail }
         let text = Self.detail(of: w.snap, popoverOverall == .paused ? .paused : w.overall)
         // with several groups, say which one the message is about
@@ -309,6 +316,12 @@ final class AppModel: ObservableObject {
     func progressDetail(_ progress: SyncProgress) -> String {
         let stage = progressStage(progress)
         let percent = Int((progress.fraction * 100).rounded())
+        if progress.stage == .scanning && progress.completed > 0 {
+            if let path = progress.currentPath, !path.isEmpty {
+                return "\(stage)（\(progress.completed.formatted()) 項）\(percent)% · \(path)"
+            }
+            return "\(stage)（\(progress.completed.formatted()) 項）\(percent)%"
+        }
         if let path = progress.currentPath, !path.isEmpty {
             return "\(stage) \(percent)% · \(path)"
         }
@@ -348,6 +361,18 @@ final class AppModel: ObservableObject {
     func togglePause() {
         let all = Array(services.values)
         if allPaused { all.forEach { $0.resume() } } else { all.forEach { $0.pause() } }
+    }
+
+    func resumeGroup(id: String) {
+        services[id]?.resume()
+    }
+
+    func pauseGroup(id: String) {
+        services[id]?.pause()
+    }
+
+    func syncGroupNow(id: String) {
+        services[id]?.syncNow()
     }
 
     func syncAllNow() { services.values.forEach { $0.syncNow() } }
@@ -594,6 +619,10 @@ final class AppModel: ObservableObject {
 
     func endpointCount(for groupId: String) -> Int {
         snapshots[groupId]?.endpoints.count ?? 0
+    }
+
+    func isGroupPaused(id: String) -> Bool {
+        snapshots[id]?.phase == .paused
     }
 
     func openLog() {

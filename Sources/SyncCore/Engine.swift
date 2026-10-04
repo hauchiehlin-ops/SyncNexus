@@ -208,9 +208,8 @@ public final class Engine {
                                             placeholder: options.placeholderCheck, only: prefixes,
                                             shouldCancel: options.shouldCancel) { [weak self] path, discovered in
                         guard let self else { return }
-                        // A tree has no cheap known total. Move asymptotically within this endpoint's share;
-                        // later comparison/execution phases have exact totals.
-                        let within = 0.9 * (1 - exp(-Double(discovered) / 800.0))
+                        // A tree has no cheap known total. Move smoothly based on discovered files.
+                        let within = 0.95 * (1.0 - exp(-Double(discovered) / 3500.0))
                         let endpointFraction = (Double(index) + within) / Double(count)
                         let f = progressRange.lowerBound + endpointFraction * (progressRange.upperBound - progressRange.lowerBound)
                         self.emit(.scanning, f, path: path, endpoint: cfg.id, completed: discovered)

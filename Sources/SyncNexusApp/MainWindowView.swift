@@ -150,6 +150,11 @@ struct MainWindowView: View {
                         ProgressView().controlSize(.small)
                         Text(model.progressStage(live.progress))
                             .font(.system(size: 13, weight: .semibold))
+                        if live.progress.stage == .scanning && live.progress.completed > 0 {
+                            Text("（已發現 \(live.progress.completed.formatted()) 項）")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                        }
                         if model.groups.count > 1 {
                             Text(live.groupName).font(.system(size: 12)).foregroundStyle(.secondary)
                         }
@@ -301,6 +306,20 @@ struct OverviewSection: View {
                             }
                             .buttonStyle(.plain)
                             .contextMenu {
+                                let isPaused = model.isGroupPaused(id: group.id)
+                                if isPaused {
+                                    Button(loc("popover_resume_sync")) {
+                                        model.resumeGroup(id: group.id)
+                                    }
+                                } else {
+                                    Button(loc("popover_sync_now")) {
+                                        model.syncGroupNow(id: group.id)
+                                    }
+                                    Button(loc("popover_pause_sync")) {
+                                        model.pauseGroup(id: group.id)
+                                    }
+                                }
+                                Divider()
                                 Button(loc("group_edit_title")) {
                                     editingGroup = group
                                 }
