@@ -90,6 +90,17 @@ struct EngineTests {
         #expect(e.read("b", "x.txt") == "1")
     }
 
+    @Test func previewIsTruncatedWhenExceedingLimit() throws {
+        let e = try Env([("a", false), ("b", false)])
+        for i in 0..<600 {
+            try e.write("a", "file_\(i).txt", "c")
+        }
+        let r = try e.sync(confirmed: false)
+        #expect(r.needsConfirmation != nil)
+        #expect(r.preview.count == Engine.maxPreviewItems)
+        #expect(r.previewTotalCount == 600)
+    }
+
     /// The headline scenario: disk ejected, edited on another machine, edited elsewhere meanwhile, reattached.
     @Test func ejectedDiskEditedElsewhereMergesBack() throws {
         let e = try Env([("local", false), ("drive", false), ("disk", true)])

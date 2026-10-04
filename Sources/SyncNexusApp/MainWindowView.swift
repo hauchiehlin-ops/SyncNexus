@@ -866,15 +866,22 @@ struct DiffPreviewSection: View {
                         }
                         .padding(.vertical, 8)
                     } else {
-                        Text(loc("diff_items_count", report.preview.count))
+                        let total = report.previewTotalCount > 0 ? report.previewTotalCount : report.preview.count
+                        Text(loc("diff_items_count", total))
                             .font(.system(size: 14, weight: .semibold))
 
                         VStack(alignment: .leading, spacing: 6) {
-                            ForEach(Array(report.preview.enumerated()), id: \.offset) { _, line in
+                            ForEach(Array(report.preview.prefix(100).enumerated()), id: \.offset) { _, line in
                                 HStack(alignment: .top, spacing: 8) {
                                     diffIcon(for: line)
                                     Text(CoreMessages.localize(line)).font(.system(size: 13, design: .monospaced))
                                 }
+                            }
+                            if total > 100 {
+                                Text(loc("model_and_more_items", total - 100))
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.secondary)
+                                    .padding(.top, 4)
                             }
                         }
                         .padding(12)

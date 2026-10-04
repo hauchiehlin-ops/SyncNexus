@@ -110,6 +110,7 @@ public struct SyncReport {
     /// Set when the run was stopped before doing anything and needs the user's go-ahead.
     public var needsConfirmation: String?
     public var preview: [String] = []
+    public var previewTotalCount = 0
     /// Endpoint-relative paths that were postponed for a transient reason and should be looked at again shortly.
     public var retry: Set<String> = []
     /// What this run actually covered (an incremental request falls back to full when a newcomer, a first run or a deep verify is involved).
@@ -120,6 +121,7 @@ public struct SyncReport {
 }
 
 public final class Engine {
+    public static let maxPreviewItems = 500
     public let store: Store
     public var options: EngineOptions
 
@@ -397,16 +399,17 @@ public final class Engine {
         report.notes += previewReport.notes
         previewing = true
         defer { previewing = false }
-        let (planned, deletions, wipes) = try plan(pctx)
+        let (planned, deletions, wipes, totalPlanned) = try plan(pctx)
         previewing = false
         report.preview = planned
+        report.previewTotalCount = totalPlanned
         let tracked = try store.liveConsensusCount()
 
         if dryRun { return report }
         let lock = try SyncLock.acquire(path: store.path + ".lock")
         defer { _ = lock }
         let newcomers = try pctx.online.filter { try !store.endpointHasHistory($0.id) }.map(\.id)
-        if (firstRun || !newcomers.isEmpty) && !confirmed && !planned.isEmpty {
+        if (firstRun || !newcomers.isEmpty) && !confirmed && totalPlanned > 0 {
             report.needsConfirmation = firstRun
                 ? "首次同步：以下變更尚未執行，請確認預覽後再執行"
                 : "新端點（\(newcomers.joined(separator: "、"))）首次加入：以下變更尚未執行，請確認預覽後再執行"
@@ -466,16 +469,24 @@ public final class Engine {
 
     // MARK: planning (no mutation)
 
-    private func plan(_ ctx: Context) throws -> ([String], Int, [(ep: String, deleted: Int, tracked: Int)]) {
+    private func plan(_ ctx: Context) throws -> (lines: [String], deletions: Int, wipes: [(ep: String, deleted: Int, tracked: Int)], totalPlanned: Int) {
         emit(options.deepVerify ? .verifying : .comparing, 0.32)
         prehash(ctx)
-        var lines: [String] = [], deleted = Set<String>()
+        var lines: [String] = [], totalPlanned = 0, deleted = Set<String>()
         var deletedAt: [String: Int] = [:]
         var skipPaths: [String: Set<String>] = [:]            // renamed paths are described once, not as delete + new
+
+        func addLine(_ s: String) {
+            totalPlanned += 1
+            if lines.count < Engine.maxPreviewItems {
+                lines.append(s)
+            }
+        }
+
         for cfg in ctx.online {
             for m in try detectMoves(ctx, cfg) {
                 skipPaths[cfg.id, default: []].formUnion([m.from, m.to])
-                lines.append("[\(cfg.id)] 重新命名 \(m.from) → \(m.to)（其他端點直接改名，不重新傳輸）")
+                addLine("[\(cfg.id)] 重新命名 \(m.from) → \(m.to)（其他端點直接改名，不重新傳輸）")
             }
         }
         let paths = try allPaths(ctx)
@@ -498,15 +509,15 @@ public final class Engine {
                     if cur == nil {
                         let others = ctx.online.filter { $0.id != cfg.id && ctx.files[$0.id]![path] != nil }.count
                         if !isDir { deleted.insert(path); deletedAt[cfg.id, default: 0] += 1 }
-                        lines.append(isDir ? "[\(cfg.id)] 刪除資料夾 \(path)（將移除其他 \(others) 端的副本）" : "[\(cfg.id)] 刪除\(path)（將移除其他 \(others) 端的副本）")
+                        addLine(isDir ? "[\(cfg.id)] 刪除資料夾 \(path)（將移除其他 \(others) 端的副本）" : "[\(cfg.id)] 刪除\(path)（將移除其他 \(others) 端的副本）")
                     } else {
-                        lines.append(isDir ? "[\(cfg.id)] 新增/修改資料夾 \(path) → 其他端點" : "[\(cfg.id)] 新增/修改\(path) → 其他端點")
+                        addLine(isDir ? "[\(cfg.id)] 新增/修改資料夾 \(path) → 其他端點" : "[\(cfg.id)] 新增/修改\(path) → 其他端點")
                     }
                 case .applyConsensus:
-                    if cons?.state == nil { if cur != nil { if !isDir { deleted.insert(path) }; lines.append(isDir ? "[\(cfg.id)] 移到垃圾桶 資料夾 \(path)" : "[\(cfg.id)] 移到垃圾桶 \(path)") } }
-                    else { lines.append(isDir ? "[\(cfg.id)] 取得資料夾 \(path)" : "[\(cfg.id)] 取得\(path)") }
+                    if cons?.state == nil { if cur != nil { if !isDir { deleted.insert(path) }; addLine(isDir ? "[\(cfg.id)] 移到垃圾桶 資料夾 \(path)" : "[\(cfg.id)] 移到垃圾桶 \(path)") } }
+                    else { addLine(isDir ? "[\(cfg.id)] 取得資料夾 \(path)" : "[\(cfg.id)] 取得\(path)") }
                 case .conflict:
-                    lines.append("[\(cfg.id)] 衝突 \(path)")
+                    addLine("[\(cfg.id)] 衝突 \(path)")
                 }
             }
         }
@@ -515,7 +526,7 @@ public final class Engine {
             let d = deletedAt[cfg.id] ?? 0
             return (d >= 3 && d * 2 >= tracked) ? (cfg.id, d, tracked) : nil
         }
-        return (lines, deleted.count, wipes)
+        return (lines, deleted.count, wipes, totalPlanned)
     }
 
     /// A backup endpoint ("only in, never out"): what happens inside it is not a change of the group, and what is deleted

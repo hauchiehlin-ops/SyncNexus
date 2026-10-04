@@ -35,6 +35,13 @@ public final class SyncService: @unchecked Sendable {
     public struct Confirmation: Sendable {
         public var reason: String
         public var preview: [String]
+        public var totalCount: Int
+
+        public init(reason: String, preview: [String], totalCount: Int = 0) {
+            self.reason = reason
+            self.preview = preview
+            self.totalCount = totalCount == 0 ? preview.count : totalCount
+        }
     }
 
     public struct Snapshot: Sendable {
@@ -469,7 +476,7 @@ public final class SyncService: @unchecked Sendable {
             if skipped != snapshot.skipped { skipped.forEach { writeLog("略過 \($0)") } }
             for o in report.offline where !snapshot.endpoints.contains(where: { !$0.online && o.hasPrefix($0.id) }) { writeLog("離線 \(o)") }
             snapshot.skipped = skipped
-            snapshot.confirmation = report.needsConfirmation.map { Confirmation(reason: $0, preview: report.preview) }
+            snapshot.confirmation = report.needsConfirmation.map { Confirmation(reason: $0, preview: report.preview, totalCount: report.previewTotalCount) }
             try fillStatus(engine, cfgs)
             ensureWatching(cfgs.map(\.root))
         } catch is ScanCancelled {

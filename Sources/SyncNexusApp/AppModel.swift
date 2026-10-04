@@ -156,7 +156,12 @@ final class AppModel: ObservableObject {
         var o = s
         o.error = s.error.map(CoreMessages.localize)
         o.skipped = s.skipped.map(CoreMessages.localize)
-        if let c = s.confirmation { o.confirmation?.reason = CoreMessages.localize(c.reason); o.confirmation?.preview = c.preview.map(CoreMessages.localize) }
+        if let c = s.confirmation {
+            o.confirmation?.reason = CoreMessages.localize(c.reason)
+            let previewLimit = min(c.preview.count, 50)
+            o.confirmation?.preview = Array(c.preview.prefix(previewLimit).map(CoreMessages.localize))
+            o.confirmation?.totalCount = c.totalCount
+        }
         o.endpoints = s.endpoints.map { var e = $0; e.detail = CoreMessages.localize($0.detail); return e }
         return o
     }
@@ -358,7 +363,8 @@ final class AppModel: ObservableObject {
         let alert = NSAlert()
         alert.messageText = c.reason   // already localized (snap)
         let lines = c.preview.prefix(25).joined(separator: "\n")
-        alert.informativeText = lines + (c.preview.count > 25 ? loc("model_and_more_items", c.preview.count - 25) : "")
+        let total = max(c.totalCount, c.preview.count)
+        alert.informativeText = lines + (total > 25 ? loc("model_and_more_items", total - 25) : "")
         alert.addButton(withTitle: loc("model_btn_confirm_exec"))
         alert.addButton(withTitle: loc("cancel"))
         NSApp.activate(ignoringOtherApps: true)

@@ -13,7 +13,15 @@ enum CoreMessages {
         return Entry(key: key, regex: re, literalCount: parts.reduce(0) { $0 + $1.count }, zhStartsWithBracket: zh.hasPrefix("[%@]"))
     }.sorted { $0.literalCount > $1.literalCount }   // most specific template first
 
+    private static func hasHanCharacters(_ s: String) -> Bool {
+        s.unicodeScalars.contains { scalar in
+            (0x4E00...0x9FFF).contains(scalar.value) || (0x3400...0x4DBF).contains(scalar.value)
+        }
+    }
+
     static func localize(_ text: String) -> String {
+        if text.isEmpty { return "" }
+        if !hasHanCharacters(text) { return text }
         let ns = text as NSString
         let full = NSRange(location: 0, length: ns.length)
         for e in entries {
