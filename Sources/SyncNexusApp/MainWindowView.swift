@@ -283,7 +283,30 @@ struct OverviewSection: View {
     @State private var editingGroup: SyncGroup? = nil
 
     var body: some View {
-        sectionHeader(model.overall == .ok ? loc("status_all_normal") : model.overallTitle, overviewSubtitle)
+        HStack(alignment: .firstTextBaseline) {
+            sectionHeader(model.overall == .ok ? loc("status_all_normal") : model.overallTitle, overviewSubtitle)
+            Spacer()
+            if let g = model.activeGroup {
+                let isPaused = model.isGroupPaused(id: g.id)
+                if isPaused {
+                    Button(action: { model.resumeGroup(id: g.id) }) {
+                        HStack(spacing: 5) {
+                            Image(systemName: "play.fill").font(.system(size: 11))
+                            Text(loc("popover_resume_sync"))
+                        }
+                    }
+                    .buttonStyle(QuietButton(kind: .primary, compact: true))
+                } else {
+                    Button(action: { model.syncGroupNow(id: g.id) }) {
+                        HStack(spacing: 5) {
+                            Image(systemName: "arrow.clockwise").font(.system(size: 11))
+                            Text(loc("popover_sync_now"))
+                        }
+                    }
+                    .buttonStyle(QuietButton(kind: .secondary, compact: true))
+                }
+            }
+        }
 
         if model.groups.count > 1 {
             HStack(spacing: 8) {

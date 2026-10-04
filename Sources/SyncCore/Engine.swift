@@ -195,44 +195,79 @@ public final class Engine {
     private func buildContext(_ cfgs: [EndpointConfig], writeMarker: Bool, into report: inout SyncReport,
                               progressRange: ClosedRange<Double> = 0.05...0.30) throws -> Context {
         let ctx = Context()
-        let count = max(1, cfgs.count)
-        for (index, cfg) in cfgs.enumerated() {
+        enum EndpointScanOutcome {
+            case offline(String)
+            case success(EndpointConfig, ScanResult, [String: EndpointRow])
+            case readError(String)
+            case cancelled
+        }
+
+        var outcomes: [String: EndpointScanOutcome] = [:]
+
+        // Check identity first
+        var onlineConfigs: [EndpointConfig] = []
+        for cfg in cfgs {
             try checkCancellation()
             switch try checkIdentity(cfg, writeMarker: writeMarker) {
             case .offline(let why):
                 report.offline.append("\(cfg.id)：\(why)")
+                outcomes[cfg.id] = .offline(why)
             case .online:
-                let scan: ScanResult
-                do {
-                    scan = try FileOps.scan(root: URL(fileURLWithPath: cfg.root), ignore: effectiveIgnore,
-                                            placeholder: options.placeholderCheck, only: prefixes,
-                                            shouldCancel: options.shouldCancel) { [weak self] path, discovered in
-                        guard let self else { return }
-                        // A tree has no cheap known total. Move smoothly based on discovered files.
-                        let within = 0.95 * (1.0 - exp(-Double(discovered) / 3500.0))
-                        let endpointFraction = (Double(index) + within) / Double(count)
-                        let f = progressRange.lowerBound + endpointFraction * (progressRange.upperBound - progressRange.lowerBound)
-                        self.emit(.scanning, f, path: path, endpoint: cfg.id, completed: discovered)
-                    }
-                } catch is ScanCancelled {
-                    throw ScanCancelled()
+                onlineConfigs.append(cfg)
+            }
+        }
+
+        // Read database rows sequentially first (Store uses a single SQLite handle)
+        var preloadedRows: [String: [String: EndpointRow]] = [:]
+        for cfg in onlineConfigs {
+            try checkCancellation()
+            preloadedRows[cfg.id] = try self.prefixes.map { try self.store.rows(cfg.id, under: $0) } ?? self.store.rows(cfg.id)
+        }
+
+        var totalDiscovered = 0
+        for cfg in onlineConfigs {
+            try checkCancellation()
+            let rows = preloadedRows[cfg.id] ?? [:]
+            do {
+                let scan = try FileOps.scan(root: URL(fileURLWithPath: cfg.root), ignore: self.effectiveIgnore,
+                                            placeholder: self.options.placeholderCheck, only: self.prefixes,
+                                            shouldCancel: self.options.shouldCancel) { [weak self] path, discovered in
+                    guard let self else { return }
+                    let currentTotal = totalDiscovered + discovered
+                    let within = 0.95 * (1.0 - exp(-Double(currentTotal) / 3500.0))
+                    let f = progressRange.lowerBound + within * (progressRange.upperBound - progressRange.lowerBound)
+                    self.emit(.scanning, f, path: path, endpoint: cfg.id, completed: currentTotal)
                 }
-                catch {
-                    // Unreadable (missing permission, I/O error): never treat a partial listing as "files are gone".
-                    report.offline.append("\(cfg.id)：無法完整讀取，已停止此端點（請檢查「系統設定 > 隱私權與安全性」的檔案存取授權）。\(error.localizedDescription)")
-                    continue
-                }
+                totalDiscovered += scan.files.count
+                outcomes[cfg.id] = .success(cfg, scan, rows)
+            } catch is ScanCancelled {
+                outcomes[cfg.id] = .cancelled
+            } catch {
+                outcomes[cfg.id] = .readError(error.localizedDescription)
+            }
+        }
+
+        try checkCancellation()
+
+        for cfg in onlineConfigs {
+            switch outcomes[cfg.id] {
+            case .cancelled:
+                throw ScanCancelled()
+            case .readError(let err):
+                report.offline.append("\(cfg.id)：無法完整讀取，已停止此端點（請檢查「系統設定 > 隱私權與安全性」的檔案存取授權）。\(err)")
+            case .success(_, let scan, let rows):
                 for left in scan.leftovers {
                     let age = options.now().timeIntervalSince((try? left.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast)
                     if age > 60 { try? FileManager.default.removeItem(at: left); report.notes.append("[\(cfg.id)] 清除上次中斷的暫存檔 \(left.lastPathComponent)") }
                 }
                 ctx.online.append(cfg)
                 ctx.files[cfg.id] = scan.files
-                ctx.rows[cfg.id] = try prefixes.map { try store.rows(cfg.id, under: $0) } ?? store.rows(cfg.id)
+                ctx.rows[cfg.id] = rows
+            case .offline, .none:
+                break
             }
-            let f = progressRange.lowerBound + Double(index + 1) / Double(count) * (progressRange.upperBound - progressRange.lowerBound)
-            emit(.scanning, f, endpoint: cfg.id)
         }
+        emit(.scanning, progressRange.upperBound)
         try canonicalizeCase(ctx, &report)
         return ctx
     }
@@ -588,9 +623,9 @@ public final class Engine {
                 jobs.append(Job(key: "\(cfg.id)\u{0}\(path)", url: f.url, size: f.size, mtimeNs: f.mtimeNs))
             }
         }
-        guard jobs.count >= 8 else { return }
+        guard jobs.count >= 2 else { return }
         let cores = ProcessInfo.processInfo.activeProcessorCount
-        let workers = max(2, min(cores, 16))
+        let workers = max(2, min(cores, max(4, jobs.count)))
         var workerResults: [[String: FileState]] = Array(repeating: [:], count: workers)
         let lock = NSLock()
         DispatchQueue.concurrentPerform(iterations: workers) { w in

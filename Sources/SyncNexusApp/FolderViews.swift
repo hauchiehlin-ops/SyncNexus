@@ -36,7 +36,30 @@ struct FoldersSection: View {
     @State private var editingGroup: SyncGroup?
 
     var body: some View {
-        sectionHeader(loc("section_folders"), loc("folders_desc"))
+        HStack(alignment: .firstTextBaseline) {
+            sectionHeader(loc("section_folders"), loc("folders_desc"))
+            Spacer()
+            if let g = model.activeGroup {
+                let isPaused = model.isGroupPaused(id: g.id)
+                if isPaused {
+                    Button(action: { model.resumeGroup(id: g.id) }) {
+                        HStack(spacing: 5) {
+                            Image(systemName: "play.fill").font(.system(size: 11))
+                            Text(loc("popover_resume_sync"))
+                        }
+                    }
+                    .buttonStyle(QuietButton(kind: .primary, compact: true))
+                } else {
+                    Button(action: { model.syncGroupNow(id: g.id) }) {
+                        HStack(spacing: 5) {
+                            Image(systemName: "arrow.clockwise").font(.system(size: 11))
+                            Text(loc("popover_sync_now"))
+                        }
+                    }
+                    .buttonStyle(QuietButton(kind: .secondary, compact: true))
+                }
+            }
+        }
 
         // Multi-folder Sync Groups Selector Bar
         SyncGroupTabBar(model: model, showingAddGroup: $showingAddGroup, editingGroup: $editingGroup)
