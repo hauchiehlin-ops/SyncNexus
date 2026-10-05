@@ -1521,6 +1521,22 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .th: "เป็นแพ็กเกจที่มีฐานข้อมูลซับซ้อนภายใน การซิงค์โดยตรงอาจทำให้คลังภาพเสียหาย",
         .ko: "복잡한 내부 DB가 포함된 패키지 형식으로 직접 동기화 시 손상될 수 있습니다."
     ],
+    "preset_python_title": [
+        .en: "Python Virtual Environments & Caches (venv, .venv, env, __pycache__, .pytest_cache)",
+        .zhHant: "Python 虛擬環境與快取（venv、.venv、env、__pycache__、.pytest_cache、.mypy_cache、.tox）",
+        .zhHans: "Python 虚拟环境与缓存（venv、.venv、env、__pycache__、.pytest_cache、.mypy_cache、.tox）",
+        .ja: "Python 仮想環境とキャッシュ（venv、.venv、env、__pycache__、.pytest_cache、.mypy_cache、.tox）",
+        .th: "สภาพแวดล้อมเสมือนและแคช Python (venv, .venv, env, __pycache__, .pytest_cache)",
+        .ko: "Python 가상환경 및 캐시 (venv, .venv, env, __pycache__, .pytest_cache)"
+    ],
+    "preset_python_why": [
+        .en: "Contains tens of thousands of platform-dependent small files with hardcoded paths that can be reinstalled via requirements.txt.",
+        .zhHant: "包含數萬個平台相依且含硬編碼絕對路徑的小檔案，無法跨機器共用，隨時可透過 pip 重建。",
+        .zhHans: "包含数万个平台相依且含硬编码绝对路径的小文件，无法跨机器共用，随时可通过 pip 重建。",
+        .ja: "ハードコードされた絶対パスを含む無数のプラットフォーム依存ファイルであり、共有不可かついつでも再作成可能です。",
+        .th: "มีไฟล์ขนาดเล็กที่ผูกกับเครื่องจำนวนมาก ไม่สามารถแชร์ข้ามเครื่องได้ และสร้างใหม่ได้ตลอดเวลา",
+        .ko: "기기별 절대 경로가 포함된 수만 개의 파일로 구성되어 기기 간 호환되지 않으며 언제든 다시 생성할 수 있습니다."
+    ],
     "removable_badge": [
         .en: "Removable",
         .zhHant: "可移除",

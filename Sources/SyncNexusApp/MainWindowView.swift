@@ -12,6 +12,7 @@ extension ExcludePreset {
         case .git: return loc("preset_git_title")
         case .databases: return loc("preset_databases_title")
         case .photosLibraries: return loc("preset_photos_title")
+        case .pythonEnvironments: return loc("preset_python_title")
         }
     }
 
@@ -22,6 +23,7 @@ extension ExcludePreset {
         case .git: return loc("preset_git_why")
         case .databases: return loc("preset_databases_why")
         case .photosLibraries: return loc("preset_photos_why")
+        case .pythonEnvironments: return loc("preset_python_why")
         }
     }
 }

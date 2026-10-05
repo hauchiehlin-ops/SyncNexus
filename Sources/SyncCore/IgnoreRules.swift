@@ -43,7 +43,7 @@ public struct IgnoreRules: Sendable {
 
 /// Unsafe live data that is always excluded and left untouched everywhere (never deleted).
 public enum ExcludePreset: String, CaseIterable, Sendable, Identifiable {
-    case nodeModules, git, databases, photosLibraries, buildCaches
+    case nodeModules, git, databases, photosLibraries, buildCaches, pythonEnvironments
     public var id: String { rawValue }
     public static let defaults = Set(ExcludePreset.allCases)
 
@@ -54,6 +54,7 @@ public enum ExcludePreset: String, CaseIterable, Sendable, Identifiable {
         case .databases: "資料庫暫存檔（-wal、-shm、-journal）"
         case .photosLibraries: "照片圖庫（.photoslibrary）"
         case .buildCaches: "專案編譯快取（.build、target、build、.gradle、DerivedData、Pods）"
+        case .pythonEnvironments: "Python 虛擬環境與快取（venv、.venv、env、__pycache__、.pytest_cache、.mypy_cache、.tox）"
         }
     }
 
@@ -64,6 +65,7 @@ public enum ExcludePreset: String, CaseIterable, Sendable, Identifiable {
         case .databases: "使用中的資料庫會得到不一致的複本。"
         case .photosLibraries: "照片圖庫是一個正在使用的資料庫，同步它會損壞圖庫。"
         case .buildCaches: "編譯產物瑣碎且可隨時重新產生，同步會產生大量衝突並耗損傳輸效能。"
+        case .pythonEnvironments: "Python 虛擬環境包含數萬個硬編碼路徑的小檔案，無法跨機器共用，且能隨時重建。"
         }
     }
 }
@@ -78,6 +80,7 @@ extension IgnoreRules {
             case .databases: r.suffixes += ["-wal", "-shm", "-journal", ".sqlite-wal", ".sqlite-shm"]
             case .photosLibraries: r.suffixes += [".photoslibrary", ".photolibrary"]
             case .buildCaches: r.exactNames.formUnion([".build", "build", "target", ".gradle", "DerivedData", "Pods"])
+            case .pythonEnvironments: r.exactNames.formUnion(["venv", ".venv", "env", "__pycache__", ".pytest_cache", ".mypy_cache", ".tox"])
             }
         }
         return r
