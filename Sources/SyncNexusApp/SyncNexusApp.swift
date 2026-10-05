@@ -48,58 +48,63 @@ struct SyncNexusApp: App {
 }
 
 /// The menu bar icon with dynamic signals and colors based on sync status.
-/// - Syncing: Blue spinning icon (`arrow.triangle.2.circlepath` with continuous rotation)
+/// - Syncing: Blue icon (`arrow.triangle.2.circlepath`)
 /// - Attention/Warning: Red warning triangle (`exclamationmark.triangle.fill`)
 /// - OK/Completed: Green checkmark (`checkmark.circle.fill`)
 /// - Paused: Orange pause circle (`pause.circle.fill`)
-/// `--open-settings` (a debugging aid) also opens the settings window at launch.
+/// - Partial / Offline: Orange indicator
+/// Uses non-template colored NSImage so macOS MenuBarExtra renders true colors instead of mono-chrome mask.
 struct MenuBarIcon: View {
     @ObservedObject var model: AppModel
     @Environment(\.openWindow) private var openWindow
 
-    var body: some View {
-        Group {
+    private var statusImage: NSImage {
+        let (symbol, color): (String, NSColor) = {
             switch model.popoverOverall {
             case .syncing:
-                if #available(macOS 15.0, *) {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                        .foregroundStyle(Color.blue)
-                        .symbolEffect(.rotate, isActive: true)
-                } else if #available(macOS 14.0, *) {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                        .foregroundStyle(Color.blue)
-                        .symbolEffect(.pulse, isActive: true)
-                } else {
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                        .foregroundStyle(Color.blue)
-                }
+                return ("arrow.triangle.2.circlepath", .systemBlue)
             case .attention:
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundStyle(Color.red)
+                return ("exclamationmark.triangle.fill", .systemRed)
             case .ok:
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(Color.green)
+                return ("checkmark.circle.fill", .systemGreen)
             case .paused:
-                Image(systemName: "pause.circle.fill")
-                    .foregroundStyle(Color.orange)
+                return ("pause.circle.fill", .systemOrange)
             case .partial:
-                Image(systemName: "arrow.triangle.2.circlepath.circle")
-                    .foregroundStyle(Color.orange)
+                return ("arrow.triangle.2.circlepath.circle", .systemOrange)
             case .starting:
-                Image(systemName: "arrow.triangle.2.circlepath")
-                    .foregroundStyle(Color.secondary)
+                return ("arrow.triangle.2.circlepath", .secondaryLabelColor)
             }
+        }()
+
+        guard let base = NSImage(systemSymbolName: symbol, accessibilityDescription: nil) else {
+            return NSImage(size: NSSize(width: 18, height: 18))
         }
-        .onAppear {
-            if CommandLine.arguments.contains("--open-settings") {
-                openWindow(id: "settings"); NSApp.activate(ignoringOtherApps: true)
+        let config = NSImage.SymbolConfiguration(pointSize: 15, weight: .semibold)
+        let configured = base.withSymbolConfiguration(config) ?? base
+        let tinted = NSImage(size: configured.size)
+        tinted.lockFocus()
+        color.set()
+        let rect = NSRect(origin: .zero, size: tinted.size)
+        configured.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1.0)
+        color.set()
+        rect.fill(using: .sourceAtop)
+        tinted.unlockFocus()
+        tinted.isTemplate = false // Crucial: prevents macOS MenuBar from stripping color!
+        return tinted
+    }
+
+    var body: some View {
+        Image(nsImage: statusImage)
+            .onAppear {
+                if CommandLine.arguments.contains("--open-settings") {
+                    openWindow(id: "settings"); NSApp.activate(ignoringOtherApps: true)
+                }
+                if CommandLine.arguments.contains("--open-popover-preview") {
+                    openWindow(id: "popover-preview"); NSApp.activate(ignoringOtherApps: true)
+                }
+                if CommandLine.arguments.contains("--open-welcome") || !UserDefaults.standard.bool(forKey: "onboardingDone") {
+                    openWindow(id: "welcome"); NSApp.activate(ignoringOtherApps: true)
+                }
             }
-            if CommandLine.arguments.contains("--open-popover-preview") {
-                openWindow(id: "popover-preview"); NSApp.activate(ignoringOtherApps: true)
-            }
-            if CommandLine.arguments.contains("--open-welcome") || !UserDefaults.standard.bool(forKey: "onboardingDone") {
-                openWindow(id: "welcome"); NSApp.activate(ignoringOtherApps: true)
-            }
-        }
     }
 }
