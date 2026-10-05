@@ -1418,6 +1418,7 @@ struct SettingsSection: View {
     @State private var fullDisk = Permissions.hasFullDiskAccess()
     @State private var showingAddGroup = false
     @State private var editingGroup: SyncGroup? = nil
+    @State private var showingExcludeGuide = false
 
     var body: some View {
         sectionHeader(loc("section_settings"))
@@ -1506,7 +1507,21 @@ struct SettingsSection: View {
         }
         Card {
             VStack(alignment: .leading, spacing: 12) {
-                Text(loc("settings_exclude_title")).font(.system(size: 15, weight: .bold))
+                HStack(alignment: .center) {
+                    Text(loc("settings_exclude_title")).font(.system(size: 15, weight: .bold))
+                    Spacer()
+                    Button {
+                        showingExcludeGuide = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "questionmark.circle.fill")
+                            Text(loc("settings_exclude_guide_btn"))
+                        }
+                        .font(.system(size: 12, weight: .medium))
+                    }
+                    .buttonStyle(QuietButton(kind: .secondary, compact: true))
+                    .help(loc("settings_exclude_guide_help"))
+                }
                 Text(loc("settings_exclude_desc")).font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 ForEach(ExcludePreset.allCases) { p in
                     HStack(alignment: .top, spacing: 10) {
@@ -1599,6 +1614,9 @@ struct SettingsSection: View {
             }
             .sheet(item: $editingGroup) { group in
                 EditGroupSheet(model: model, group: group) { editingGroup = nil }
+            }
+            .sheet(isPresented: $showingExcludeGuide) {
+                InAppDocumentView(type: .excludeGuide)
             }
     }
 }

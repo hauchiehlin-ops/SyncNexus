@@ -1913,6 +1913,134 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .th: "ไม่ต้องซิงค์รายการเหล่านี้",
         .ko: "다음 항목 동기화 제외"
     ],
+    "settings_exclude_guide_btn": [
+        .en: "Why Exclude? (FAQ)",
+        .zhHant: "為什麼排除？（說明）",
+        .zhHans: "为什么排除？（说明）",
+        .ja: "除外する理由（説明）",
+        .th: "ทำไมถึงยกเว้น? (คำอธิบาย)",
+        .ko: "제외하는 이유 (설명)"
+    ],
+    "settings_exclude_guide_help": [
+        .en: "Learn why these items are excluded and how you can still safely rebuild and package projects without them.",
+        .zhHant: "深入瞭解為何排除這些暫存項目，以及為何沒有備份它們依然能 100% 順利重新編譯與打包應用程式。",
+        .zhHans: "深入了解为何排除这些暂存项目，以及为何没有备份它们依然能 100% 顺利重新编译与打包应用程序。",
+        .ja: "なぜこれらの中間生成物を除外するのか、また除外しても問題なくビルド・パッケージ化できる理由を確認します。",
+        .th: "เรียนรู้ว่าเหตุใดรายการเหล่านี้จึงได้รับการยกเว้น และเหตุใดคุณจึงยังคงสร้างและแพ็กโปรเจกต์ได้อย่างปลอดภัยโดยไม่มีไฟล์เหล่านี้",
+        .ko: "임시 빌드 항목을 제외하는 이유와, 이를 백업하지 않아도 어떻게 프로젝트를 100% 정상 재빌드 및 패키징할 수 있는지 알아봅니다."
+    ],
+    "exclude_guide_inapp_title": [
+        .en: "Exclusion Rules & Packaging Safety Guide",
+        .zhHant: "排除同步安全原則與重新打包說明",
+        .zhHans: "排除同步安全原则与重新打包说明",
+        .ja: "同期除外の安全性と再ビルドに関するご案内",
+        .th: "คู่มือความปลอดภัยในการยกเว้นการซิงค์และการบิลด์",
+        .ko: "동기화 제외 안전 규칙 및 재빌드 가이드"
+    ],
+    "exclude_guide_inapp_subtitle": [
+        .en: "Why compiler outputs and caches are excluded, and how projects rebuild smoothly from source.",
+        .zhHant: "說明為何排除編譯快取與暫存檔，以及在任何新機器上如何從原始碼順利重新打包應用程式。",
+        .zhHans: "说明为何排除编译缓存与暂存文件，以及在任何新机器上如何从源代码顺利重新打包应用程序。",
+        .ja: "ビルドキャッシュを除外する理由と、新しい環境でソースコードから安全に再ビルドする手順を解説します。",
+        .th: "อธิบายเหตุผลในการยกเว้นแคชจากการบิลด์ และวิธีสร้างแอปใหม่จากซอร์สโค้ดในคอมพิวเตอร์เครื่องใหม่อย่างราบรื่น",
+        .ko: "빌드 캐시가 제외되는 이유와 새 컴퓨터에서 소스 코드로 앱을 원활하게 재빌드하는 원리를 안내합니다."
+    ],
+    "exclude_guide_badge_safe": [
+        .en: "100% Rebuildable",
+        .zhHant: "可完整重建",
+        .zhHans: "可完整重建",
+        .ja: "完全再構築可能",
+        .th: "สร้างใหม่ได้สมบูรณ์",
+        .ko: "100% 재빌드 가능"
+    ],
+    "exclude_guide_badge_standard": [
+        .en: "Industry Standard",
+        .zhHant: "業界通用標準",
+        .zhHans: "行业通用标准",
+        .ja: "業界標準プラクティス",
+        .th: "มาตรฐานสากล",
+        .ko: "업계 표준"
+    ],
+    "exclude_guide_badge_hazard": [
+        .en: "Avoid Lockups",
+        .zhHant: "防止卡頓當機",
+        .zhHans: "防止卡顿卡死",
+        .ja: "同期停止を防止",
+        .th: "ป้องกันการค้าง",
+        .ko: "동기화 멈춤 방지"
+    ],
+    "exclude_guide_badge_restore": [
+        .en: "Clean Project",
+        .zhHant: "乾淨環境復原",
+        .zhHans: "干净环境恢复",
+        .ja: "クリーン環境の復元",
+        .th: "การกู้คืนที่สะอาด",
+        .ko: "클린 복원"
+    ],
+    "exclude_guide_sec1_title": [
+        .en: "Can I still repackage and build applications without these files?",
+        .zhHant: "沒有同步這些快取，將來還能順利重新打包應用程式嗎？",
+        .zhHans: "没有同步这些缓存，将来还能顺利重新打包应用程序吗？",
+        .ja: "これらを同期しなくても、将来アプリを問題なく再ビルド・パッケージ化できますか？",
+        .th: "หากไม่มีการซิงค์แคชเหล่านี้ จะยังคงสามารถสร้างและแพ็กแอปใหม่ได้ตามปกติหรือไม่?",
+        .ko: "이 캐시를 동기화하지 않아도 나중에 앱을 정상적으로 다시 빌드하고 패키징할 수 있나요?"
+    ],
+    "exclude_guide_sec1_desc": [
+        .en: "Yes, 100%! All your source code (.swift, .kt, .c, etc.), asset files, and project configurations (Package.swift, build.gradle.kts, Info.plist) are fully preserved. Compiler caches (build, .build, .gradle, DerivedData) are purely temporary machine outputs. Simply running your build or packaging command on a new machine instructs the compiler to regenerate fresh caches automatically in seconds.",
+        .zhHant: "答案是：完全可以，100% 沒問題！所有手寫原始碼（.swift、.kt、.ts 等）、專案設定檔（Package.swift、build.gradle.kts、Info.plist 等）與圖示資源全都受到完整備份。編譯快取純粹是編譯器運算過程中的暫存檔，將來在任何新電腦上只要執行一次打包指令（如 swift build、gradle 或 Xcode Run），編譯器就會自動在數秒內全部重新生成，甚至比舊快取更乾淨、更不會發生靈異錯誤。",
+        .zhHans: "答案是：完全可以，100% 没问题！所有手写源代码（.swift、.kt、.ts 等）、项目配置文件（Package.swift、build.gradle.kts、Info.plist 等）与图示资源全都受到完整备份。编译缓存纯粹是编译器运算过程中的暂存文件，将来在任何新电脑上只要执行一次打包指令（如 swift build、gradle 或 Xcode Run），编译器就会自动在数秒内全部重新生成，甚至比旧缓存更干净、更不会发生诡异错误。",
+        .ja: "回答は『100% 問題ありません』です！手書きのソースコード（.swift, .kt, .ts など）や設定ファイル（Package.swift, build.gradle.kts, Info.plist など）はすべて安全に同期されます。除外されたキャッシュは一時的な計算産物に過ぎず、新しいPCでビルドコマンドを実行すれば数秒で自動的に再生成されます。",
+        .th: "คำตอบคือ 'ได้ 100% อย่างแน่นอน!' ซอร์สโค้ดทั้งหมด (.swift, .kt, .ts ฯลฯ) ไฟล์การกำหนดค่า (Package.swift, build.gradle.kts, Info.plist ฯลฯ) และเนื้อหาได้รับการสำรองข้อมูลอย่างครบถ้วน แคชจากการบิลด์เป็นเพียงผลลัพธ์ชั่วคราว เมื่อสั่งบิลด์ใหม่ในคอมพิวเตอร์เครื่องอื่น คอมไพเลอร์จะสร้างใหม่ทั้งหมดโดยอัตโนมัติในไม่กี่วินาที",
+        .ko: "답은 '100% 완벽히 가능합니다'입니다! 모든 소스 코드(.swift, .kt, .ts 등), 프로젝트 설정 파일(Package.swift, build.gradle.kts, Info.plist 등) 및 리소스는 안전하게 완전 동기화됩니다. 빌드 캐시는 컴파일러의 임시 연산 결과물일 뿐이며, 새 컴퓨터에서 빌드 명령을 실행하기만 하면 몇 초 만에 자동으로 깨끗하게 재생성됩니다."
+    ],
+    "exclude_guide_sec2_title": [
+        .en: "Industry Best Practices (Git, GitHub, and Open Source)",
+        .zhHant: "全球軟體開發標準規範（Git、GitHub 與開源生態）",
+        .zhHans: "全球软件开发标准规范（Git、GitHub 与开源生态）",
+        .ja: "世界の標準プラクティス（Git、GitHub、オープンソース）",
+        .th: "แนวปฏิบัติมาตรฐานสากล (Git, GitHub และ Open Source)",
+        .ko: "글로벌 소프트웨어 개발 표준 (Git, GitHub 및 오픈소스)"
+    ],
+    "exclude_guide_sec2_desc": [
+        .en: "In modern software engineering, node_modules, build directories, and venv are strictly forbidden from version control and sync repos. Inspecting any standard .gitignore file reveals that these folders are universally excluded. Syncing node_modules or venv across machines fails anyway because they contain machine-specific absolute file paths and binary libraries.",
+        .zhHant: "在專業軟體工程中，.gitignore 永遠將 build/、.build/、node_modules/、venv/ 列為第一優先排除名單。GitHub、GitLab 或任何備份系統絕不會儲存這些暫存目錄。例如 node_modules 只要在終端機執行 npm install 就會完整下載；而 Python venv 內部包含綁定本機硬碟的絕對路徑，直接複製到別台電腦反而無法執行。",
+        .zhHans: "在专业软件工程中，.gitignore 永远将 build/、.build/、node_modules/、venv/ 列为第一优先排除名单。GitHub、GitLab 或任何备份系统绝不会储存这些暂存目录。例如 node_modules 只要在终端执行 npm install 就会完整下载；而 Python venv 内部包含绑定本机硬盘的绝对路径，直接复制到别台电脑反而无法执行。",
+        .ja: "プロのソフトウェア開発では、.gitignore において build/、node_modules/、venv/ は真っ先に除外されます。例えば node_modules は npm install で即座に復元でき、Python の venv には環境固有の絶対パスが含まれるため、別PCにそのまま同期しても動作しません。",
+        .th: "ในระบบวิศวกรรมซอฟต์แวร์ระดับสากล ไฟล์ .gitignore จะแยก build/, node_modules/, venv/ ออกเป็นอันดับแรกเสมอ ตัวอย่างเช่น node_modules สามารถกู้คืนได้ทันทีด้วยคำสั่ง npm install ส่วน venv มีเส้นทางสัมบูรณ์ของเครื่องเดิม ซึ่งการคัดลอกไปยังเครื่องอื่นจะไม่สามารถทำงานได้อยู่แล้ว",
+        .ko: "전문 개발 환경의 .gitignore에서는 build/, node_modules/, venv/ 등이 항상 최우선 제외 대상으로 지정됩니다. node_modules는 npm install로 즉시 복구되며, Python venv는 기기 고유의 절대 경로가 포함되어 있어 다른 컴퓨터로 그대로 복사해도 실행되지 않습니다."
+    ],
+    "exclude_guide_sec3_title": [
+        .en: "Hazards of Syncing Build Caches",
+        .zhHant: "如果「同步」了這些編譯快取，會發生什麼嚴重問題？",
+        .zhHans: "如果“同步”了这些编译缓存，会发生什么严重问题？",
+        .ja: "もしこれらの一時キャッシュを同期してしまうとどうなりますか？",
+        .th: "จะเกิดปัญหาอะไรร้ายแรงขึ้นหากซิงค์แคชการบิลด์เหล่านี้?",
+        .ko: "이 빌드 캐시를 억지로 동기화하면 어떤 심각한 문제가 발생하나요?"
+    ],
+    "exclude_guide_sec3_desc": [
+        .en: "Build folders contain tens of thousands of tiny fragmented files, volatile lockfiles, and symlinks. Syncing them continuously overloads cloud storage (iCloud / Google Drive), causing endless scanning, 99% CPU freezes, and compile errors caused by stale cross-machine timestamps and architecture mismatches. Keeping them excluded ensures instant, lightweight, and robust backups.",
+        .zhHant: "編譯快取目錄通常包含數萬到數十萬個瑣碎的小檔案、符號連結與隨時變動的鎖檔。一旦將它們丟進雲端硬碟（iCloud／Google Drive）或跨端同步，將會造成系統持續 99% CPU 負載、卡在「掃描中 / 套用變更」的無限迴圈，甚至因不同機器的 CPU 架構或時間戳記不一致而導致編譯器頻繁報錯。保持排除能讓備份輕盈、安全且在幾秒內瞬間完成。",
+        .zhHans: "编译缓存目录通常包含数万到数十万个琐碎的小文件、符号链接与随时变动的锁文件。一旦将它们丢进云端硬盘（iCloud／Google Drive）或跨端同步，将会造成系统持续 99% CPU 负载、卡在“扫描中 / 套用变更”的无限循环，甚至因不同机器的 CPU 架构或时间戳不一致而导致编译器频繁报错。保持排除能让备份轻盈、安全且在数秒内瞬间完成。",
+        .ja: "ビルドフォルダには数万から数十万の断片化ファイルや頻繁にロックされる一時ファイルが含まれます。これらをクラウド（iCloud / Google Drive）と同期すると、CPU負荷が99%に達し、同期が無限ループに陥る原因となります。また異なるマシンのアーキテクチャ違いによるビルド破損も誘発します。",
+        .th: "โฟลเดอร์บิลด์ประกอบด้วยไฟล์ขนาดเล็กหลายหมื่นไฟล์และไฟล์ล็อกที่มีการเปลี่ยนแปลงตลอดเวลา การซิงค์ไฟล์เหล่านี้จะทำให้ระบบทำงานหนัก CPU พุ่งสูงถึง 99% และติดอยู่ในลูปการสแกนไม่รู้จบ การคงการยกเว้นไว้จะช่วยให้การสำรองข้อมูลเสร็จสิ้นอย่างรวดเร็วและปลอดภัยสูงสุด",
+        .ko: "빌드 폴더는 수만 개의 쪼개진 임시 파일과 빈번한 잠금 파일을 포함합니다. 이를 클라우드(iCloud / Google Drive)와 동기화하면 CPU 99% 점유율 및 무한 스캔 루프가 발생하고, 다른 기기 간 아키텍처 불일치로 빌드 오류가 발생합니다. 제외 상태를 유지해야 초고속으로 안전하게 백업됩니다."
+    ],
+    "exclude_guide_sec4_title": [
+        .en: "How to Rebuild on a New Mac or Computer",
+        .zhHant: "在全新電腦上復原專案後，如何重新建置與打包？",
+        .zhHans: "在全新电脑上恢复项目后，如何重新建置与打包？",
+        .ja: "新しいPCでプロジェクトを復元後、どのように再ビルドしますか？",
+        .th: "หลังจากกู้คืนโปรเจกต์ในคอมพิวเตอร์เครื่องใหม่ จะสร้างและแพ็กแอปใหม่อย่างไร?",
+        .ko: "새 컴퓨터에서 프로젝트를 복원한 후 어떻게 다시 빌드하고 패키징하나요?"
+    ],
+    "exclude_guide_sec4_desc": [
+        .en: "1. Swift / Xcode projects: Simply double-click to open in Xcode and press Command+B (Build), or run 'swift build -c release'. All build products recreate automatically.\n2. Android / Kotlin: Open the folder in Android Studio or run './gradlew assembleRelease'. Gradle downloads needed dependencies and builds the APK/AAB.\n3. Web / Node.js: Run 'npm install' or 'pnpm install' in the project directory to restore node_modules.\n4. Python: Run 'python -m venv venv && pip install -r requirements.txt'.",
+        .zhHant: "1. Swift／Xcode 專案：直接開啟專案按 ⌘B 編譯，或在終端機輸入「swift build -c release」，編譯器會自動重建 build 與快取。\n2. Android／Kotlin 專案：以 Android Studio 開啟，或在專案目錄執行「./gradlew assembleRelease」，Gradle 會自動下載相依套件並編譯產出 APK／AAB。\n3. 前端／Node.js 專案：在專案目錄執行「npm install」，自動恢復 node_modules。\n4. Python 專案：執行「python3 -m venv venv && pip install -r requirements.txt」建立乾淨虛擬環境。",
+        .zhHans: "1. Swift／Xcode 项目：直接打开项目按 ⌘B 编译，或在终端输入“swift build -c release”，编译器会自动重建 build 与缓存。\n2. Android／Kotlin 项目：以 Android Studio 打开，或在项目目录执行“./gradlew assembleRelease”，Gradle 会自动下载依赖包并编译产出 APK／AAB。\n3. 前端／Node.js 项目：在项目目录执行“npm install”，自动恢复 node_modules。\n4. Python 项目：执行“python3 -m venv venv && pip install -r requirements.txt”建立干净虚拟环境。",
+        .ja: "1. Swift / Xcode: Xcodeで開いて ⌘B を押すか、ターミナルで 'swift build -c release' を実行するだけで再構築されます。\n2. Android / Kotlin: Android Studioで開くか、'./gradlew assembleRelease' を実行すれば自動生成されます。\n3. Web / Node.js: 'npm install' を実行して node_modules を復元します。\n4. Python: 'python3 -m venv venv && pip install -r requirements.txt' を実行します。",
+        .th: "1. โปรเจกต์ Swift / Xcode: เปิดใน Xcode แล้วกด ⌘B หรือรัน 'swift build -c release' ในเทอร์มินัล ระบบจะสร้างไฟล์บิลด์ใหม่ทั้งหมดโดยอัตโนมัติ\n2. โปรเจกต์ Android / Kotlin: เปิดใน Android Studio หรือรัน './gradlew assembleRelease' เพื่อสร้าง APK/AAB ใหม่\n3. โปรเจกต์ Web / Node.js: รัน 'npm install' เพื่อดาวน์โหลด node_modules กลับมา\n4. โปรเจกต์ Python: รัน 'python3 -m venv venv && pip install -r requirements.txt'",
+        .ko: "1. Swift / Xcode 프로젝트: Xcode에서 열고 ⌘B를 누르거나 터미널에서 'swift build -c release'를 실행하면 자동으로 빌드 캐시가 재생성됩니다.\n2. Android / Kotlin 프로젝트: Android Studio에서 열거나 './gradlew assembleRelease'를 실행하면 필요한 라이브러리를 자동 다운로드하고 APK/AAB를 빌드합니다.\n3. 웹 / Node.js: 프로젝트 디렉토리에서 'npm install'을 실행하여 node_modules를 복원합니다.\n4. Python: 'python3 -m venv venv && pip install -r requirements.txt'를 실행합니다."
+    ],
     "switch_to_group": [
         .en: "Switch",
         .zhHant: "切換",

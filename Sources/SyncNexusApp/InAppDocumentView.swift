@@ -1,26 +1,29 @@
 import SwiftUI
 import AppKit
 
-public enum DocumentType: Identifiable {
+enum DocumentType: Identifiable {
     case manual
     case privacy
+    case excludeGuide
 
-    public var id: String {
+    var id: String {
         switch self {
         case .manual: return "manual"
         case .privacy: return "privacy"
+        case .excludeGuide: return "excludeGuide"
         }
     }
 }
 
-public struct InAppDocumentView: View {
+struct InAppDocumentView: View {
     let type: DocumentType
     @ObservedObject private var l10n = L10n.shared
     @Environment(\.dismiss) private var dismiss
     @State private var selectedManualSection: MainSection = .overview
 
-    public init(type: DocumentType) {
+    init(type: DocumentType, initialManualSection: MainSection = .overview) {
         self.type = type
+        self._selectedManualSection = State(initialValue: initialManualSection)
     }
 
     public var body: some View {
@@ -28,13 +31,13 @@ public struct InAppDocumentView: View {
             // Header: 標題、語系切換器、關閉按鈕
             HStack(alignment: .center, spacing: 12) {
                 HStack(spacing: 10) {
-                    Image(systemName: type == .manual ? "book.pages.fill" : "hand.raised.shield.fill")
+                    Image(systemName: type == .manual ? "book.pages.fill" : (type == .privacy ? "hand.raised.shield.fill" : "shield.checkerboard"))
                         .font(.system(size: 22))
                         .foregroundStyle(Color.accentColor)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(type == .manual ? loc("manual_inapp_title") : loc("privacy_inapp_title"))
+                        Text(type == .manual ? loc("manual_inapp_title") : (type == .privacy ? loc("privacy_inapp_title") : loc("exclude_guide_inapp_title")))
                             .font(.system(size: 17, weight: .bold))
-                        Text(loc("manual_inapp_subtitle"))
+                        Text(type == .manual ? loc("manual_inapp_subtitle") : (type == .privacy ? loc("privacy_inapp_subtitle") : loc("exclude_guide_inapp_subtitle")))
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
                     }
@@ -72,10 +75,18 @@ public struct InAppDocumentView: View {
             // Main Content Area
             if type == .manual {
                 manualLayout
-            } else {
+            } else if type == .privacy {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
                         privacyContent
+                    }
+                    .padding(24)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        excludeGuideContent
                     }
                     .padding(24)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -383,6 +394,39 @@ public struct InAppDocumentView: View {
                 title: loc("privacy_sec4_title"),
                 desc: loc("privacy_sec4_desc"),
                 badge: loc("privacy_badge_trash")
+            )
+        }
+    }
+
+    // MARK: - 排除同步安全原則說明內容
+    private var excludeGuideContent: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            DocCard(
+                icon: "hammer.fill",
+                title: loc("exclude_guide_sec1_title"),
+                desc: loc("exclude_guide_sec1_desc"),
+                badge: loc("exclude_guide_badge_safe")
+            )
+
+            DocCard(
+                icon: "shield.lefthalf.filled",
+                title: loc("exclude_guide_sec2_title"),
+                desc: loc("exclude_guide_sec2_desc"),
+                badge: loc("exclude_guide_badge_standard")
+            )
+
+            DocCard(
+                icon: "exclamationmark.triangle.fill",
+                title: loc("exclude_guide_sec3_title"),
+                desc: loc("exclude_guide_sec3_desc"),
+                badge: loc("exclude_guide_badge_hazard")
+            )
+
+            DocCard(
+                icon: "arrow.triangle.2.circlepath.circle.fill",
+                title: loc("exclude_guide_sec4_title"),
+                desc: loc("exclude_guide_sec4_desc"),
+                badge: loc("exclude_guide_badge_restore")
             )
         }
     }
