@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Build SyncNexus.app (menu bar app) and optionally install it to ~/Applications.
+# Build SyncNexus.app (standard macOS app with a menu bar extra) and optionally install it to ~/Applications.
 #   Scripts/build-app.sh            build only  -> build/SyncNexus.app
 #   Scripts/build-app.sh --install    build, copy to ~/Applications and launch
 #   Scripts/build-app.sh --sandbox    build a locally signed sandboxed app
