@@ -10,6 +10,13 @@ private final class ReleasedCloudFiles: @unchecked Sendable {
     var count: Int { lock.lock(); defer { lock.unlock() }; return urls.count }
 }
 
+private final class ServiceSnapshots: @unchecked Sendable {
+    private let lock = NSLock()
+    private var values: [SyncService.Snapshot] = []
+    func append(_ value: SyncService.Snapshot) { lock.lock(); values.append(value); lock.unlock() }
+    var first: SyncService.Snapshot? { lock.lock(); defer { lock.unlock() }; return values.first }
+}
+
 private final class Env2 {
     let base = FileManager.default.temporaryDirectory.appendingPathComponent("sf-\(UUID().uuidString)")
     let store: Store
@@ -689,5 +696,32 @@ struct ExcludeTests {
         #expect(reloadedSnapshot.excludePresets == ExcludePreset.defaults)
         #expect(reloadedSnapshot.conflictPolicy == .newerWins)
         await svc2.stopAndWait()
+    }
+
+    @Test func servicePublishesStoredEndpointsBeforeStartingScan() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("svc-start-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let db = dir.appendingPathComponent("state.db").path
+        let store = try Store(path: db)
+        for name in ["a", "b"] {
+            let root = dir.appendingPathComponent(name)
+            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+            try store.addEndpoint(EndpointConfig(id: name, root: root.path))
+        }
+        // Exercise the delayed watcher-replay path that previously left the UI at
+        // "0 folders" until a potentially long scan completed.
+        try store.setMeta("fsEventId", "1")
+
+        let snapshots = ServiceSnapshots()
+        let svc = SyncService(dbPath: db, versionsDir: dir.appendingPathComponent("versions"), logURL: nil) {
+            snapshots.append($0)
+        }
+        svc.start()
+        for _ in 0..<50 where snapshots.first == nil {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        #expect(snapshots.first?.endpoints.count == 2)
+        await svc.stopAndWait()
     }
 }

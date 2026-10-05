@@ -154,7 +154,6 @@ public final class SyncService: @unchecked Sendable {
                 self.snapshot.conflictPolicy = ConflictPolicy(rawValue: (try? store.meta("conflictPolicy")) ?? "") ?? .keepBoth
                 self.snapshot.cloudSpaceSaving = ((try? store.meta("cloudSpaceSaving")) ?? "0") == "1"
                 self.snapshot.excludePresets = IgnoreRules.parsePresets(try? store.meta("excludePresets"))
-                self.publish()
             } catch {
                 self.snapshot.error = "無法開啟資料庫：\(error)"
                 self.publish()
@@ -187,12 +186,21 @@ public final class SyncService: @unchecked Sendable {
                 }
                 if cfgs.count >= 2,
                    let saved = (try? engine.store.meta("fsEventId")).flatMap({ $0 }).flatMap(UInt64.init) {
+                    // Publish the stored endpoints before starting the delayed scan. Otherwise a
+                    // fresh UI shows "0 folders" throughout a long replay/full scan even though
+                    // the endpoint configuration is intact in the database.
+                    try? self.fillStatus(engine, cfgs)
+                    self.publish()
                     self.needFull = false
                     self.startWatcher(cfgs.map(\.root), since: saved)
                     self.queue.asyncAfter(deadline: .now() + 90) { [weak self] in self?.runIfNeeded(confirmed: false) }
                 } else {
+                    try? self.fillStatus(engine, cfgs)
+                    self.publish()
                     self.runIfNeeded(confirmed: false)
                 }
+            } else {
+                self.publish()
             }
         }
     }
