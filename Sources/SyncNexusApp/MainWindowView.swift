@@ -245,13 +245,20 @@ struct MainWindowView: View {
             }
             .padding(.horizontal, 10).padding(.bottom, 18).padding(.top, 6)
             ForEach(MainSection.allCases) { s in
-                Button { model.section = s } label: {
+                Button {
+                    model.section = s
+                    if s == .conflicts && model.snap.conflicts.isEmpty {
+                        if let g = model.groups.first(where: { !(model.snapshots[$0.id]?.conflicts.isEmpty ?? true) }) {
+                            model.selectGroup(id: g.id)
+                        }
+                    }
+                } label: {
                     HStack(spacing: 10) {
                         Image(systemName: s.symbol).font(.system(size: 15)).frame(width: 20)
                         Text(s.title).font(.system(size: 14, weight: model.section == s ? .semibold : .medium))
                         Spacer(minLength: 0)
-                        if s == .conflicts && !model.snap.conflicts.isEmpty {
-                            Text("\(model.snap.conflicts.count)").font(.system(size: 11, weight: .bold)).foregroundStyle(.white)
+                        if s == .conflicts && model.totalConflictCount > 0 {
+                            Text("\(model.totalConflictCount)").font(.system(size: 11, weight: .bold)).foregroundStyle(.white)
                                 .padding(.horizontal, 6).frame(minWidth: 18, minHeight: 18)
                                 .background(Theme.warn, in: Capsule())
                         }
@@ -322,7 +329,14 @@ struct OverviewSection: View {
                         ForEach(model.groups, id: \.id) { (group: SyncGroup) in
                             let isActive: Bool = (group.id == model.activeGroupId)
                             let badge = model.groupStatusBadge(for: group.id)
-                            Button(action: { model.selectGroup(id: group.id) }) {
+                            Button(action: {
+                                model.selectGroup(id: group.id)
+                                if badge.kind == .bad || badge.kind == .warn {
+                                    if !(model.snapshots[group.id]?.conflicts.isEmpty ?? true) {
+                                        model.section = .conflicts
+                                    }
+                                }
+                            }) {
                                 HStack(spacing: 5) {
                                     Image(systemName: group.icon).font(.system(size: 11))
                                     Text(model.groupName(group)).font(.system(size: 12, weight: isActive ? .bold : .regular))
@@ -920,7 +934,65 @@ struct ConflictsSection: View {
     var body: some View {
         sectionHeader(loc("section_conflicts"), model.snap.conflicts.isEmpty ? nil : loc("conflicts_section_desc"))
 
+        if model.groups.count > 1 {
+            HStack(spacing: 8) {
+                Text(loc("group_selector_title") + ":")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.secondary)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(model.groups, id: \.id) { (group: SyncGroup) in
+                            let isActive: Bool = (group.id == model.activeGroupId)
+                            let badge = model.groupStatusBadge(for: group.id)
+                            Button(action: { model.selectGroup(id: group.id) }) {
+                                HStack(spacing: 5) {
+                                    Image(systemName: group.icon).font(.system(size: 11))
+                                    Text(model.groupName(group)).font(.system(size: 12, weight: isActive ? .bold : .regular))
+                                    Text(badge.text)
+                                        .font(.system(size: 9, weight: .semibold))
+                                        .padding(.horizontal, 5)
+                                        .padding(.vertical, 1.5)
+                                        .background(
+                                            isActive ? Color.white.opacity(0.3) :
+                                                (badge.kind == .bad ? Theme.badFill : (badge.kind == .warn ? Theme.warnFill : Theme.okFill)),
+                                            in: Capsule()
+                                        )
+                                        .foregroundStyle(
+                                            isActive ? Color.white :
+                                                (badge.kind == .bad ? Theme.bad : (badge.kind == .warn ? Theme.warn : Theme.ok))
+                                        )
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(isActive ? Theme.accent : Theme.tile, in: RoundedRectangle(cornerRadius: 6))
+                                .foregroundStyle(isActive ? Color.white : Color.primary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+        }
+
         if model.snap.conflicts.isEmpty {
+            if let otherGroup = model.groups.first(where: { !(model.snapshots[$0.id]?.conflicts.isEmpty ?? true) }) {
+                Card(padding: 20) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle.fill").font(.system(size: 24)).foregroundStyle(Theme.warn)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(loc("conflicts_in_other_group_title", model.groupName(otherGroup)))
+                                .font(.system(size: 14, weight: .bold))
+                            Text(loc("conflicts_in_other_group_desc"))
+                                .font(.system(size: 12)).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button(loc("conflicts_switch_to_group_action", model.groupName(otherGroup))) {
+                            model.selectGroup(id: otherGroup.id)
+                        }
+                        .buttonStyle(QuietButton(kind: .primary, compact: true))
+                    }
+                }
+            }
             Card(padding: 28) {
                 VStack(spacing: 10) {
                     Image(systemName: "checkmark.circle").font(.system(size: 34)).foregroundStyle(Theme.ok)
@@ -1461,6 +1533,17 @@ struct SettingsSection: View {
                     .font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 Label(loc("cloud_space_saving_safety"), systemImage: "checkmark.shield")
                     .font(.system(size: 12)).foregroundStyle(Theme.ok)
+            }
+        }
+        Card {
+            VStack(alignment: .leading, spacing: 10) {
+                Toggle(loc("settings_auto_exclude_nested"), isOn: Binding(
+                    get: { model.autoExcludeNestedGroups },
+                    set: { model.setAutoExcludeNestedGroups($0) }
+                ))
+                .toggleStyle(.switch)
+                Text(loc("settings_nested_groups_desc"))
+                    .font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
         }
         Card {

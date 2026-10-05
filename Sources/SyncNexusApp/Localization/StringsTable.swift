@@ -4431,6 +4431,54 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .th: "มีความสัมพันธ์แบบซ้อนกับกลุ่ม '%@' (ปลายทาง '%@') ระบบจะแยกและยกเว้นเส้นทางนี้ในกลุ่มหลักโดยอัตโนมัติ",
         .ko: "'%@' 그룹('%@' 엔드포인트)과 중첩 관계입니다. 충돌 방지를 위해 상위 그룹에서 자동으로 제외됩니다."
     ],
+    "folders_nested_in_other_group_propagate": [
+        .en: "Nested within group '%@' (endpoint '%@'). Parent group will propagate this folder across its endpoints.",
+        .zhHant: "與同步群組「%@」（端點「%@」）存在父子層巢狀關係，父群組將穿透散播此資料夾至其他端點。",
+        .zhHans: "与同步群组“%@”（端点“%@”）存在父子层嵌套关系，父群组将穿透散播此文件夹至其他端点。",
+        .ja: "グループ「%@」（エンドポイント「%@」）と親子関係にあります。親グループ経由で他エンドポイントへ自動伝播されます。",
+        .th: "มีความสัมพันธ์แบบซ้อนกับกลุ่ม '%@' (ปลายทาง '%@') กลุ่มหลักจะกระจายโฟลเดอร์นี้ไปยังปลายทางอื่นโดยอัตโนมัติ",
+        .ko: "'%@' 그룹('%@' 엔드포인트)과 중첩 관계입니다. 상위 그룹을 통해 다른 엔드포인트로 자동 전파됩니다."
+    ],
+    "settings_auto_exclude_nested": [
+        .en: "Auto-Exclude Nested Child Groups (Isolation Mode)",
+        .zhHant: "自動排除子同步群組資料夾（完全隔離同步）",
+        .zhHans: "自动排除子同步群组文件夹（完全隔离同步）",
+        .ja: "ネストされた子グループを自動除外（分離同期）",
+        .th: "ยกเว้นกลุ่มย่อยที่ซ้อนกันโดยอัตโนมัติ (โหมดแยกการซิงค์)",
+        .ko: "중첩된 하위 그룹 자동 제외 (격리 모드)"
+    ],
+    "settings_nested_groups_desc": [
+        .en: "When turned off (recommended), parent groups will naturally propagate nested child folders to other endpoints (e.g. iCloud, Google Drive). When turned on, parent groups strictly ignore nested child group folders.",
+        .zhHant: "關閉時（推薦）：父群組會自動將子群組資料夾內容穿透散播至父群組的其他端點（如 iCloud、Google Drive）。開啟時：父群組將嚴格排除子群組資料夾，彼此完全隔離不傳播。",
+        .zhHans: "关闭时（推荐）：父群组会自动将子群组文件夹内容穿透散播至父群组的其他端点（如 iCloud、Google Drive）。开启时：父群组将严格排除子群组文件夹，彼此完全隔离不传播。",
+        .ja: "オフ（推奨）：親グループはネストされた子フォルダを他のエンドポイント（iCloud、Google Drive 等）へ自動伝播します。オン：親グループは子フォルダを厳格に除外します。",
+        .th: "เมื่อปิด (แนะนำ): กลุ่มหลักจะกระจายโฟลเดอร์ย่อยไปยังปลายทางอื่น เช่น iCloud หรือ Google Drive ตามธรรมชาติ เมื่อเปิด: กลุ่มหลักจะแยกและยกเว้นโฟลเดอร์ย่อยโดยเด็ดขาด",
+        .ko: "끄기(권장): 상위 그룹이 하위 폴더의 내용을 다른 엔드포인트(iCloud, Google Drive 등)로 자연스럽게 전파합니다. 켜기: 상위 그룹에서 하위 폴더를 엄격히 제외합니다."
+    ],
+    "conflicts_in_other_group_title": [
+        .en: "Group '%@' has unresolved conflicts",
+        .zhHant: "同步群組「%@」有待處理衝突",
+        .zhHans: "同步群组“%@”有待处理冲突",
+        .ja: "グループ「%@」に未解決の競合があります",
+        .th: "กลุ่ม '%@' มีข้อขัดแย้งที่ยังไม่ได้รับการแก้ไข",
+        .ko: "'%@' 그룹에 해결되지 않은 충돌이 있습니다"
+    ],
+    "conflicts_in_other_group_desc": [
+        .en: "Click below to switch to this group and resolve conflicts.",
+        .zhHant: "點擊下方按鈕切換至該群組並檢視與解決衝突。",
+        .zhHans: "点击下方按钮切换至该群组并查看与解决冲突。",
+        .ja: "下のボタンをクリックしてこのグループに切り替え、競合を解決してください。",
+        .th: "คลิกด้านล่างเพื่อสลับไปยังกลุ่มนี้และแก้ไขข้อขัดแย้ง",
+        .ko: "아래 버튼을 눌러 해당 그룹으로 전환하고 충돌을 해결하세요."
+    ],
+    "conflicts_switch_to_group_action": [
+        .en: "Switch to '%@'",
+        .zhHant: "切換至「%@」",
+        .zhHans: "切换至“%@”",
+        .ja: "「%@」に切り替え",
+        .th: "สลับไปที่ '%@'",
+        .ko: "'%@' (으)로 전환"
+    ],
     "group_excludes_label": [
         .en: "Custom Exclude Paths / Folders:",
         .zhHant: "自訂排除路徑或資料夾：",

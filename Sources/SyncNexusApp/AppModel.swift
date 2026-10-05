@@ -110,7 +110,15 @@ final class AppModel: ObservableObject {
     @Published var activeGroupId: String = "default"
 
     private var services: [String: SyncService] = [:]
-    private var snapshots: [String: SyncService.Snapshot] = [:]
+    var snapshots: [String: SyncService.Snapshot] = [:]
+
+    func hasConflicts(in groupId: String) -> Bool {
+        !(snapshots[groupId]?.conflicts.isEmpty ?? true)
+    }
+
+    var firstGroupWithConflicts: SyncGroup? {
+        groups.first { hasConflicts(in: $0.id) }
+    }
 
     var activeGroup: SyncGroup? {
         groups.first { $0.id == activeGroupId }
@@ -131,8 +139,19 @@ final class AppModel: ObservableObject {
         .appendingPathComponent("Logs/SyncNexus/syncnexus.log")
 
     @Published var nearbyPeers: [LocalPeer] = []
+    @Published var autoExcludeNestedGroups: Bool {
+        didSet {
+            UserDefaults.standard.set(autoExcludeNestedGroups, forKey: "autoExcludeNestedGroups")
+            recalculateEffectiveExcludes()
+        }
+    }
+
+    var totalConflictCount: Int {
+        snapshots.values.reduce(0) { $0 + $1.conflicts.count }
+    }
 
     init() {
+        self.autoExcludeNestedGroups = UserDefaults.standard.bool(forKey: "autoExcludeNestedGroups")
         registry = SyncGroupRegistry(baseAppSupportURL: Self.appSupport)
         groups = registry.allGroups()
         languageObserver = L10n.shared.$currentLanguage.dropFirst().receive(on: DispatchQueue.main).sink { [weak self] _ in
@@ -145,6 +164,7 @@ final class AppModel: ObservableObject {
         for group in groups {
             startService(for: group)
         }
+        recalculateEffectiveExcludes()
         loadHistoricalSyncLogs()
 
         if let i = CommandLine.arguments.firstIndex(of: "--section"), i + 1 < CommandLine.arguments.count,
@@ -281,24 +301,31 @@ final class AppModel: ObservableObject {
         syncLogs.removeAll()
     }
 
+    func setAutoExcludeNestedGroups(_ enabled: Bool) {
+        autoExcludeNestedGroups = enabled
+    }
+
     // MARK: automatic sub-group pruning & custom exclusions
 
     /// Automatically discovers nested/sub-group endpoint roots and combines them with user custom excludes.
-    /// Injects these relative paths into each parent group's service so parent groups never touch or compete with child groups.
+    /// When autoExcludeNestedGroups is true, injects relative paths into parent group's service for isolation.
+    /// When false (default), parent groups naturally propagate nested child folders to other endpoints.
     func recalculateEffectiveExcludes() {
         for group in groups {
             var excludes = Set(group.customExcludes)
-            let myEndpoints = snapshots[group.id]?.endpoints.map(\.root) ?? []
-            for myRoot in myEndpoints {
-                let resolvedParent = EndpointValidator.resolved(myRoot)
-                for otherGroup in groups where otherGroup.id != group.id {
-                    let otherEndpoints = snapshots[otherGroup.id]?.endpoints.map(\.root) ?? []
-                    for otherRoot in otherEndpoints {
-                        let resolvedChild = EndpointValidator.resolved(otherRoot)
-                        if resolvedChild.hasPrefix(resolvedParent + "/") {
-                            let rel = String(resolvedChild.dropFirst(resolvedParent.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-                            if !rel.isEmpty {
-                                excludes.insert(rel)
+            if autoExcludeNestedGroups {
+                let myEndpoints = snapshots[group.id]?.endpoints.map(\.root) ?? []
+                for myRoot in myEndpoints {
+                    let resolvedParent = EndpointValidator.resolved(myRoot)
+                    for otherGroup in groups where otherGroup.id != group.id {
+                        let otherEndpoints = snapshots[otherGroup.id]?.endpoints.map(\.root) ?? []
+                        for otherRoot in otherEndpoints {
+                            let resolvedChild = EndpointValidator.resolved(otherRoot)
+                            if resolvedChild.hasPrefix(resolvedParent + "/") {
+                                let rel = String(resolvedChild.dropFirst(resolvedParent.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                                if !rel.isEmpty {
+                                    excludes.insert(rel)
+                                }
                             }
                         }
                     }
@@ -899,7 +926,8 @@ final class AppModel: ObservableObject {
                 return resPath.hasPrefix(o + "/") || o.hasPrefix(resPath + "/")
             }) {
                 let gName = groups.first(where: { $0.id == gid }).map(groupName) ?? gid
-                issues.append(ValidationIssue(isError: false, message: loc("folders_nested_in_other_group", gName, DisplayNames.endpoint(ep.id))))
+                let msgKey = autoExcludeNestedGroups ? "folders_nested_in_other_group" : "folders_nested_in_other_group_propagate"
+                issues.append(ValidationIssue(isError: false, message: loc(msgKey, gName, DisplayNames.endpoint(ep.id))))
             }
         }
         return issues

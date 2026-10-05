@@ -556,7 +556,13 @@ public final class SyncService: @unchecked Sendable {
             snapshot.lastRun = Date()
             snapshot.lastWork = report.work
             let skipped = Array(Set(report.skipped)).sorted()
-            if skipped != snapshot.skipped { skipped.forEach { writeLog("略過 \($0)") } }
+            if skipped != snapshot.skipped {
+                if !skipped.isEmpty {
+                    let sample = skipped.prefix(3).joined(separator: "；")
+                    let more = skipped.count > 3 ? " 等共 \(skipped.count) 項" : ""
+                    writeLog("略過未就緒或未下載雲端檔案：\(sample)\(more)")
+                }
+            }
             for o in report.offline where !snapshot.endpoints.contains(where: { !$0.online && o.hasPrefix($0.id) }) { writeLog("離線 \(o)") }
             snapshot.skipped = skipped
             snapshot.confirmation = report.needsConfirmation.map { Confirmation(reason: $0, preview: report.preview, totalCount: report.previewTotalCount) }
@@ -771,12 +777,24 @@ public final class SyncService: @unchecked Sendable {
     private func writeLog(_ line: String) {
         guard let url = logURL else { return }
         let text = "\(ISO8601DateFormatter().string(from: Date())) \(line)\n"
+        guard let data = text.data(using: .utf8) else { return }
+
+        // Size check & truncation if log exceeds 5 MB
+        if let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+           let size = attrs[.size] as? Int64, size > 5 * 1024 * 1024 {
+            if let fileData = try? Data(contentsOf: url) {
+                let keepBytes = 1 * 1024 * 1024
+                let trimmed = fileData.suffix(keepBytes)
+                try? trimmed.write(to: url, options: .atomic)
+            }
+        }
+
         if let h = try? FileHandle(forWritingTo: url) {
             defer { try? h.close() }
             _ = try? h.seekToEnd()
-            try? h.write(contentsOf: Data(text.utf8))
+            try? h.write(contentsOf: data)
         } else {
-            try? text.write(to: url, atomically: true, encoding: .utf8)
+            try? data.write(to: url, options: .atomic)
         }
     }
 }
