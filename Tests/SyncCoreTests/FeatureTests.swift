@@ -643,6 +643,19 @@ struct ExcludeTests {
         #expect(!e.exists("b", "repo/.git"))
     }
 
+    @Test func buildCachesExcludeCMakeAndBuildArtifacts() throws {
+        let e = try Env2(["a", "b"])
+        try e.write("a", "project/src/main.cpp", "int main() {}")
+        try e.write("a", "project/build-dmg/CMakeFiles/rules.ninja", "ninja")
+        try e.write("a", "project/build-dmg/main.o", "binary")
+        try e.write("a", "project/build-release/app.a", "bin")
+        try e.sync()
+        #expect(e.read("b", "project/src/main.cpp") == "int main() {}")
+        #expect(!e.exists("b", "project/build-dmg/CMakeFiles/rules.ninja"))
+        #expect(!e.exists("b", "project/build-dmg/main.o"))
+        #expect(!e.exists("b", "project/build-release/app.a"))
+    }
+
     @Test func legacyPreferencesMigrateToMandatoryProtectionWithoutDeletingExistingFiles() throws {
         let e = try Env2(["a", "b"])
         try e.store.setMeta("excludePresets", "")                  // legacy setting with all switches off

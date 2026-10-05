@@ -10,8 +10,13 @@ import Foundation
 public final class Materializer: @unchecked Sendable {
     struct Key: Hashable { var path: String; var size: Int64; var mtimeNs: Int64 }
 
-    private let queue = DispatchQueue(label: "syncnexus.materialize", qos: .utility, attributes: .concurrent)
-    private let gate = DispatchSemaphore(value: 2)
+    private let queue: OperationQueue = {
+        let q = OperationQueue()
+        q.name = "syncnexus.materialize"
+        q.qualityOfService = .utility
+        q.maxConcurrentOperationCount = 2
+        return q
+    }()
     private let lock = NSLock()
     private var inflight = Set<Key>()
     private var results: [Key: String] = [:]
@@ -20,6 +25,13 @@ public final class Materializer: @unchecked Sendable {
     public var onFinish: ((URL) -> Void)?
 
     public init() {}
+
+    public func cancelAll() {
+        queue.cancelAllOperations()
+        lock.lock()
+        inflight.removeAll()
+        lock.unlock()
+    }
 
     /// SHA-256 of a placeholder whose content has already been read, if the file is unchanged since.
     public func result(for url: URL, size: Int64, mtimeNs: Int64) -> String? {
@@ -38,10 +50,9 @@ public final class Materializer: @unchecked Sendable {
         let isNew = results[key] == nil && inflight.insert(key).inserted
         lock.unlock()
         guard isNew else { return }
-        queue.async {
-            self.gate.wait()
+        queue.addOperation { [weak self] in
+            guard let self else { return }
             let hash = try? FileOps.sha256(of: url)
-            self.gate.signal()
             self.lock.lock()
             self.inflight.remove(key)
             if let hash { self.results[key] = hash }
@@ -50,7 +61,23 @@ public final class Materializer: @unchecked Sendable {
         }
     }
 
+    private static var freeSpaceCache: [String: (free: Int64, at: Date)] = [:]
+    private static let cacheLock = NSLock()
+
     public static func freeBytes(at url: URL) -> Int64? {
-        (try? url.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]))?.volumeAvailableCapacityForImportantUsage
+        let mountPath = (try? url.resourceValues(forKeys: [.volumeURLKey]))?.volume?.path ?? url.path
+        cacheLock.lock()
+        if let c = freeSpaceCache[mountPath], Date().timeIntervalSince(c.at) < 20 {
+            cacheLock.unlock()
+            return c.free
+        }
+        cacheLock.unlock()
+
+        let v = (try? url.resourceValues(forKeys: [.volumeAvailableCapacityKey]))?.volumeAvailableCapacity
+        guard let v else { return nil }
+        cacheLock.lock()
+        freeSpaceCache[mountPath] = (Int64(v), Date())
+        cacheLock.unlock()
+        return Int64(v)
     }
 }

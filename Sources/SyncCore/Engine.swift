@@ -159,6 +159,12 @@ public final class Engine {
     public init(store: Store, options: EngineOptions = EngineOptions()) {
         self.store = store
         self.options = options
+        var baseIgnore = options.ignore.applying(IgnoreRules.parsePresets(try? store.meta("excludePresets")))
+        if let customRaw = try? store.meta("customExcludes"), !customRaw.isEmpty {
+            let patterns = customRaw.split(separator: "\n").map { String($0) }
+            baseIgnore = baseIgnore.applying(customPatterns: patterns)
+        }
+        self.effectiveIgnore = baseIgnore
     }
 
     private var policy: ConflictPolicy = .keepBoth
@@ -166,7 +172,7 @@ public final class Engine {
     private var cloudEvictionCandidates: [String: URL] = [:]
     private var cfgByID: [String: EndpointConfig] = [:]
     private var cloudKindCache: [String: Bool] = [:]
-    private var effectiveIgnore = IgnoreRules.default
+    var effectiveIgnore = IgnoreRules.default
     private var progressFloor = 0.0
     /// Called (on a background queue) when the content of a cloud placeholder has been read, so the caller can re-check that path.
     public var onContentReady: ((URL) -> Void)?
@@ -220,7 +226,10 @@ public final class Engine {
     }
 
     private func checkCancellation() throws {
-        if options.shouldCancel?() == true { throw ScanCancelled() }
+        if options.shouldCancel?() == true {
+            materializer.cancelAll()
+            throw ScanCancelled()
+        }
     }
 
     private func buildContext(_ cfgs: [EndpointConfig], writeMarker: Bool, into report: inout SyncReport,
@@ -373,7 +382,8 @@ public final class Engine {
             if f.size > options.autoDownloadMaxBytes {
                 return .skip("雲端檔案 \(ByteCountFormatter.string(fromByteCount: f.size, countStyle: .file)) 超過自動下載上限，請在 Finder 手動下載")
             }
-            if let free = Materializer.freeBytes(at: f.url), free < f.size + 2 * 1024 * 1024 * 1024 {
+            let root = cfgByID[ep]?.root ?? f.url.deletingLastPathComponent().path
+            if let free = freeBytes(root), free < f.size + 2 * 1024 * 1024 * 1024 {
                 return .skip("磁碟可用空間不足，無法下載雲端檔案")
             }
             requestDownload(f)
@@ -527,7 +537,7 @@ public final class Engine {
 
     /// Skip reasons that go away by themselves: look at those paths again soon instead of waiting for the next full scan.
     static func retryPaths(from skipped: [String]) -> Set<String> {
-        let keywords = ["稍後", "重新評估", "穩定窗口", "讀取雲端", "空間不足", "失敗", "又被改動"]
+        let keywords = ["稍後", "重新評估", "穩定窗口", "空間不足", "失敗", "又被改動"]
         var out = Set<String>()
         for line in skipped where keywords.contains(where: { line.contains($0) }) {
             guard let close = line.firstIndex(of: "]"), let colon = line.firstIndex(of: "：") else { continue }

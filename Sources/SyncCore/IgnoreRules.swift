@@ -61,7 +61,7 @@ public enum ExcludePreset: String, CaseIterable, Sendable, Identifiable {
         case .git: ".git（版本控制資料夾）"
         case .databases: "資料庫暫存檔（-wal、-shm、-journal）"
         case .photosLibraries: "照片圖庫（.photoslibrary）"
-        case .buildCaches: "專案編譯快取（.build、target、build、.gradle、DerivedData、Pods）"
+        case .buildCaches: "專案編譯快取（.build、target、build、build-*、CMakeFiles、.gradle、DerivedData、Pods、.o、.a）"
         case .pythonEnvironments: "Python 虛擬環境與快取（venv、.venv、env、__pycache__、.pytest_cache、.mypy_cache、.tox）"
         }
     }
@@ -87,7 +87,11 @@ extension IgnoreRules {
             case .git: r.exactNames.insert(".git")
             case .databases: r.suffixes += ["-wal", "-shm", "-journal", ".sqlite-wal", ".sqlite-shm"]
             case .photosLibraries: r.suffixes += [".photoslibrary", ".photolibrary"]
-            case .buildCaches: r.exactNames.formUnion([".build", "build", "target", ".gradle", "DerivedData", "Pods"])
+            case .buildCaches:
+                r.exactNames.formUnion([".build", "build", "target", ".gradle", "DerivedData", "Pods",
+                                        "CMakeFiles", "CMakeScripts", "CMakeCache.txt", "compile_commands.json"])
+                r.prefixes += ["build-", "build_", "cmake-build-"]
+                r.suffixes += [".o", ".obj", ".d", ".a", ".dylib.dSYM"]
             case .pythonEnvironments: r.exactNames.formUnion(["venv", ".venv", "env", "__pycache__", ".pytest_cache", ".mypy_cache", ".tox"])
             }
         }

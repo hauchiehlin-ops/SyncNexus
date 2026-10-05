@@ -95,6 +95,7 @@ public final class SyncService: @unchecked Sendable {
     private var rerunFull = false
     private var rootMap: [(root: String, resolved: String)] = []
     private var eventIdTimer: DispatchSourceTimer?
+    private var contentReadyTimer: DispatchSourceTimer?
     private let stopLock = NSLock()
     private var stopRequested = false
     private var cancelRequested = false
@@ -149,7 +150,21 @@ public final class SyncService: @unchecked Sendable {
                 let store = try self.openStoreRecovering()
                 opts.cloudSpaceSaving = (try? store.meta("cloudSpaceSaving")) == "1"
                 let engine = Engine(store: store, options: opts)
-                engine.onContentReady = { [weak self] url in self?.queue.async { self?.markDirty(absolute: url.path); self?.runIfNeeded(confirmed: false, incremental: true) } }
+                engine.onContentReady = { [weak self] url in
+                    self?.queue.async {
+                        guard let self else { return }
+                        self.markDirty(absolute: url.path)
+                        self.contentReadyTimer?.cancel()
+                        let timer = DispatchSource.makeTimerSource(queue: self.queue)
+                        timer.schedule(deadline: .now() + 1.5)
+                        timer.setEventHandler { [weak self] in
+                            self?.contentReadyTimer = nil
+                            self?.runIfNeeded(confirmed: false, incremental: true)
+                        }
+                        self.contentReadyTimer = timer
+                        timer.resume()
+                    }
+                }
                 self.engine = engine
                 self.snapshot.conflictPolicy = ConflictPolicy(rawValue: (try? store.meta("conflictPolicy")) ?? "") ?? .keepBoth
                 self.snapshot.cloudSpaceSaving = ((try? store.meta("cloudSpaceSaving")) ?? "0") == "1"
@@ -277,6 +292,7 @@ public final class SyncService: @unchecked Sendable {
     private func finishStopping() {
         saveEventId()
         eventIdTimer?.cancel(); eventIdTimer = nil
+        contentReadyTimer?.cancel(); contentReadyTimer = nil
         watcher?.stop(); watcher = nil
         timer?.cancel(); timer = nil
         engine = nil
@@ -703,6 +719,10 @@ public final class SyncService: @unchecked Sendable {
         var out: [ConflictItem] = []
         for c in try engine.store.openConflicts() {
             guard let cfg = cfgs.first(where: { $0.id == c.endpoint }) else { continue }
+            if engine.effectiveIgnore.isIgnored(relativePath: c.path) {
+                try engine.store.closeConflict(id: c.id, status: "ignored")
+                continue
+            }
             let root = URL(fileURLWithPath: cfg.root)
             let main = root.appendingPathComponent(c.path), extra = root.appendingPathComponent(c.conflictPath)
             guard FileManager.default.fileExists(atPath: extra.path) else {
