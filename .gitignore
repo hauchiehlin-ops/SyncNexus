@@ -12,3 +12,5 @@ Platforms/Android/app/build/
 Platforms/Android/release-key.jks
 *.provisionprofile
 *.mobileprovision
+.syncnexus-endpoint
+
