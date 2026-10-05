@@ -111,6 +111,8 @@ final class AppModel: ObservableObject {
 
     private var services: [String: SyncService] = [:]
     var snapshots: [String: SyncService.Snapshot] = [:]
+    private var localizedSnapshots: [String: SyncService.Snapshot] = [:]
+    @Published private(set) var groupStates: [(group: SyncGroup, snap: SyncService.Snapshot, overall: Overall)] = []
 
     func hasConflicts(in groupId: String) -> Bool {
         !(snapshots[groupId]?.conflicts.isEmpty ?? true)
@@ -156,10 +158,15 @@ final class AppModel: ObservableObject {
         groups = registry.allGroups()
         languageObserver = L10n.shared.$currentLanguage.dropFirst().receive(on: DispatchQueue.main).sink { [weak self] _ in
             guard let self else { return }
-            self.snap = Self.localized(self.snapshots[self.activeGroupId] ?? .initial)
+            for (gid, s) in self.snapshots {
+                self.localizedSnapshots[gid] = Self.localized(s)
+            }
+            self.snap = self.localizedSnapshots[self.activeGroupId] ?? .initial
+            self.updateGroupStates()
         }
         let initialGroup = groups.first?.id ?? "default"
         activeGroupId = initialGroup
+        updateGroupStates()
 
         for group in groups {
             startService(for: group)
@@ -361,7 +368,8 @@ final class AppModel: ObservableObject {
     static func localized(_ s: SyncService.Snapshot) -> SyncService.Snapshot {
         var o = s
         o.error = s.error.map(CoreMessages.localize)
-        o.skipped = s.skipped.map(CoreMessages.localize)
+        // Keep skipped items without running regexes over thousands of strings
+        o.skipped = s.skipped
         if let c = s.confirmation {
             o.confirmation?.reason = CoreMessages.localize(c.reason)
             let previewLimit = min(c.preview.count, 50)
@@ -377,10 +385,23 @@ final class AppModel: ObservableObject {
         snapshots[activeGroupId]?.endpoints.first { $0.id == endpointId }?.detail ?? ""
     }
 
+    private func updateGroupStates() {
+        groupStates = groups.map { g in
+            let raw = snapshots[g.id] ?? .initial
+            let local = localizedSnapshots[g.id] ?? Self.localized(raw)
+            return (g, local, Self.overall(of: raw))
+        }
+    }
+
     private func apply(groupId: String, snapshot s: SyncService.Snapshot) {
         let oldEndpoints = snapshots[groupId]?.endpoints.map(\.root) ?? []
         let newEndpoints = s.endpoints.map(\.root)
+        let previousPhase = snapshots[groupId]?.phase
         snapshots[groupId] = s
+        let localizedSnapshot = Self.localized(s)
+        localizedSnapshots[groupId] = localizedSnapshot
+        updateGroupStates()
+
         if oldEndpoints != newEndpoints {
             recalculateEffectiveExcludes()
         }
@@ -388,7 +409,7 @@ final class AppModel: ObservableObject {
         objectWillChange.send()   // the menu bar shows every group, not only the active one
         refreshFolderIcons()      // diff-based: does nothing unless a folder or a group icon changed
         if groupId == activeGroupId {
-            snap = Self.localized(s)
+            snap = localizedSnapshot
             if let c = s.confirmation, c.reason != lastNotifiedConfirmation {
                 lastNotifiedConfirmation = c.reason
                 notify(loc("status_need_confirm"), CoreMessages.localize(c.reason))
@@ -398,6 +419,40 @@ final class AppModel: ObservableObject {
                 notify(loc("status_conflicts_pending", n), loc("conflicts_section_desc"))
             }
             lastNotifiedConflicts = s.conflicts.count
+        }
+
+        // Automatic cross-group propagation:
+        // When a child group finishes syncing files into a parent folder (or vice versa), notify related groups to propagate!
+        if !autoExcludeNestedGroups, previousPhase == .syncing, s.phase == .idle, s.lastWork > 0 {
+            triggerRelatedGroupsSync(finishedGroupId: groupId)
+        }
+    }
+
+    /// Automatically notifies parent or child groups when a related group finishes syncing files
+    private func triggerRelatedGroupsSync(finishedGroupId: String) {
+        let finishedRoots = snapshots[finishedGroupId]?.endpoints.map(\.root) ?? []
+        guard !finishedRoots.isEmpty else { return }
+
+        for otherGroup in groups where otherGroup.id != finishedGroupId {
+            let otherRoots = snapshots[otherGroup.id]?.endpoints.map(\.root) ?? []
+            for otherRoot in otherRoots {
+                let resolvedOther = EndpointValidator.resolved(otherRoot)
+                let isParentOfFinished = finishedRoots.contains { fRoot in
+                    let resolvedFinished = EndpointValidator.resolved(fRoot)
+                    return resolvedFinished.hasPrefix(resolvedOther + "/")
+                }
+                let isChildOfFinished = finishedRoots.contains { fRoot in
+                    let resolvedFinished = EndpointValidator.resolved(fRoot)
+                    return resolvedOther.hasPrefix(resolvedFinished + "/")
+                }
+                if isParentOfFinished || isChildOfFinished {
+                    // Trigger sync on the related group with a short debounce to propagate changes!
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                        self?.services[otherGroup.id]?.syncNow()
+                    }
+                    break
+                }
+            }
         }
     }
 
@@ -448,15 +503,6 @@ final class AppModel: ObservableObject {
 
     // MARK: all groups at a glance (menu bar)
 
-    /// Every group with its own (translated) snapshot and state, in the order of the group bar.
-    var groupStates: [(group: SyncGroup, snap: SyncService.Snapshot, overall: Overall)] {
-        groups.map { g in
-            let raw = snapshots[g.id] ?? .initial
-            let local = Self.localized(raw)
-            return (g, local, Self.overall(of: raw))
-        }
-    }
-
     private static func severity(_ o: Overall) -> Int {
         switch o {
         case .attention: 5
@@ -470,8 +516,7 @@ final class AppModel: ObservableObject {
 
     /// The group that needs the most attention (the first one when all are fine).
     private var worstGroup: (group: SyncGroup, snap: SyncService.Snapshot, overall: Overall)? {
-        let states = groupStates
-        return states.max { Self.severity($0.overall) < Self.severity($1.overall) }
+        groupStates.max { Self.severity($0.overall) < Self.severity($1.overall) }
     }
 
     /// One state for the whole app: the worst across groups; paused only when every group is paused.
