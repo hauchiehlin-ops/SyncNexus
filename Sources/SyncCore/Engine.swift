@@ -60,6 +60,35 @@ public struct SyncProgress: Sendable, Equatable {
     }
 }
 
+/// Detailed event emitted during file operations for real-time activity tracking.
+public struct SyncEvent: Sendable {
+    public var timestamp: Date
+    public var op: String              // "copy", "move", "mkdir", "trash", "verify"
+    public var path: String
+    public var sourceEndpoint: String?
+    public var destinationEndpoint: String
+    public var size: Int64
+    public var duration: TimeInterval   // in seconds
+    public var speedBytesPerSec: Double // calculated speed
+    public var status: String           // "done", "failed", "started"
+    public var error: String?
+
+    public init(timestamp: Date = Date(), op: String, path: String, sourceEndpoint: String? = nil,
+                destinationEndpoint: String, size: Int64 = 0, duration: TimeInterval = 0,
+                speedBytesPerSec: Double = 0, status: String = "done", error: String? = nil) {
+        self.timestamp = timestamp
+        self.op = op
+        self.path = path
+        self.sourceEndpoint = sourceEndpoint
+        self.destinationEndpoint = destinationEndpoint
+        self.size = size
+        self.duration = duration
+        self.speedBytesPerSec = speedBytesPerSec
+        self.status = status
+        self.error = error
+    }
+}
+
 public struct EngineOptions {
     public var ignore = IgnoreRules.default
     /// A file modified less than this many seconds ago is considered still being written and skipped for now.
@@ -96,6 +125,8 @@ public struct EngineOptions {
     public var shouldCancel: (() -> Bool)?
     /// Called frequently from the engine's background queue. The owner should throttle UI publication.
     public var progress: (@Sendable (SyncProgress) -> Void)?
+    /// Called when an individual file operation completes, providing real-time stats (speed, size, duration).
+    public var onSyncEvent: (@Sendable (SyncEvent) -> Void)?
 
     public init() {}
 }
@@ -766,14 +797,23 @@ public final class Engine {
                       let rowP = try store.row(cfg.id, p), rowP.state == want, rowP.mtimeNs == fp.mtimeNs,   // P is untouched since alignment
                       unchanged(fp), portableProblem(cfg, q) == nil else { continue }
                 let dst = URL(fileURLWithPath: cfg.root).appendingPathComponent(q)
+                let startMove = Date()
                 do {
                     try perform("move", cfg.id, q, detail: "from \(p)") {
                         try FileManager.default.createDirectory(at: dst.deletingLastPathComponent(), withIntermediateDirectories: true)
                         guard rename(fp.url.path, dst.path) == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
                     }
+                    options.onSyncEvent?(SyncEvent(timestamp: Date(), op: "move", path: "\(p) → \(q)",
+                                                   destinationEndpoint: cfg.id, size: want.size,
+                                                   duration: max(0.001, Date().timeIntervalSince(startMove)),
+                                                   status: "done"))
                 } catch is ScanCancelled { throw ScanCancelled()
                 } catch let c as SimulatedCrash { throw c
                 } catch {
+                    options.onSyncEvent?(SyncEvent(timestamp: Date(), op: "move", path: "\(p) → \(q)",
+                                                   destinationEndpoint: cfg.id, size: want.size,
+                                                   duration: max(0.001, Date().timeIntervalSince(startMove)),
+                                                   status: "failed", error: error.localizedDescription))
                     report.skipped.append("[\(cfg.id)] \(p) → \(q)：改名失敗，改用一般流程（\(error.localizedDescription)）"); continue
                 }
                 let st = FileOps.statInfo(dst)
@@ -855,11 +895,11 @@ public final class Engine {
         } catch { try? store.journalEnd(id, status: "failed: \(error)"); throw error }
     }
 
-    private func holder(_ ctx: Context, excluding ep: String, _ path: String, _ want: FileState) throws -> ScannedFile? {
+    private func holder(_ ctx: Context, excluding ep: String, _ path: String, _ want: FileState) throws -> (endpoint: String, file: ScannedFile)? {
         for other in ctx.online where other.id != ep {
             if case .present(let s, let f) = try live(ctx, other.id, path), s.hash == want.hash, !f.isDirectory {
                 if f.isPlaceholder && placeholderContentHash(f) == nil { requestDownload(f); continue }   // content still in the cloud: read it first
-                return f
+                return (other.id, f)
             }
         }
         return nil
@@ -879,7 +919,12 @@ public final class Engine {
             if file == nil {
                 if let why = portableProblem(cfg, path) { report.skipped.append("[\(cfg.id)] \(path)：\(why)"); return }
                 let url = URL(fileURLWithPath: cfg.root).appendingPathComponent(path)
+                let startMkdir = Date()
                 try perform("mkdir", cfg.id, path) { try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true) }
+                options.onSyncEvent?(SyncEvent(timestamp: Date(), op: "mkdir", path: path,
+                                               destinationEndpoint: cfg.id, size: 0,
+                                               duration: max(0.001, Date().timeIntervalSince(startMkdir)),
+                                               status: "done"))
                 ctx.files[cfg.id]![path] = ScannedFile(rel: path, url: url, size: 0, mtimeNs: 0, mtime: Date(), isPlaceholder: false, isDirectory: true)
                 report.work += 1
                 note(&report, "[\(cfg.id)] 建立資料夾 \(path)")
@@ -892,7 +937,12 @@ public final class Engine {
             if let file {
                 guard unchanged(file) else { report.skipped.append("[\(cfg.id)] \(path)：刪除前發現檔案又被改動，已取消，下一輪重新評估"); return }
                 try archiveVersion(file, endpoint: cfg.id)       // Trash can be emptied at any time: keep our own copy too
+                let startTrash = Date()
                 try perform("trash", cfg.id, path) { try options.trash(file.url) }
+                options.onSyncEvent?(SyncEvent(timestamp: Date(), op: "trash", path: path,
+                                               destinationEndpoint: cfg.id, size: file.size,
+                                               duration: max(0.001, Date().timeIntervalSince(startTrash)),
+                                               status: "done"))
                 ctx.files[cfg.id]![path] = nil
                 report.work += 1
                 note(&report, "[\(cfg.id)] 移到垃圾桶 \(path)")
@@ -901,7 +951,7 @@ public final class Engine {
             return
         }
         if let why = portableProblem(cfg, path) { report.skipped.append("[\(cfg.id)] \(path)：\(why)"); return }
-        guard let src = try holder(ctx, excluding: cfg.id, path, want) else {
+        guard let (srcEp, srcFile) = try holder(ctx, excluding: cfg.id, path, want) else {
             report.skipped.append("[\(cfg.id)] \(path)：目前沒有在線端點持有此版本內容，稍後重試"); return
         }
         let dst = URL(fileURLWithPath: cfg.root).appendingPathComponent(path)
@@ -917,17 +967,24 @@ public final class Engine {
             failed(failKey)
             report.skipped.append("[\(cfg.id)] \(path)：磁碟可用空間不足（需要 \(ByteCountFormatter.string(fromByteCount: want.size, countStyle: .file))）"); return
         }
+        let copyStartTime = Date()
         do {
-            try perform("copy", cfg.id, path, detail: "from \(src.url.path)") {
+            try perform("copy", cfg.id, path, detail: "from \(srcFile.url.path)") {
                 if let file { try archiveVersion(file, endpoint: cfg.id) }
-                try FileOps.copyAtomically(from: src.url, to: dst, expectHash: want.hash, mtime: src.mtime,
+                try FileOps.copyAtomically(from: srcFile.url, to: dst, expectHash: want.hash, mtime: srcFile.mtime,
                                            durable: cfg.removable, shouldCancel: options.shouldCancel) { [weak self] done, total in
                     self?.emit(.transferring, self?.progressFloor ?? 0.62, path: path, endpoint: cfg.id,
                                completed: Int(clamping: done), total: Int(clamping: total))
                 }
             }
+            let duration = max(0.001, Date().timeIntervalSince(copyStartTime))
+            let speed = Double(want.size) / duration
+            options.onSyncEvent?(SyncEvent(timestamp: Date(), op: "copy", path: path,
+                                           sourceEndpoint: srcEp, destinationEndpoint: cfg.id,
+                                           size: want.size, duration: duration, speedBytesPerSec: speed,
+                                           status: "done"))
             failures[failKey] = nil
-            if src.isPlaceholder { cloudEvictionCandidates[src.url.path] = src.url }
+            if srcFile.isPlaceholder { cloudEvictionCandidates[srcFile.url.path] = srcFile.url }
             spaceUsed[cfg.root, default: 0] += want.size
             if cfg.removable { ctx.wroteToRemovable.insert(cfg.root) }
         } catch is ScanCancelled { throw ScanCancelled()
@@ -935,12 +992,17 @@ public final class Engine {
             report.skipped.append("[\(cfg.id)] \(path)：來源在複製途中改變，稍後重試"); return
         } catch let c as SimulatedCrash { throw c
         } catch {
+            let duration = max(0.001, Date().timeIntervalSince(copyStartTime))
+            options.onSyncEvent?(SyncEvent(timestamp: Date(), op: "copy", path: path,
+                                           sourceEndpoint: srcEp, destinationEndpoint: cfg.id,
+                                           size: want.size, duration: duration, speedBytesPerSec: 0,
+                                           status: "failed", error: error.localizedDescription))
             failed(failKey)
             report.skipped.append("[\(cfg.id)] \(path)：複製失敗 \(error)"); return
         }
         let st = FileOps.statInfo(dst)
         let sf = ScannedFile(rel: path, url: dst, size: st?.size ?? want.size, mtimeNs: st?.mtimeNs ?? 0,
-                             mtime: src.mtime, isPlaceholder: false)
+                             mtime: srcFile.mtime, isPlaceholder: false)
         ctx.files[cfg.id]![path] = sf
         ctx.hashes["\(cfg.id)\u{0}\(path)"] = want
         try store.setRow(cfg.id, path, state: want, mtimeNs: sf.mtimeNs, seenRev: rev)
@@ -977,7 +1039,7 @@ public final class Engine {
         }
 
         if policy == .newerWins {
-            let diff = file.mtime.timeIntervalSince(src.mtime)
+            let diff = file.mtime.timeIntervalSince(src.file.mtime)
             if abs(diff) > 2 {   // inside 2 s (exFAT granularity, clock noise) nobody can say which is newer
                 if diff > 0 {
                     // This endpoint's version is newer: it becomes the consensus; older copies are archived as they are replaced.
@@ -1075,9 +1137,9 @@ public final class Engine {
             var scratch = SyncReport()
             let ctx = try buildContext(cfgs, writeMarker: false, into: &scratch)
             guard let src = try holder(ctx, excluding: cfg.id, path, want) else { throw DBError(description: "目前沒有其他在線的資料夾持有正確版本") }
-            try perform("repair", cfg.id, path, detail: "from \(src.url.path)") {
+            try perform("repair", cfg.id, path, detail: "from \(src.file.url.path)") {
                 try archiveVersion(scanned, endpoint: cfg.id)
-                try FileOps.copyAtomically(from: src.url, to: url, expectHash: want.hash, mtime: src.mtime,
+                try FileOps.copyAtomically(from: src.file.url, to: url, expectHash: want.hash, mtime: src.file.mtime,
                                            durable: cfg.removable, shouldCancel: options.shouldCancel)
             }
             let after = FileOps.statInfo(url)

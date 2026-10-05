@@ -26,7 +26,7 @@ struct SyncNexusApp: App {
         MenuBarExtra {
             PopoverView(model: model)
         } label: {
-            MenuBarIcon(name: model.iconName)
+            MenuBarIcon(model: model)
         }
         .menuBarExtraStyle(.window)
 
@@ -47,13 +47,50 @@ struct SyncNexusApp: App {
     }
 }
 
-/// The menu bar icon. `--open-settings` (a debugging aid) also opens the settings window at launch.
+/// The menu bar icon with dynamic signals and colors based on sync status.
+/// - Syncing: Blue spinning icon (`arrow.triangle.2.circlepath` with continuous rotation)
+/// - Attention/Warning: Red warning triangle (`exclamationmark.triangle.fill`)
+/// - OK/Completed: Green checkmark (`checkmark.circle.fill`)
+/// - Paused: Orange pause circle (`pause.circle.fill`)
+/// `--open-settings` (a debugging aid) also opens the settings window at launch.
 struct MenuBarIcon: View {
-    let name: String
+    @ObservedObject var model: AppModel
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        Image(systemName: name).onAppear {
+        Group {
+            switch model.popoverOverall {
+            case .syncing:
+                if #available(macOS 15.0, *) {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .foregroundStyle(Color.blue)
+                        .symbolEffect(.rotate, isActive: true)
+                } else if #available(macOS 14.0, *) {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .foregroundStyle(Color.blue)
+                        .symbolEffect(.pulse, isActive: true)
+                } else {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                        .foregroundStyle(Color.blue)
+                }
+            case .attention:
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(Color.red)
+            case .ok:
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(Color.green)
+            case .paused:
+                Image(systemName: "pause.circle.fill")
+                    .foregroundStyle(Color.orange)
+            case .partial:
+                Image(systemName: "arrow.triangle.2.circlepath.circle")
+                    .foregroundStyle(Color.orange)
+            case .starting:
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .foregroundStyle(Color.secondary)
+            }
+        }
+        .onAppear {
             if CommandLine.arguments.contains("--open-settings") {
                 openWindow(id: "settings"); NSApp.activate(ignoringOtherApps: true)
             }

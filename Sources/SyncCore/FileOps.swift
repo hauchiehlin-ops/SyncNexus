@@ -217,6 +217,7 @@ public enum FileOps {
                     cloned = true
                     written = totalBytes
                     progress?(written, totalBytes)
+                    _ = copyfile(src.path, tmp.path, nil, copyfile_flags_t(COPYFILE_SECURITY | COPYFILE_XATTR))
                     if let mtime { try? fm.setAttributes([.modificationDate: mtime], ofItemAtPath: tmp.path) }
                 } else {
                     try? fm.removeItem(at: tmp)

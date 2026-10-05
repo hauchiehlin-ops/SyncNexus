@@ -64,16 +64,26 @@ struct FoldersSection: View {
         // Multi-folder Sync Groups Selector Bar
         SyncGroupTabBar(model: model, showingAddGroup: $showingAddGroup, editingGroup: $editingGroup)
 
+        if model.snap.confirmation != nil {
+            Card {
+                HStack(spacing: 12) {
+                    Image(systemName: "hand.raised").foregroundStyle(Theme.warn)
+                    Text(model.snap.confirmation?.reason ?? "").font(.system(size: 13)).fixedSize(horizontal: false, vertical: true)
+                    Spacer()
+                    Button(loc("btn_review_confirm")) { model.reviewConfirmation() }.buttonStyle(QuietButton(kind: .dark))
+                }
+            }
+        }
+
         // Active Group Info Banner
         if let g = model.activeGroup {
             let isPaused = model.snap.phase == .paused
+            let badge = model.groupStatusBadge(for: g.id)
             HStack(spacing: 8) {
                 Image(systemName: g.icon).font(.system(size: 14)).foregroundStyle(Color.accentColor)
                 Text(loc("group_active_banner", model.groupName(g), model.snap.endpoints.count))
                     .font(.system(size: 13, weight: .semibold))
-                if isPaused {
-                    Chip(text: loc("status_paused"), kind: .warn)
-                }
+                Chip(text: badge.text, kind: badge.kind)
                 Spacer()
                 if isPaused {
                     Button(action: { model.resumeGroup(id: g.id) }) {
@@ -184,6 +194,16 @@ struct SyncGroupTabBar: View {
                 }
                 .menuStyle(.borderlessButton).fixedSize()
                 .disabled(model.isRestoringBackup)
+                Button(action: { model.exportSettings() }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "square.and.arrow.up")
+                        Text(loc("export_settings_button"))
+                    }
+                    .font(.system(size: 12, weight: .medium))
+                }
+                .buttonStyle(QuietButton(kind: .secondary, compact: true))
+                .disabled(model.isRestoringBackup)
+                .help(loc("export_settings_desc"))
                 Button(action: { model.importLegacySettings() }) {
                     HStack(spacing: 4) {
                         Image(systemName: "square.and.arrow.down")
@@ -193,6 +213,7 @@ struct SyncGroupTabBar: View {
                 }
                 .buttonStyle(QuietButton(kind: .secondary, compact: true))
                 .disabled(model.isRestoringBackup)
+                .help(loc("import_legacy_help_tooltip"))
                 Button(action: { showingAddGroup = true }) {
                     HStack(spacing: 4) {
                         Image(systemName: "plus.circle.fill")
@@ -209,6 +230,7 @@ struct SyncGroupTabBar: View {
                     ForEach(model.groups) { group in
                         let isActive = group.id == model.activeGroupId
                         let epCount = model.endpointCount(for: group.id)
+                        let badge = model.groupStatusBadge(for: group.id)
                         Button(action: { model.selectGroup(id: group.id) }) {
                             HStack(spacing: 6) {
                                 Image(systemName: group.icon)
@@ -220,6 +242,19 @@ struct SyncGroupTabBar: View {
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
                                     .background(isActive ? Color.white.opacity(0.25) : Theme.line, in: Capsule())
+                                Text(badge.text)
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(
+                                        isActive ? Color.white.opacity(0.3) :
+                                            (badge.kind == .bad ? Theme.badFill : (badge.kind == .warn ? Theme.warnFill : Theme.okFill)),
+                                        in: Capsule()
+                                    )
+                                    .foregroundStyle(
+                                        isActive ? Color.white :
+                                            (badge.kind == .bad ? Theme.bad : (badge.kind == .warn ? Theme.warn : Theme.ok))
+                                    )
                             }
                             .padding(.horizontal, 12)
                             .padding(.vertical, 7)

@@ -429,6 +429,29 @@ public final class SyncGroupRegistry: @unchecked Sendable {
         groups = restored
     }
 
+    /// Exports current groups.json and each group's state.db to an external folder chosen by the user.
+    public func exportSettings(to targetFolder: URL) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        let fm = FileManager.default
+        try fm.createDirectory(at: targetFolder, withIntermediateDirectories: true)
+        if fm.fileExists(atPath: registryURL.path) {
+            let destGroups = targetFolder.appendingPathComponent("groups.json")
+            if fm.fileExists(atPath: destGroups.path) { try? fm.removeItem(at: destGroups) }
+            try fm.copyItem(at: registryURL, to: destGroups)
+        }
+        for g in groups {
+            let src = URL(fileURLWithPath: dbPath(for: g.id))
+            guard fm.fileExists(atPath: src.path), let snap = Self.consolidatedCopy(of: src) else { continue }
+            defer { try? fm.removeItem(at: snap.deletingLastPathComponent()) }
+            let dst = g.id == "default" ? targetFolder.appendingPathComponent("state.db")
+                                        : targetFolder.appendingPathComponent("Groups/\(g.id)/state.db")
+            try fm.createDirectory(at: dst.deletingLastPathComponent(), withIntermediateDirectories: true)
+            if fm.fileExists(atPath: dst.path) { try? fm.removeItem(at: dst) }
+            try fm.copyItem(at: snap, to: dst)
+        }
+    }
+
     private func save() {
         let fm = FileManager.default
         try? fm.createDirectory(at: registryURL.deletingLastPathComponent(), withIntermediateDirectories: true)

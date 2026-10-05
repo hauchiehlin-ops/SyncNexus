@@ -196,6 +196,19 @@ public struct InAppDocumentView: View {
                 tipsTitle: loc("manual_topic_folders_tips_title"),
                 tipsDesc: loc("manual_topic_folders_tips_desc")
             )
+        case .activity:
+            renderTopic(
+                title: loc("manual_topic_activity_title"),
+                desc: loc("manual_topic_activity_desc"),
+                badge: section.title,
+                imageName: "01_overview",
+                opsTitle: loc("manual_topic_activity_ops_title"),
+                opsDesc: loc("manual_topic_activity_ops_desc"),
+                safeTitle: loc("manual_topic_activity_safe_title"),
+                safeDesc: loc("manual_topic_activity_safe_desc"),
+                tipsTitle: loc("manual_topic_activity_tips_title"),
+                tipsDesc: loc("manual_topic_activity_tips_desc")
+            )
         case .conflicts:
             renderTopic(
                 title: loc("manual_topic_conflicts_title"),

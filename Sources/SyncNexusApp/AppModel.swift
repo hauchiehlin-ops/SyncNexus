@@ -7,13 +7,14 @@ import UserNotifications
 import Darwin
 
 enum MainSection: String, CaseIterable, Identifiable {
-    case overview, diffPreview, folders, conflicts, versions, verification, settings
+    case overview, diffPreview, folders, activity, conflicts, versions, verification, settings
     var id: String { rawValue }
     var title: String {
         switch self {
         case .overview: loc("section_overview")
         case .diffPreview: loc("section_diff_preview")
         case .folders: loc("section_folders")
+        case .activity: loc("section_activity")
         case .conflicts: loc("section_conflicts")
         case .versions: loc("section_versions")
         case .verification: loc("section_verification")
@@ -25,6 +26,7 @@ enum MainSection: String, CaseIterable, Identifiable {
         case .overview: "house"
         case .diffPreview: "arrow.left.arrow.right"
         case .folders: "folder"
+        case .activity: "waveform.path.ecg"
         case .conflicts: "exclamationmark.triangle"
         case .versions: "clock.arrow.circlepath"
         case .verification: "checkmark.shield"
@@ -36,6 +38,49 @@ enum MainSection: String, CaseIterable, Identifiable {
 /// The one-line truth shown at the top of the popover and the overview.
 enum Overall { case starting, ok, partial, attention, syncing, paused }
 
+public struct SyncLogItem: Identifiable, Sendable {
+    public let id = UUID()
+    public let timestamp: Date
+    public let groupId: String
+    public let groupName: String
+    public let op: String
+    public let path: String
+    public let sourceEndpoint: String?
+    public let destinationEndpoint: String
+    public let size: Int64
+    public let duration: TimeInterval
+    public let speedBytesPerSec: Double
+    public let status: String
+    public let error: String?
+
+    public var directionText: String {
+        if let src = sourceEndpoint, !src.isEmpty {
+            return "\(DisplayNames.endpoint(src)) ➔ \(DisplayNames.endpoint(destinationEndpoint))"
+        }
+        return DisplayNames.endpoint(destinationEndpoint)
+    }
+
+    public var speedText: String {
+        guard speedBytesPerSec > 0 else { return "—" }
+        return "\(ByteCountFormatter.string(fromByteCount: Int64(speedBytesPerSec), countStyle: .file))/s"
+    }
+
+    public var durationText: String {
+        if duration < 0.001 {
+            return "< 1 ms"
+        } else if duration < 1.0 {
+            return String(format: "%.0f ms", duration * 1000)
+        } else {
+            return String(format: "%.2f s", duration)
+        }
+    }
+
+    public var sizeText: String {
+        guard size > 0 else { return "—" }
+        return ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
+    }
+}
+
 @MainActor
 final class AppModel: ObservableObject {
     /// What the views show: SyncCore's messages translated into the selected language. `snapshots` keeps the raw ones for logic.
@@ -45,6 +90,7 @@ final class AppModel: ObservableObject {
     @Published var loginNote: String?
     @Published var section: MainSection = .overview
     @Published var versionItems: [VersionItem] = []
+    @Published var syncLogs: [SyncLogItem] = []
     @Published var trialRunReport: SyncReport?
     @Published var isRunningTrialRun = false
     @Published var isQuitting = false
@@ -126,8 +172,37 @@ final class AppModel: ObservableObject {
         let svc = SyncService(dbPath: dbPath, versionsDir: versionsDir, logURL: logURL) { [weak self] snapshot in
             Task { @MainActor in self?.apply(groupId: gid, snapshot: snapshot) }
         }
+        svc.onSyncEvent = { [weak self] event in
+            Task { @MainActor in self?.recordSyncEvent(event, for: gid) }
+        }
         services[gid] = svc
         svc.start()
+    }
+
+    private func recordSyncEvent(_ event: SyncEvent, for groupId: String) {
+        let gName = groups.first { $0.id == groupId }.map(groupName) ?? groupId
+        let item = SyncLogItem(
+            timestamp: event.timestamp,
+            groupId: groupId,
+            groupName: gName,
+            op: event.op,
+            path: event.path,
+            sourceEndpoint: event.sourceEndpoint,
+            destinationEndpoint: event.destinationEndpoint,
+            size: event.size,
+            duration: event.duration,
+            speedBytesPerSec: event.speedBytesPerSec,
+            status: event.status,
+            error: event.error
+        )
+        syncLogs.insert(item, at: 0)
+        if syncLogs.count > 1500 {
+            syncLogs.removeLast(syncLogs.count - 1500)
+        }
+    }
+
+    func clearSyncLogs() {
+        syncLogs.removeAll()
     }
 
     // MARK: Finder folder icons
@@ -375,6 +450,34 @@ final class AppModel: ObservableObject {
         services[id]?.syncNow()
     }
 
+    /// Status badge text and chip kind for a sync group tab or header.
+    func groupStatusBadge(for groupId: String) -> (text: String, kind: Chip.Kind) {
+        let raw = snapshots[groupId] ?? .initial
+        if raw.phase == .paused {
+            return (loc("status_paused"), .warn)
+        }
+        if raw.confirmation != nil {
+            return (loc("status_need_confirm"), .warn)
+        }
+        if !raw.conflicts.isEmpty {
+            return (loc("status_conflicts_pending", raw.conflicts.count), .warn)
+        }
+        if let err = raw.error, !err.isEmpty {
+            return (loc("status_error"), .bad)
+        }
+        if raw.phase == .syncing {
+            if let p = raw.progress {
+                let percent = Int((p.fraction * 100).rounded())
+                return ("\(loc("status_syncing")) \(percent)%", .ok)
+            }
+            return (loc("status_syncing"), .ok)
+        }
+        if raw.lastRun != nil {
+            return (loc("status_completed_tag"), .ok)
+        }
+        return (loc("online"), .ok)
+    }
+
     func syncAllNow() { services.values.forEach { $0.syncNow() } }
 
     func cancelAllCurrentRuns() {
@@ -383,11 +486,18 @@ final class AppModel: ObservableObject {
     }
 
     func reviewConfirmation(group: String? = nil) {
-        if let group { selectGroup(id: group) }   // the confirmation belongs to that group's service
-        guard let c = snap.confirmation else { return }
+        if let targetId = group {
+            selectGroup(id: targetId)
+        }
+        let targetGroup = group ?? activeGroupId
+        guard let targetSnap = snapshots[targetGroup], let c = targetSnap.confirmation else {
+            // Confirmation might have already completed or was dismissed
+            return
+        }
         let alert = NSAlert()
-        alert.messageText = c.reason   // already localized (snap)
-        let lines = c.preview.prefix(25).joined(separator: "\n")
+        alert.messageText = CoreMessages.localize(c.reason)
+        let localizedPreview = c.preview.prefix(25).map(CoreMessages.localize)
+        let lines = localizedPreview.joined(separator: "\n")
         let total = max(c.totalCount, c.preview.count)
         alert.informativeText = lines + (total > 25 ? loc("model_and_more_items", total - 25) : "")
         alert.addButton(withTitle: loc("model_btn_confirm_exec"))
@@ -395,12 +505,10 @@ final class AppModel: ObservableObject {
         NSApp.activate(ignoringOtherApps: true)
         if alert.runModal() == .alertFirstButtonReturn {
             snap.confirmation = nil
-            if let gid = activeGroup?.id {
-                snapshots[gid]?.confirmation = nil
-            }
+            snapshots[targetGroup]?.confirmation = nil
             lastNotifiedConfirmation = nil
             objectWillChange.send()
-            service.syncNow(confirmed: true)
+            services[targetGroup]?.syncNow(confirmed: true)
         }
     }
 
@@ -522,6 +630,27 @@ final class AppModel: ObservableObject {
             self.snap = Self.localized(self.snapshots[self.activeGroupId] ?? .initial)
             self.settingsMessage = message
             self.appOperationStatus = nil
+        }
+    }
+
+    /// Exports current sync groups configuration and states to a directory chosen by the user.
+    func exportSettings() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = true
+        panel.prompt = loc("choose")
+        panel.message = loc("export_settings_prompt")
+        NSApp.activate(ignoringOtherApps: true)
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        let target = url.appendingPathComponent("SyncNexus-Backup-\(Date().formatted(date: .numeric, time: .omitted).replacingOccurrences(of: "/", with: "-"))")
+        do {
+            try registry.exportSettings(to: target)
+            settingsMessage = loc("export_settings_ok", target.lastPathComponent)
+        } catch {
+            settingsMessage = loc("export_settings_failed", error.localizedDescription)
         }
     }
 

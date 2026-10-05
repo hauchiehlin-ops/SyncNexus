@@ -57,6 +57,126 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .th: "ประวัติโฟลเดอร์เก็บถาวร: เก็บไว้",
         .ko: "아카이브 히스토리: 보관"
     ],
+    "activity_all_groups": [
+        .en: "All Groups",
+        .zhHant: "全部群組",
+        .zhHans: "全部群组",
+        .ja: "すべてのグループ",
+        .th: "ทุกกลุ่ม",
+        .ko: "모든 그룹"
+    ],
+    "activity_clear_logs": [
+        .en: "Clear Logs",
+        .zhHant: "清除紀錄",
+        .zhHans: "清除记录",
+        .ja: "ログをクリア",
+        .th: "ล้างบันทึก",
+        .ko: "기록 지우기"
+    ],
+    "activity_export_logs": [
+        .en: "Export Logs",
+        .zhHant: "匯出紀錄",
+        .zhHans: "导出记录",
+        .ja: "ログを出力",
+        .th: "ส่งออกบันทึก",
+        .ko: "기록 내보내기"
+    ],
+    "activity_auto_scroll": [
+        .en: "Auto-scroll to latest",
+        .zhHant: "自動滾動至最新事件",
+        .zhHans: "自动滚动至最新事件",
+        .ja: "最新のイベントへ自動スクロール",
+        .th: "เลื่อนไปยังเหตุการณ์ล่าสุดอัตโนมัติ",
+        .ko: "최신 이벤트로 자동 스크롤"
+    ],
+    "activity_search_placeholder": [
+        .en: "Search path, action, endpoint…",
+        .zhHant: "搜尋檔案路徑、動作或端點…",
+        .zhHans: "搜索文件路径、动作或端点…",
+        .ja: "パス、アクション、エンドポイントを検索…",
+        .th: "ค้นหาเส้นทาง การทำงาน หรือปลายทาง…",
+        .ko: "경로, 동작, 엔드포인트 검색…"
+    ],
+    "activity_col_time": [
+        .en: "Time",
+        .zhHant: "時間",
+        .zhHans: "时间",
+        .ja: "時刻",
+        .th: "เวลา",
+        .ko: "시간"
+    ],
+    "activity_col_group": [
+        .en: "Group",
+        .zhHant: "群組",
+        .zhHans: "群组",
+        .ja: "グループ",
+        .th: "กลุ่ม",
+        .ko: "그룹"
+    ],
+    "activity_col_direction": [
+        .en: "Sync Direction",
+        .zhHant: "同步方向",
+        .zhHans: "同步方向",
+        .ja: "同期方向",
+        .th: "ทิศทางการซิงค์",
+        .ko: "동기화 방향"
+    ],
+    "activity_col_action": [
+        .en: "Action",
+        .zhHant: "狀態 / 動作",
+        .zhHans: "状态 / 动作",
+        .ja: "アクション",
+        .th: "การทำงาน",
+        .ko: "동작"
+    ],
+    "activity_col_size": [
+        .en: "Size",
+        .zhHant: "大小",
+        .zhHans: "大小",
+        .ja: "サイズ",
+        .th: "ขนาด",
+        .ko: "크기"
+    ],
+    "activity_col_speed": [
+        .en: "Speed",
+        .zhHant: "傳輸速度",
+        .zhHans: "传输速度",
+        .ja: "転送速度",
+        .th: "ความเร็ว",
+        .ko: "속도"
+    ],
+    "activity_col_duration": [
+        .en: "Duration",
+        .zhHant: "耗時",
+        .zhHans: "耗时",
+        .ja: "所要時間",
+        .th: "เวลาที่ใช้",
+        .ko: "소요 시간"
+    ],
+    "activity_col_path": [
+        .en: "Path",
+        .zhHant: "檔案路徑",
+        .zhHans: "文件路径",
+        .ja: "パス",
+        .th: "เส้นทางไฟล์",
+        .ko: "파일 경로"
+    ],
+    "activity_empty_hint": [
+        .en: "No sync events recorded yet. Activity will stream here live when files are synced.",
+        .zhHant: "目前尚未有同步事件。檔案進行同步時，將在此處即時滾動顯示。",
+        .zhHans: "目前尚未有同步事件。文件进行同步时，将在此处实时滚动显示。",
+        .ja: "同期イベントはまだありません。ファイルが同期されると、ここにリアルタイムで表示されます。",
+        .th: "ยังไม่มีประวัติการซิงค์ เมื่อเริ่มซิงค์ไฟล์ ข้อมูลจะแสดงที่นี่แบบเรียลไทม์",
+        .ko: "아직 동기화 이벤트가 없습니다. 파일이 동기화되면 실시간으로 여기에 표시됩니다."
+    ],
+    "status_completed_tag": [
+        .en: "Completed",
+        .zhHant: "完成",
+        .zhHans: "完成",
+        .ja: "完了",
+        .th: "เสร็จสมบูรณ์",
+        .ko: "완료"
+    ],
     "back": [
         .en: "Back",
         .zhHant: "上一步",
@@ -1481,6 +1601,22 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .th: "ดูตัวอย่างความแตกต่าง",
         .ko: "차이 미리보기"
     ],
+    "section_activity": [
+        .en: "Activity",
+        .zhHant: "同步動態",
+        .zhHans: "同步动态",
+        .ja: "同期アクティビティ",
+        .th: "กิจกรรมการซิงค์",
+        .ko: "동기화 활동"
+    ],
+    "section_activity_desc": [
+        .en: "Real-time sync stream, transfer speeds, directions, and file operations across groups.",
+        .zhHant: "即時檔案傳輸串流、同步方向、傳輸速度、耗時與詳細作業歷程。",
+        .zhHans: "实时文件传输流、同步方向、传输速度、耗时与详细作业历程。",
+        .ja: "リアルタイムのファイル転送ストリーム、同期方向、転送速度、所要時間、および詳細な操作ログ。",
+        .th: "สตรีมการถ่ายโอนไฟล์แบบเรียลไทม์ ทิศทางการซิงค์ ความเร็ว เวลาที่ใช้ และประวัติการทำงานโดยละเอียด",
+        .ko: "실시간 파일 전송 스트림, 동기화 방향, 전송 속도, 소요 시간 및 상세 작업 기록입니다."
+    ],
     "section_folders": [
         .en: "Folders",
         .zhHant: "資料夾",
@@ -1648,6 +1784,62 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .ja: "切り替え",
         .th: "สลับ",
         .ko: "전환"
+    ],
+    "switch_to_group_help": [
+        .en: "Switch current view and settings to inspect and manage this sync group.",
+        .zhHant: "切換主要檢視視窗至此群組，以管理其資料夾端點、同步動態與獨立設定。",
+        .zhHans: "切换主要检视视窗至此群组，以管理其文件夹端点、同步动态与独立设定。",
+        .ja: "メイン表示をこのグループに切り替え、フォルダや同期設定を管理します。",
+        .th: "สลับมุมมองหลักมายังกลุ่มนี้เพื่อจัดการโฟลเดอร์และการตั้งค่า",
+        .ko: "이 그룹으로 기본 보기를 전환하여 폴더 및 동기화 설정을 관리합니다."
+    ],
+    "export_settings_button": [
+        .en: "Export Settings",
+        .zhHant: "匯出設定",
+        .zhHans: "导出设置",
+        .ja: "設定を出力",
+        .th: "ส่งออกการตั้งค่า",
+        .ko: "설정 내보내기"
+    ],
+    "export_settings_prompt": [
+        .en: "Choose a folder to export all sync groups and database configurations.",
+        .zhHant: "請選取儲存目錄，以匯出所有同步群組與端點狀態設定檔。",
+        .zhHans: "请选取保存目录，以导出所有同步群组与端点状态设定档。",
+        .ja: "すべての同期グループと設定を書き出すフォルダを選択してください。",
+        .th: "เลือกโฟลเดอร์สำหรับส่งออกการตั้งค่ากลุ่มและฐานข้อมูลทั้งหมด",
+        .ko: "모든 동기화 그룹 및 설정 파일을 내보낼 폴더를 선택하세요."
+    ],
+    "export_settings_ok": [
+        .en: "Settings successfully exported to '%@'.",
+        .zhHant: "設定已成功匯出至「%@」！",
+        .zhHans: "设定已成功导出至“%@”！",
+        .ja: "設定を「%@」へ正常に出力しました。",
+        .th: "ส่งออกการตั้งค่าไปยัง '%@' เรียบร้อยแล้ว",
+        .ko: "설정을 '%@'으로 성공적으로 내보냈습니다."
+    ],
+    "export_settings_failed": [
+        .en: "Export failed: %@",
+        .zhHant: "匯出設定失敗：%@",
+        .zhHans: "导出设定失败：%@",
+        .ja: "設定の出力に失敗しました：%@",
+        .th: "ส่งออกการตั้งค่าไม่สำเร็จ: %@",
+        .ko: "설정 내보내기 실패: %@"
+    ],
+    "export_settings_desc": [
+        .en: "Export all group profiles and state databases for backup or migration to another Mac.",
+        .zhHant: "備份並匯出所有同步群組與端點狀態，可於其他裝置一鍵匯入。",
+        .zhHans: "备份并导出所有同步群组与端点状态，可于其他装置一键导入。",
+        .ja: "すべてのグループ設定とデータベースをバックアップ・移行用に出力します。",
+        .th: "ส่งออกการตั้งค่ากลุ่มทั้งหมดเพื่อสำรองข้อมูลหรือย้ายไปยังเครื่องอื่น",
+        .ko: "백업 또는 다른 기기로의 마이그레이션을 위해 모든 동기화 설정을 내보냅니다."
+    ],
+    "import_legacy_help_tooltip": [
+        .en: "Import previously exported SyncNexus backup folders or legacy configs (contains groups.json and state.db).",
+        .zhHant: "選取先前匯出的 SyncNexus 備份資料夾或舊版設定（內含 groups.json 與 state.db）進行匯入合併。",
+        .zhHans: "选取先前导出的 SyncNexus 备份文件夹或旧版设定（内含 groups.json 与 state.db）进行导入合并。",
+        .ja: "以前に出力したバックアップフォルダや旧設定（groups.json、state.db）を読み込みます。",
+        .th: "นำเข้าโฟลเดอร์สำรองข้อมูลหรือการตั้งค่าเดิม (ที่มี groups.json และ state.db)",
+        .ko: "이전에 내보낸 백업 폴더 또는 이전 설정(groups.json 및 state.db 포함)을 가져옵니다."
     ],
     "active_current": [
         .en: "Current",
@@ -4102,5 +4294,70 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .ja: "現在の同期グループ: %@ (%d 個のエンドポイント)",
         .th: "กลุ่มการซิงค์ปัจจุบัน: %@ (%d ปลายทาง)",
         .ko: "현재 동기화 그룹: %@ (%d개 엔드포인트)"
+    ],
+    // Activity Center Manual Strings
+    "manual_topic_activity_title": [
+        .en: "Chapter 4: Activity Center — Real-Time Stream, Speed & Directions",
+        .zhHant: "第四章：同步動態 (Activity Center) — 即時傳輸串流、速度與方向",
+        .zhHans: "第四章：同步动态 (Activity Center) — 实时传输串流、速度与方向",
+        .ja: "第4章：同期動態 (Activity Center) — リアルタイム転送、速度、方向",
+        .th: "บทที่ 4: ความเคลื่อนไหว (Activity Center) — กระแสการซิงค์ ความเร็ว และทิศทาง",
+        .ko: "제4장: 동기화 활동 (Activity Center) — 실시간 스트림, 속도 및 방향"
+    ],
+    "manual_topic_activity_desc": [
+        .en: "The Activity Center provides real-time streaming visibility into every file operation across all sync groups. Filter by group, inspect transfer direction, file size, duration, and speed, with one-click CSV export.",
+        .zhHant: "「同步動態」提供專屬的滾動式即時串流視窗，記錄跨群組傳輸過程、同步方向（哪端到哪端）、檔案大小、傳輸速度與耗時，徹底告別傳統置頂無法追溯的痛點。",
+        .zhHans: "“同步动态”提供专属的滚动式实时串流窗口，记录跨群组传输过程、同步方向（哪端到哪端）、文件大小、传输速度与耗时，彻底告别传统置顶无法追溯的痛点。",
+        .ja: "「同期動態」では、全グループの同期履歴をスクロール表示する専用ウィンドウを提供。方向（どのフォルダからどこへ）、ファイルサイズ、転送速度、所要時間をリアルタイムで追跡できます。",
+        .th: "หน้า 'ความเคลื่อนไหว' ให้มุมมองแบบสตรีมมิ่งสด แสดงประวัติการทำงานของทุกกลุ่ม ทิศทางการซิงค์ ขนาดไฟล์ ความเร็ว และเวลาที่ใช้ พร้อมส่งออกเป็น CSV ได้ทันที",
+        .ko: "'동기화 활동'은 모든 그룹의 파일 전송 과정을 스크롤 스트림으로 보여주는 전용 화면입니다. 동기화 방향, 파일 크기, 속도, 소요 시간을 실시간으로 추적하고 CSV로 내보낼 수 있습니다."
+    ],
+    "manual_topic_activity_ops_title": [
+        .en: "Zero-Foundation Tutorial: Monitoring Streams & Exporting Records",
+        .zhHant: "零基礎教學：即時串流監控、群組篩選與日誌匯出手把手步驟",
+        .zhHans: "零基础教学：实时串流监控、群组筛选与日志导出手把手步骤",
+        .ja: "入門チュートリアル：リアルタイム監視、グループ絞り込み、CSV エクスポート手順",
+        .th: "คู่มือเริ่มต้น: การติดตามความเคลื่อนไหว การกรองกลุ่ม และการส่งออกข้อมูล",
+        .ko: "초보자 가이드: 실시간 모니터링, 그룹 필터링 및 로그 내보내기 단계별 절차"
+    ],
+    "manual_topic_activity_ops_desc": [
+        .en: "【Step 1: Filter Groups】Use the top-left dropdown to view 'All Groups' or select a single sync group.\n【Step 2: Monitor Real-Time Direction & Speed】The table displays Time, Group, Direction (e.g. Local ➔ Mobil), Action (Copy/Move/Trash), Size, Speed (KB/s, MB/s), and Duration.\n【Step 3: Auto-Scroll Toggle】Keep 'Auto Scroll to Latest' checked to automatically keep the freshest events visible as sync executes.\n【Step 4: Export to CSV】Click 'Export CSV...' at top right to save the entire activity log for audits or performance analysis.",
+        .zhHant: "【步驟 1：依群組篩選】點擊左上方下拉選單，可自由選擇觀看「全部群組」的匯總動態，或切換僅檢視特定單一群組。\n【步驟 2：即時掌握同步方向與速度】表格清楚列出時間、群組、同步方向（例如：本機 ➔ 外接隨身碟）、動作（複製/搬移/垃圾桶）、檔案大小、傳輸速度（KB/s、MB/s）與耗時。\n【步驟 3：自動置頂追蹤】勾選「自動滾動至最新事件」，新檔案寫入時清單自動捲動並聚焦於最新事件。\n【步驟 4：一鍵匯出 CSV】點擊右上角「匯出 CSV...」按鈕，可將完整操作日誌存檔，便於稽核與效能分析。",
+        .zhHans: "【步骤 1：依群组筛选】点击左上方下拉菜单，可自由选择观看“全部群组”的汇总动态，或切换仅检视特定单一群组。\n【步骤 2：实时掌握同步方向与速度】表格清楚列出时间、群组、同步方向（例如：本机 ➔ 外接随身碟）、动作（复制/搬移/废纸篓）、文件大小、传输速度（KB/s、MB/s）与耗时。\n【步骤 3：自动置顶追踪】勾选“自动滚动至最新事件”，新文件写入时清单自动卷动并聚焦于最新事件。\n【步骤 4：一键导出 CSV】点击右上角“导出 CSV...”按钮，可将完整操作日志存盘，便于稽核与效能分析。",
+        .ja: "【ステップ 1：グループで絞り込み】左上のドロップダウンで「すべてのグループ」または単一グループを選択。\n【ステップ 2：転送方向と速度を確認】日時、グループ、同期方向（例: Local ➔ Mobil）、アクション、サイズ、速度（KB/s, MB/s）、所要時間が一目で分かります。\n【ステップ 3：自動スクロール】「最新イベントへ自動スクロール」をオンにしておくと、常に最新の同期イベントが表示されます。\n【ステップ 4：CSV エクスポート】右上の「CSV エクスポート...」をクリックして、同期履歴を CSV ファイルとして保存できます。",
+        .th: "【ขั้นตอนที่ 1: กรองตามกลุ่ม】ใช้เมนูดรอปดาวน์มุมซ้ายบนเพื่อดู 'ทุกกลุ่ม' หรือเลือกดูกลุ่มใดกลุ่มหนึ่งโดยเฉพาะ\n【ขั้นตอนที่ 2: ติดตามทิศทางและความเร็ว】ตารางแสดงเวลา กลุ่ม ทิศทางการซิงค์ (เช่น Local ➔ Mobil) การกระทำ ขนาด ความเร็ว และเวลาที่ใช้\n【ขั้นตอนที่ 3: เลื่อนอัตโนมัติ】เปิดใช้งาน 'เลื่อนไปยังรายการล่าสุดโดยอัตโนมัติ' เพื่อให้หน้าจอเลื่อนตามเหตุการณ์ล่าสุดเสมอ\n【ขั้นตอนที่ 4: ส่งออกเป็น CSV】คลิก 'ส่งออก CSV...' มุมขวาบนเพื่อบันทึกประวัติการซิงค์ทั้งหมดสำหรับการตรวจสอบ",
+        .ko: "【1단계: 그룹별 필터링】좌측 상단 드롭다운에서 '모든 그룹'을 보거나 특정 단일 그룹만을 선택하여 조회할 수 있습니다.\n【2단계: 전송 방향 및 속도 모니터링】표에는 시간, 그룹, 동기화 방향(예: Local ➔ Mobil), 작업(복사/이동/휴지통), 파일 크기, 전송 속도(KB/s, MB/s), 소요 시간이 명확히 표시됩니다.\n【3단계: 최신 이벤트 자동 스크롤】'최신 이벤트로 자동 스크롤'을 켜두면 동기화 진행 시 최신 항목이 화면 상단에 자동으로 표시됩니다.\n【4단계: CSV 내보내기】우측 상단의 'CSV 내보내기...'를 클릭하여 전체 동기화 활동 기록을 CSV 파일로 저장할 수 있습니다."
+    ],
+    "manual_topic_activity_safe_title": [
+        .en: "Transparent Pipeline & Atomic Verification",
+        .zhHant: "透明串流與原子寫入雙重校驗",
+        .zhHans: "透明串流与原子写入双重校验",
+        .ja: "透明なパイプラインとアトミック検証",
+        .th: "ความโปร่งใสของกระบวนการและการตรวจสอบเชิงอะตอมิก",
+        .ko: "투명한 파이프라인 및 원자적 검증"
+    ],
+    "manual_topic_activity_safe_desc": [
+        .en: "• Atomic Transfer: Every copy is written to `.syncnexus-tmp-*` and verified by SHA-256 before atomic rename.\n• Speed Analytics: Real-time throughput calculations reflect physical hardware capabilities without background blocking.\n• Non-Intrusive: Event logging uses in-memory ring buffers and background queues, guaranteeing zero lag on file transfers.",
+        .zhHant: "• 原子性傳輸：所有檔案均在背景寫入暫存檔並驗證 SHA-256 雜湊無誤後才完成最終落盤。\n• 實時速率分析：根據實際傳輸位元數與耗時動態計算真實吞吐量，反映真實硬體表現。\n• 零阻塞架構：事件串流採用輕量內存循環佇列與非同步背景佇列，完全不拖慢同步引擎主幹速度。",
+        .zhHans: "• 原子性传输：所有文件均在背景写入暂存文件并验证 SHA-256 哈希无误后才完成最终落盘。\n• 实时速率分析：根据实际传输位元数与耗时动态计算真实吞吐量，反映真实硬件表现。\n• 零阻塞架构：事件串流采用轻量内存循环队列与异步背景队列，完全不拖慢同步引擎主干速度。",
+        .ja: "• アトミック転送: すべてのファイルは一時ファイルに書き込まれ、SHA-256 検証後に原子的にリネームされます。\n• リアルタイム速度計測: 転送サイズと所要時間から正確なスループットを動的に算出。\n• 負荷ゼロ設計: イベント記録はメモリ内リングバッファと非同期キューで行われ、同期処理本体を一切妨げません。",
+        .th: "• การส่งข้อมูลแบบอะตอมิก: เขียนไฟล์ลงไฟล์ชั่วคราวก่อนและตรวจสอบ SHA-256 ก่อนบันทึกจริง\n• การคำนวณความเร็วเรียลไทม์: คำนวณความเร็วจริงตามปริมาณข้อมูลและเวลาที่ใช้โดยไม่ทำให้ระบบสะดุด\n• สถาปัตยกรรมประสิทธิภาพสูง: บันทึกข้อมูลผ่านคิวพื้นหลัง ไม่ส่งผลกระทบต่อความเร็วของเครื่อง",
+        .ko: "• 원자적 전송: 모든 파일은 임시 파일에 기록되고 SHA-256 해시 검증을 거친 후 안전하게 교체됩니다.\n• 실시간 속도 계산: 실제 전송량과 소요 시간을 바탕으로 하드웨어의 실제 처리량을 즉시 표시합니다.\n• 무부하 비동기 구조: 이벤트 로깅은 경량 메모리 큐와 비동기 큐를 사용하여 동기화 엔진에 전혀 부하를 주지 않습니다."
+    ],
+    "manual_topic_activity_tips_title": [
+        .en: "Best Practice",
+        .zhHant: "日常使用秘訣",
+        .zhHans: "日常使用秘诀",
+        .ja: "日常の使い方のヒント",
+        .th: "เคล็ดลับการใช้งานประจำวัน",
+        .ko: "일상 사용 팁"
+    ],
+    "manual_topic_activity_tips_desc": [
+        .en: "If a file transfer takes longer than expected, check the Speed column in Activity Center to determine if external drives or cloud sync bandwidth are throttling performance.",
+        .zhHant: "若發現特定檔案同步時間較長，可在「同步動態」的「傳輸速度」欄位觀察實際速度，藉此判斷是否為隨身碟寫入瓶頸或雲端網路頻寬限制。",
+        .zhHans: "若发现特定文件同步时间较长，可在“同步动态”的“传输速度”栏位观察实际速度，藉此判断是否为随身碟写入瓶颈或云端网络频宽限制。",
+        .ja: "ファイルの同期が遅いと感じた場合、「同期動態」の「速度」列を確認することで、外付け USB の書き込み速度やクラウドの帯域制限が原因かどうかを即座に特定できます。",
+        .th: "หากพบว่าไฟล์บางไฟล์ซิงค์ช้า สามารถดูคอลัมน์ 'ความเร็ว' เพื่อตรวจสอบได้ว่าเป็นข้อจำกัดของแฟลชไดรฟ์หรือความเร็วอินเทอร์เน็ตของคลาวด์",
+        .ko: "특정 파일 동기화가 오래 걸리는 경우, '동기화 활동'의 '전송 속도' 열을 확인하여 외장 USB의 쓰기 속도 문제인지 클라우드 네트워크 대역폭 제한인지 바로 파악할 수 있습니다."
     ]
 ]

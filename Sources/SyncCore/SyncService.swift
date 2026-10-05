@@ -75,6 +75,7 @@ public final class SyncService: @unchecked Sendable {
     private let versionsDir: URL
     private let logURL: URL?
     private let onUpdate: @Sendable (Snapshot) -> Void
+    public var onSyncEvent: (@Sendable (SyncEvent) -> Void)?
     private let periodic: TimeInterval
 
     private var engine: Engine?
@@ -85,6 +86,7 @@ public final class SyncService: @unchecked Sendable {
     private var running = false
     private var rerun = false
     private var rerunConfirmed = false
+    private var pendingConfirmedRun = false
     private var lastMaintenance = Date.distantPast
     private var forceDeepVerify = false
     /// Incremental mode: endpoint-relative paths reported by FSEvents since the last run. Anything doubtful sets `needFull`.
@@ -140,6 +142,7 @@ public final class SyncService: @unchecked Sendable {
                 opts.log = { [weak self] in self?.writeLog($0) }
                 opts.shouldCancel = { [weak self] in self?.shouldCancel ?? true }
                 opts.progress = { [weak self] progress in self?.receive(progress) }
+                opts.onSyncEvent = { [weak self] event in self?.onSyncEvent?(event) }
                 opts.releaseCloudContent = { @Sendable url, completion in
                     CloudSpaceReclaimer.releaseLocalContent(of: url, completion: completion)
                 }
@@ -271,7 +274,15 @@ public final class SyncService: @unchecked Sendable {
         engine = nil
     }
 
-    public func syncNow(confirmed: Bool = false) { queue.async { self.runIfNeeded(confirmed: confirmed) } }
+    public func syncNow(confirmed: Bool = false) {
+        if confirmed {
+            pendingConfirmedRun = true
+            // If an unconfirmed scan is currently in progress, cancel it cooperatively so
+            // the confirmed run can take over immediately without making the user wait.
+            if running { cancelCurrentRun() }
+        }
+        queue.async { self.runIfNeeded(confirmed: confirmed) }
+    }
 
     /// Immediately requests cooperative cancellation. It is lock-only, so it is not trapped
     /// behind the long-running work on the service queue.
@@ -447,10 +458,11 @@ public final class SyncService: @unchecked Sendable {
 
     private func runIfNeeded(confirmed: Bool, incremental: Bool = false) {
         guard !shouldStop, snapshot.phase != .paused, let engine else { return }
+        let effectiveConfirmed = confirmed || pendingConfirmedRun
         if running {
-            rerun = true; rerunConfirmed = rerunConfirmed || confirmed
-            if !incremental { rerunFull = true }
-            if confirmed {
+            rerun = true; rerunConfirmed = rerunConfirmed || effectiveConfirmed
+            if !incremental || effectiveConfirmed { rerunFull = true }
+            if effectiveConfirmed {
                 snapshot.confirmation = nil
                 publish()
             }
@@ -458,7 +470,7 @@ public final class SyncService: @unchecked Sendable {
         }
         // Incremental only when asked for by the watcher and nothing doubtful is pending; every other trigger (start, wake,
         // timer, "sync now", confirmation) looks at everything.
-        let wantFull = !incremental || needFull || confirmed || forceDeepVerify || rerunFull
+        let wantFull = !incremental || needFull || effectiveConfirmed || forceDeepVerify || rerunFull
         let taken = dirty; dirty = []; rerunFull = false
         if !wantFull && taken.isEmpty { return }
         let scope: SyncScope = wantFull ? .full : .paths(taken)
@@ -467,7 +479,7 @@ public final class SyncService: @unchecked Sendable {
         snapshot.phase = .syncing
         snapshot.progress = SyncProgress(stage: .preparing, fraction: 0)
         snapshot.error = nil
-        if confirmed {
+        if effectiveConfirmed {
             snapshot.confirmation = nil
         }
         publish()
@@ -479,8 +491,11 @@ public final class SyncService: @unchecked Sendable {
             let deep = cfgs.count >= 2 && deepVerifyDue(engine)
             engine.options.deepVerify = deep
             defer { engine.options.deepVerify = false }
-            let report = cfgs.count >= 2 ? try engine.sync(confirmed: confirmed, scope: scope) : SyncReport()
+            let report = cfgs.count >= 2 ? try engine.sync(confirmed: effectiveConfirmed, scope: scope) : SyncReport()
             if report.coveredFullScan { needFull = false }
+            if report.needsConfirmation == nil {
+                pendingConfirmedRun = false
+            }
             if !report.retry.isEmpty {
                 let again = report.retry
                 queue.asyncAfter(deadline: .now() + 5) { [weak self] in self?.dirty.formUnion(again); self?.runIfNeeded(confirmed: false, incremental: true) }
@@ -513,7 +528,7 @@ public final class SyncService: @unchecked Sendable {
         } catch is SyncBusy {
             needFull = true
             writeLog("另一個同步正在進行（App 或指令列），5 秒後重試")
-            queue.asyncAfter(deadline: .now() + 5) { self.runIfNeeded(confirmed: confirmed) }
+            queue.asyncAfter(deadline: .now() + 5) { self.runIfNeeded(confirmed: effectiveConfirmed) }
         } catch {
             needFull = true
             snapshot.error = "\(error)"

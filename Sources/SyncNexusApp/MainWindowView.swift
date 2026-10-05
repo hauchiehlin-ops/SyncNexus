@@ -92,6 +92,7 @@ struct MainWindowView: View {
                         case .overview: OverviewSection(model: model)
                         case .diffPreview: DiffPreviewSection(model: model)
                         case .folders: FoldersSection(model: model)
+                        case .activity: SyncActivitySection(model: model)
                         case .conflicts: ConflictsSection(model: model)
                         case .versions: VersionsSection(model: model)
                         case .verification: VerificationSection(model: model)
@@ -144,7 +145,7 @@ struct MainWindowView: View {
                 .padding(.horizontal, 40)
                 .frame(maxWidth: 680)
                 .zIndex(1000)
-            } else if let live = model.primaryProgress {
+            } else if model.section != .activity, let live = model.primaryProgress {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 10) {
                         ProgressView().controlSize(.small)
@@ -317,10 +318,24 @@ struct OverviewSection: View {
                     HStack(spacing: 6) {
                         ForEach(model.groups, id: \.id) { (group: SyncGroup) in
                             let isActive: Bool = (group.id == model.activeGroupId)
+                            let badge = model.groupStatusBadge(for: group.id)
                             Button(action: { model.selectGroup(id: group.id) }) {
-                                HStack(spacing: 4) {
+                                HStack(spacing: 5) {
                                     Image(systemName: group.icon).font(.system(size: 11))
                                     Text(model.groupName(group)).font(.system(size: 12, weight: isActive ? .bold : .regular))
+                                    Text(badge.text)
+                                        .font(.system(size: 9, weight: .semibold))
+                                        .padding(.horizontal, 5)
+                                        .padding(.vertical, 1.5)
+                                        .background(
+                                            isActive ? Color.white.opacity(0.3) :
+                                                (badge.kind == .bad ? Theme.badFill : (badge.kind == .warn ? Theme.warnFill : Theme.okFill)),
+                                            in: Capsule()
+                                        )
+                                        .foregroundStyle(
+                                            isActive ? Color.white :
+                                                (badge.kind == .bad ? Theme.bad : (badge.kind == .warn ? Theme.warn : Theme.ok))
+                                        )
                                 }
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 4)
@@ -450,6 +465,306 @@ struct EndpointCard: View {
                      : ((ep.removable && !FileManager.default.fileExists(atPath: ep.root)) ? loc("endpoint_unplugged_sub") : ep.detail))
                     .font(.system(size: 13)).foregroundStyle(ep.online ? Color.primary : Theme.warn).fixedSize(horizontal: false, vertical: true)
             }
+        }
+    }
+}
+
+// MARK: sync activity
+
+struct SyncActivitySection: View {
+    @ObservedObject var model: AppModel
+    @ObservedObject private var l10n = L10n.shared
+    @State private var selectedGroupFilter: String = "ALL" // "ALL" or groupId
+    @State private var query = ""
+    @State private var autoScroll = true
+
+    private var filteredLogs: [SyncLogItem] {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        return model.syncLogs.filter { item in
+            if selectedGroupFilter != "ALL" && item.groupId != selectedGroupFilter {
+                return false
+            }
+            if !q.isEmpty {
+                let match = item.path.localizedCaseInsensitiveContains(q)
+                    || item.op.localizedCaseInsensitiveContains(q)
+                    || item.destinationEndpoint.localizedCaseInsensitiveContains(q)
+                    || (item.sourceEndpoint?.localizedCaseInsensitiveContains(q) ?? false)
+                    || item.groupName.localizedCaseInsensitiveContains(q)
+                if !match { return false }
+            }
+            return true
+        }
+    }
+
+    var body: some View {
+        sectionHeader(loc("section_activity"), loc("section_activity_desc"))
+
+        // 即時進度卡片（若正在同步）
+        if let live = model.primaryProgress {
+            Card {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 10) {
+                        ProgressView().controlSize(.small)
+                        Text(model.progressStage(live.progress))
+                            .font(.system(size: 14, weight: .semibold))
+                        if live.progress.stage == .scanning && live.progress.completed > 0 {
+                            Text("（已發現 \(live.progress.completed.formatted()) 項）")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                        }
+                        if model.groups.count > 1 {
+                            Text("· \(live.groupName)")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Text("\(Int((model.aggregateProgressFraction * 100).rounded()))%")
+                            .font(.system(size: 13, weight: .bold, design: .monospaced))
+                        Button(loc("progress_cancel")) { model.cancelAllCurrentRuns() }
+                            .buttonStyle(QuietButton(kind: .secondary, compact: true))
+                            .disabled(model.isCancellingRuns)
+                    }
+                    ProgressView(value: model.aggregateProgressFraction).progressViewStyle(.linear)
+                    if let path = live.progress.currentPath, !path.isEmpty {
+                        Text(path)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                }
+            }
+        }
+
+        // 工具列：群組篩選器、搜尋、自動滾動開關、清除紀錄、匯出紀錄
+        Card(padding: 12) {
+            HStack(spacing: 12) {
+                // 群組選擇器
+                Picker("", selection: $selectedGroupFilter) {
+                    Text(loc("activity_all_groups")).tag("ALL")
+                    ForEach(model.groups) { g in
+                        Text(model.groupName(g)).tag(g.id)
+                    }
+                }
+                .frame(width: 150)
+
+                // 搜尋框
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                    TextField(loc("activity_search_placeholder"), text: $query)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 12))
+                    if !query.isEmpty {
+                        Button {
+                            query = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 6))
+                .frame(maxWidth: 240)
+
+                Toggle(isOn: $autoScroll) {
+                    Text(loc("activity_auto_scroll"))
+                        .font(.system(size: 12))
+                }
+                .toggleStyle(.checkbox)
+
+                Spacer(minLength: 8)
+
+                Button {
+                    model.clearSyncLogs()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "trash")
+                        Text(loc("activity_clear_logs"))
+                    }
+                }
+                .buttonStyle(QuietButton(kind: .secondary, compact: true))
+                .disabled(model.syncLogs.isEmpty)
+
+                Button {
+                    exportLogs()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "square.and.arrow.up")
+                        Text(loc("activity_export_logs"))
+                    }
+                }
+                .buttonStyle(QuietButton(kind: .secondary, compact: true))
+                .disabled(model.syncLogs.isEmpty)
+            }
+        }
+
+        // 動態事件串流表格
+        if filteredLogs.isEmpty {
+            Card(padding: 36) {
+                VStack(spacing: 12) {
+                    Image(systemName: "waveform.path.ecg")
+                        .font(.system(size: 36))
+                        .foregroundStyle(Color.accentColor.opacity(0.6))
+                    Text(loc("activity_empty_hint"))
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+            }
+        } else {
+            Card(padding: 0) {
+                VStack(spacing: 0) {
+                    // 表格標頭
+                    HStack(spacing: 8) {
+                        Text(loc("activity_col_time"))
+                            .frame(width: 72, alignment: .leading)
+                        Text(loc("activity_col_group"))
+                            .frame(width: 80, alignment: .leading)
+                        Text(loc("activity_col_direction"))
+                            .frame(width: 140, alignment: .leading)
+                        Text(loc("activity_col_action"))
+                            .frame(width: 85, alignment: .leading)
+                        Text(loc("activity_col_size"))
+                            .frame(width: 75, alignment: .trailing)
+                        Text(loc("activity_col_speed"))
+                            .frame(width: 80, alignment: .trailing)
+                        Text(loc("activity_col_duration"))
+                            .frame(width: 65, alignment: .trailing)
+                        Text(loc("activity_col_path"))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Color.primary.opacity(0.04))
+
+                    Divider()
+
+                    // 事件清單（帶 ScrollViewReader 支援自動滾動到最頂端最新事件）
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            LazyVStack(spacing: 0) {
+                                ForEach(Array(filteredLogs.enumerated()), id: \.element.id) { index, item in
+                                    if index > 0 {
+                                        Divider()
+                                    }
+                                    HStack(spacing: 8) {
+                                        // 時間
+                                        Text(item.timestamp.formatted(date: .omitted, time: .standard))
+                                            .font(.system(size: 11, design: .monospaced))
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 72, alignment: .leading)
+
+                                        // 群組
+                                        Text(item.groupName)
+                                            .font(.system(size: 11, weight: .medium))
+                                            .lineLimit(1)
+                                            .truncationMode(.tail)
+                                            .frame(width: 80, alignment: .leading)
+
+                                        // 同步方向
+                                        Text(item.directionText)
+                                            .font(.system(size: 11))
+                                            .lineLimit(1)
+                                            .truncationMode(.middle)
+                                            .frame(width: 140, alignment: .leading)
+
+                                        // 動作 / 狀態
+                                        HStack(spacing: 4) {
+                                            chipForOp(item.op, status: item.status)
+                                        }
+                                        .frame(width: 85, alignment: .leading)
+
+                                        // 大小
+                                        Text(item.sizeText)
+                                            .font(.system(size: 11, design: .monospaced))
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 75, alignment: .trailing)
+
+                                        // 速度
+                                        Text(item.speedText)
+                                            .font(.system(size: 11, design: .monospaced))
+                                            .foregroundStyle(item.speedBytesPerSec > 0 ? Color.accentColor : Color.secondary)
+                                            .frame(width: 80, alignment: .trailing)
+
+                                        // 耗時
+                                        Text(item.durationText)
+                                            .font(.system(size: 11, design: .monospaced))
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 65, alignment: .trailing)
+
+                                        // 檔案路徑
+                                        Text(item.path)
+                                            .font(.system(size: 11, design: .monospaced))
+                                            .lineLimit(1)
+                                            .truncationMode(.middle)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                    }
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 7)
+                                    .background(index % 2 == 1 ? Color.primary.opacity(0.015) : Color.clear)
+                                    .id(item.id)
+                                }
+                            }
+                        }
+                        .frame(minHeight: 280, maxHeight: 480)
+                        .onChange(of: filteredLogs.first?.id) { newestId in
+                            if autoScroll, let id = newestId {
+                                withAnimation {
+                                    proxy.scrollTo(id, anchor: .top)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func chipForOp(_ op: String, status: String) -> some View {
+        let (label, kind): (String, Chip.Kind) = {
+            if status == "failed" {
+                return (op.uppercased(), .bad)
+            }
+            switch op {
+            case "copy":
+                return (loc("op_copy"), .ok)
+            case "move":
+                return (loc("op_rename"), .ok)
+            case "mkdir":
+                return (loc("op_mkdir"), .neutral)
+            case "trash":
+                return (loc("op_trash"), .warn)
+            case "verify":
+                return (loc("section_verification"), .neutral)
+            default:
+                return (op, .neutral)
+            }
+        }()
+        return Chip(text: label, kind: kind)
+    }
+
+    private func exportLogs() {
+        let savePanel = NSSavePanel()
+        savePanel.allowedContentTypes = [.commaSeparatedText]
+        savePanel.nameFieldStringValue = "SyncNexus-Activity-\(Date().formatted(date: .numeric, time: .omitted).replacingOccurrences(of: "/", with: "-")).csv"
+        NSApp.activate(ignoringOtherApps: true)
+        if savePanel.runModal() == .OK, let url = savePanel.url {
+            var csv = "Time,Group,Direction,Action,Size(Bytes),Speed(Bytes/s),Duration(s),Path,Status\n"
+            for log in filteredLogs {
+                let timeStr = log.timestamp.formatted(date: .numeric, time: .standard)
+                let row = "\"\(timeStr)\",\"\(log.groupName)\",\"\(log.directionText)\",\"\(log.op)\",\(log.size),\(Int(log.speedBytesPerSec)),\(log.duration),\"\(log.path)\",\"\(log.status)\"\n"
+                csv.append(row)
+            }
+            try? csv.write(to: url, atomically: true, encoding: .utf8)
         }
     }
 }
@@ -767,6 +1082,7 @@ struct SettingsSection: View {
                             }
                             .buttonStyle(QuietButton(kind: .secondary, compact: true))
                             .disabled(model.isRestoringBackup)
+                            .help(loc("switch_to_group_help"))
                         }
                         Button(loc("group_edit_title")) {
                             editingGroup = group

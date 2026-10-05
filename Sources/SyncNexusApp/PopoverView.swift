@@ -167,7 +167,11 @@ struct PopoverView: View {
             } else {
                 Button {
                     model.selectGroup(id: state.group.id)
-                    openMain(.folders)
+                    if state.snap.confirmation != nil {
+                        model.reviewConfirmation(group: state.group.id)
+                    } else {
+                        openMain(.folders)
+                    }
                 } label: {
                     HStack(spacing: 4) {
                         Chip(text: chipText, kind: chipKind)
