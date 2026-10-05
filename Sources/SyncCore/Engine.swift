@@ -888,15 +888,15 @@ public final class Engine {
         options.log(line)
     }
 
-    private func perform(_ op: String, _ ep: String, _ path: String, detail: String = "", _ body: () throws -> Void) throws {
+    private func perform(_ op: String, _ ep: String, _ path: String, detail: String = "", sourceEndpoint: String = "", _ body: () throws -> Void) throws {
         try checkCancellation()
         emit(.transferring, max(progressFloor, 0.62), path: path, endpoint: ep)
-        let id = try store.journalBegin(op: op, endpoint: ep, path: path, detail: detail)
+        let id = try store.journalBegin(op: op, endpoint: ep, path: path, detail: detail, sourceEndpoint: sourceEndpoint)
         do {
             try options.failpoint?("\(op):before")
             try body()
             try options.failpoint?("\(op):after")
-            try store.journalEnd(id, status: "done")
+            try store.journalEnd(id, status: "done", sourceEndpoint: sourceEndpoint)
         } catch { try? store.journalEnd(id, status: "failed: \(error)"); throw error }
     }
 
@@ -973,17 +973,23 @@ public final class Engine {
             report.skipped.append("[\(cfg.id)] \(path)：磁碟可用空間不足（需要 \(ByteCountFormatter.string(fromByteCount: want.size, countStyle: .file))）"); return
         }
         let copyStartTime = Date()
+        var journalId: Int64 = 0
         do {
-            try perform("copy", cfg.id, path, detail: "from \(srcFile.url.path)") {
-                if let file { try archiveVersion(file, endpoint: cfg.id) }
-                try FileOps.copyAtomically(from: srcFile.url, to: dst, expectHash: want.hash, mtime: srcFile.mtime,
-                                           durable: cfg.removable, shouldCancel: options.shouldCancel) { [weak self] done, total in
-                    self?.emit(.transferring, self?.progressFloor ?? 0.62, path: path, endpoint: cfg.id,
-                               completed: Int(clamping: done), total: Int(clamping: total))
-                }
+            try checkCancellation()
+            emit(.transferring, max(progressFloor, 0.62), path: path, endpoint: cfg.id)
+            journalId = try store.journalBegin(op: "copy", endpoint: cfg.id, path: path, detail: "from \(srcFile.url.path)",
+                                               size: want.size, sourceEndpoint: srcEp)
+            try options.failpoint?("copy:before")
+            if let file { try archiveVersion(file, endpoint: cfg.id) }
+            try FileOps.copyAtomically(from: srcFile.url, to: dst, expectHash: want.hash, mtime: srcFile.mtime,
+                                       durable: cfg.removable, shouldCancel: options.shouldCancel) { [weak self] done, total in
+                self?.emit(.transferring, self?.progressFloor ?? 0.62, path: path, endpoint: cfg.id,
+                           completed: Int(clamping: done), total: Int(clamping: total))
             }
+            try options.failpoint?("copy:after")
             let duration = max(0.001, Date().timeIntervalSince(copyStartTime))
             let speed = Double(want.size) / duration
+            try store.journalEnd(journalId, status: "done", size: want.size, duration: duration, speed: speed, sourceEndpoint: srcEp)
             options.onSyncEvent?(SyncEvent(timestamp: Date(), op: "copy", path: path,
                                            sourceEndpoint: srcEp, destinationEndpoint: cfg.id,
                                            size: want.size, duration: duration, speedBytesPerSec: speed,
@@ -992,12 +998,20 @@ public final class Engine {
             if srcFile.isPlaceholder { cloudEvictionCandidates[srcFile.url.path] = srcFile.url }
             spaceUsed[cfg.root, default: 0] += want.size
             if cfg.removable { ctx.wroteToRemovable.insert(cfg.root) }
-        } catch is ScanCancelled { throw ScanCancelled()
+        } catch is ScanCancelled {
+            if journalId > 0 { try? store.journalEnd(journalId, status: "cancelled") }
+            throw ScanCancelled()
         } catch FileOps.CopyError.sourceChanged {
+            if journalId > 0 { try? store.journalEnd(journalId, status: "sourceChanged") }
             report.skipped.append("[\(cfg.id)] \(path)：來源在複製途中改變，稍後重試"); return
-        } catch let c as SimulatedCrash { throw c
+        } catch let c as SimulatedCrash {
+            if journalId > 0 { try? store.journalEnd(journalId, status: "crashed") }
+            throw c
         } catch {
             let duration = max(0.001, Date().timeIntervalSince(copyStartTime))
+            if journalId > 0 {
+                try? store.journalEnd(journalId, status: "failed: \(error)", size: want.size, duration: duration, speed: 0, sourceEndpoint: srcEp)
+            }
             options.onSyncEvent?(SyncEvent(timestamp: Date(), op: "copy", path: path,
                                            sourceEndpoint: srcEp, destinationEndpoint: cfg.id,
                                            size: want.size, duration: duration, speedBytesPerSec: 0,

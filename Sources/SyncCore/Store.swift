@@ -41,6 +41,34 @@ public struct JournalEntry: Sendable {
     public var id: Int64, time: String, op: String, endpoint: String, path: String, status: String
 }
 
+public struct JournalRecord: Sendable {
+    public var id: Int64
+    public var time: String
+    public var op: String
+    public var endpoint: String
+    public var path: String
+    public var detail: String
+    public var status: String
+    public var size: Int64
+    public var duration: Double
+    public var speed: Double
+    public var sourceEndpoint: String
+
+    public init(id: Int64, time: String, op: String, endpoint: String, path: String, detail: String = "", status: String, size: Int64 = 0, duration: Double = 0, speed: Double = 0, sourceEndpoint: String = "") {
+        self.id = id
+        self.time = time
+        self.op = op
+        self.endpoint = endpoint
+        self.path = path
+        self.detail = detail
+        self.status = status
+        self.size = size
+        self.duration = duration
+        self.speed = speed
+        self.sourceEndpoint = sourceEndpoint
+    }
+}
+
 public final class Store {
     public let db: Database
     public let path: String
@@ -73,6 +101,10 @@ public final class Store {
         try addColumnIfMissing("endpoints", "bookmark_data", "TEXT")
         try addColumnIfMissing("consensus", "fold", "TEXT NOT NULL DEFAULT ''")
         try addColumnIfMissing("ep_state", "fold", "TEXT NOT NULL DEFAULT ''")
+        try addColumnIfMissing("journal", "size", "INTEGER NOT NULL DEFAULT 0")
+        try addColumnIfMissing("journal", "duration", "REAL NOT NULL DEFAULT 0")
+        try addColumnIfMissing("journal", "speed", "REAL NOT NULL DEFAULT 0")
+        try addColumnIfMissing("journal", "source_ep", "TEXT NOT NULL DEFAULT ''")
         try backfillFold(table: "consensus", keyColumns: "path")
         try backfillFold(table: "ep_state", keyColumns: "endpoint, path")
         try db.exec("CREATE INDEX IF NOT EXISTS consensus_fold ON consensus(fold); CREATE INDEX IF NOT EXISTS ep_state_fold ON ep_state(endpoint, fold);")
@@ -312,15 +344,23 @@ public final class Store {
 
     // MARK: journal (intent first, outcome after; doubles as the activity log)
 
-    public func journalBegin(op: String, endpoint: String, path: String, detail: String = "") throws -> Int64 {
-        try db.exec("INSERT INTO journal(ts, op, endpoint, path, detail, status) VALUES(?,?,?,?,?, 'pending')",
-                    [.text(ISO8601DateFormatter().string(from: Date())), .text(op), .text(endpoint), .text(path), .text(detail)])
+    public func journalBegin(op: String, endpoint: String, path: String, detail: String = "",
+                             size: Int64 = 0, duration: Double = 0, speed: Double = 0, sourceEndpoint: String = "") throws -> Int64 {
+        try db.exec("INSERT INTO journal(ts, op, endpoint, path, detail, status, size, duration, speed, source_ep) VALUES(?,?,?,?,?, 'pending', ?, ?, ?, ?)",
+                    [.text(ISO8601DateFormatter().string(from: Date())), .text(op), .text(endpoint), .text(path), .text(detail),
+                     .int(size), .double(duration), .double(speed), .text(sourceEndpoint)])
         try wrote()
         return db.lastInsertRowID
     }
 
-    public func journalEnd(_ id: Int64, status: String) throws {
-        try db.exec("UPDATE journal SET status=? WHERE id=?", [.text(status), .int(id)])
+    public func journalEnd(_ id: Int64, status: String, size: Int64? = nil, duration: Double? = nil, speed: Double? = nil, sourceEndpoint: String? = nil) throws {
+        if let size = size, let duration = duration, let speed = speed {
+            let src = sourceEndpoint ?? ""
+            try db.exec("UPDATE journal SET status=?, size=?, duration=?, speed=?, source_ep=? WHERE id=?",
+                        [.text(status), .int(size), .double(duration), .double(speed), .text(src), .int(id)])
+        } else {
+            try db.exec("UPDATE journal SET status=? WHERE id=?", [.text(status), .int(id)])
+        }
         try wrote()
     }
 
@@ -332,6 +372,24 @@ public final class Store {
 
     public func recentJournal(limit: Int = 20) throws -> [JournalEntry] {
         try journal(where: "1=1", limit: limit)
+    }
+
+    public func recentJournalRecords(limit: Int = 1000) throws -> [JournalRecord] {
+        try db.query("SELECT id, ts, op, endpoint, path, detail, status, size, duration, speed, source_ep FROM journal ORDER BY id DESC LIMIT \(limit)").map {
+            JournalRecord(
+                id: $0[0].intValue ?? 0,
+                time: $0[1].textValue ?? "",
+                op: $0[2].textValue ?? "",
+                endpoint: $0[3].textValue ?? "",
+                path: $0[4].textValue ?? "",
+                detail: $0[5].textValue ?? "",
+                status: $0[6].textValue ?? "",
+                size: $0[7].intValue ?? 0,
+                duration: $0[8].doubleValue ?? 0,
+                speed: $0[9].doubleValue ?? 0,
+                sourceEndpoint: $0[10].textValue ?? ""
+            )
+        }
     }
 
     private func journal(where clause: String, limit: Int) throws -> [JournalEntry] {

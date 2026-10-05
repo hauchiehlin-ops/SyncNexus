@@ -4,9 +4,15 @@ import SQLite3
 public enum SQLValue: Sendable {
     case null
     case int(Int64)
+    case double(Double)
     case text(String)
 
     public var intValue: Int64? { if case .int(let v) = self { return v } else { return nil } }
+    public var doubleValue: Double? {
+        if case .double(let v) = self { return v }
+        else if case .int(let v) = self { return Double(v) }
+        else { return nil }
+    }
     public var textValue: String? { if case .text(let v) = self { return v } else { return nil } }
     public var isNull: Bool { if case .null = self { return true } else { return false } }
 }
@@ -67,6 +73,7 @@ public final class Database {
             switch p {
             case .null: sqlite3_bind_null(stmt, idx)
             case .int(let v): sqlite3_bind_int64(stmt, idx, v)
+            case .double(let v): sqlite3_bind_double(stmt, idx, v)
             case .text(let v): sqlite3_bind_text(stmt, idx, v, -1, Database.transient)
             }
         }
@@ -80,6 +87,7 @@ public final class Database {
             for c in 0..<sqlite3_column_count(stmt) {
                 switch sqlite3_column_type(stmt, c) {
                 case SQLITE_INTEGER: row.append(.int(sqlite3_column_int64(stmt, c)))
+                case SQLITE_FLOAT: row.append(.double(sqlite3_column_double(stmt, c)))
                 case SQLITE_TEXT: row.append(.text(String(cString: sqlite3_column_text(stmt, c))))
                 default: row.append(.null)
                 }

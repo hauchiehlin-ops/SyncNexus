@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 import SyncCore
 
 func bytes(_ n: Int64) -> String { ByteCountFormatter.string(fromByteCount: n, countStyle: .file) }
@@ -488,6 +489,7 @@ struct SyncActivitySection: View {
             }
             if !q.isEmpty {
                 let match = item.path.localizedCaseInsensitiveContains(q)
+                    || item.fileName.localizedCaseInsensitiveContains(q)
                     || item.op.localizedCaseInsensitiveContains(q)
                     || item.destinationEndpoint.localizedCaseInsensitiveContains(q)
                     || (item.sourceEndpoint?.localizedCaseInsensitiveContains(q) ?? false)
@@ -622,112 +624,153 @@ struct SyncActivitySection: View {
             }
         } else {
             Card(padding: 0) {
-                VStack(spacing: 0) {
-                    // 表格標頭
-                    HStack(spacing: 8) {
-                        Text(loc("activity_col_time"))
-                            .frame(width: 72, alignment: .leading)
-                        Text(loc("activity_col_group"))
-                            .frame(width: 80, alignment: .leading)
-                        Text(loc("activity_col_direction"))
-                            .frame(width: 140, alignment: .leading)
-                        Text(loc("activity_col_action"))
-                            .frame(width: 85, alignment: .leading)
-                        Text(loc("activity_col_size"))
-                            .frame(width: 75, alignment: .trailing)
-                        Text(loc("activity_col_speed"))
-                            .frame(width: 80, alignment: .trailing)
-                        Text(loc("activity_col_duration"))
-                            .frame(width: 65, alignment: .trailing)
-                        Text(loc("activity_col_path"))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(Color.primary.opacity(0.04))
+                ScrollView(.horizontal, showsIndicators: true) {
+                    VStack(spacing: 0) {
+                        // 表格標頭
+                        HStack(spacing: 8) {
+                            Text(loc("activity_col_time"))
+                                .frame(width: 72, alignment: .leading)
+                            Text(loc("activity_col_group"))
+                                .frame(width: 80, alignment: .leading)
+                            Text(loc("activity_col_filename"))
+                                .frame(width: 140, alignment: .leading)
+                            Text(loc("activity_col_direction"))
+                                .frame(width: 130, alignment: .leading)
+                            Text(loc("activity_col_action"))
+                                .frame(width: 75, alignment: .leading)
+                            Text(loc("activity_col_size"))
+                                .frame(width: 70, alignment: .trailing)
+                            Text(loc("activity_col_speed"))
+                                .frame(width: 80, alignment: .trailing)
+                            Text(loc("activity_col_duration"))
+                                .frame(width: 60, alignment: .trailing)
+                            Text(loc("activity_col_path"))
+                                .frame(minWidth: 160, maxWidth: .infinity, alignment: .leading)
+                        }
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(Color.primary.opacity(0.04))
 
-                    Divider()
+                        Divider()
 
-                    // 事件清單（帶 ScrollViewReader 支援自動滾動到最頂端最新事件）
-                    ScrollViewReader { proxy in
-                        ScrollView {
-                            LazyVStack(spacing: 0) {
-                                ForEach(Array(filteredLogs.enumerated()), id: \.element.id) { index, item in
-                                    if index > 0 {
-                                        Divider()
-                                    }
-                                    HStack(spacing: 8) {
-                                        // 時間
-                                        Text(item.timestamp.formatted(date: .omitted, time: .standard))
-                                            .font(.system(size: 11, design: .monospaced))
-                                            .foregroundStyle(.secondary)
-                                            .frame(width: 72, alignment: .leading)
-
-                                        // 群組
-                                        Text(item.groupName)
-                                            .font(.system(size: 11, weight: .medium))
-                                            .lineLimit(1)
-                                            .truncationMode(.tail)
-                                            .frame(width: 80, alignment: .leading)
-
-                                        // 同步方向
-                                        Text(item.directionText)
-                                            .font(.system(size: 11))
-                                            .lineLimit(1)
-                                            .truncationMode(.middle)
-                                            .frame(width: 140, alignment: .leading)
-
-                                        // 動作 / 狀態
-                                        HStack(spacing: 4) {
-                                            chipForOp(item.op, status: item.status)
+                        // 事件清單（帶 ScrollViewReader 支援自動滾動到最頂端最新事件）
+                        ScrollViewReader { proxy in
+                            ScrollView {
+                                LazyVStack(spacing: 0) {
+                                    ForEach(Array(filteredLogs.enumerated()), id: \.element.id) { index, item in
+                                        if index > 0 {
+                                            Divider()
                                         }
-                                        .frame(width: 85, alignment: .leading)
+                                        HStack(spacing: 8) {
+                                            // 時間
+                                            Text(item.timestamp.formatted(date: .omitted, time: .standard))
+                                                .font(.system(size: 11, design: .monospaced))
+                                                .foregroundStyle(.secondary)
+                                                .frame(width: 72, alignment: .leading)
 
-                                        // 大小
-                                        Text(item.sizeText)
-                                            .font(.system(size: 11, design: .monospaced))
-                                            .foregroundStyle(.secondary)
-                                            .frame(width: 75, alignment: .trailing)
+                                            // 群組
+                                            Text(item.groupName)
+                                                .font(.system(size: 11, weight: .medium))
+                                                .lineLimit(1)
+                                                .truncationMode(.tail)
+                                                .frame(width: 80, alignment: .leading)
 
-                                        // 速度
-                                        Text(item.speedText)
-                                            .font(.system(size: 11, design: .monospaced))
-                                            .foregroundStyle(item.speedBytesPerSec > 0 ? Color.accentColor : Color.secondary)
-                                            .frame(width: 80, alignment: .trailing)
+                                            // 傳輸檔名 (新增欄位)
+                                            HStack(spacing: 4) {
+                                                Image(systemName: fileIcon(for: item.fileName))
+                                                    .font(.system(size: 10))
+                                                    .foregroundStyle(.secondary)
+                                                Text(item.fileName)
+                                                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                                    .lineLimit(1)
+                                                    .truncationMode(.middle)
+                                            }
+                                            .frame(width: 140, alignment: .leading)
+                                            .help(item.path)
 
-                                        // 耗時
-                                        Text(item.durationText)
-                                            .font(.system(size: 11, design: .monospaced))
-                                            .foregroundStyle(.secondary)
-                                            .frame(width: 65, alignment: .trailing)
+                                            // 同步方向
+                                            Text(item.directionText)
+                                                .font(.system(size: 11))
+                                                .lineLimit(1)
+                                                .truncationMode(.middle)
+                                                .frame(width: 130, alignment: .leading)
 
-                                        // 檔案路徑
-                                        Text(item.path)
-                                            .font(.system(size: 11, design: .monospaced))
-                                            .lineLimit(1)
-                                            .truncationMode(.middle)
-                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            // 動作 / 狀態
+                                            HStack(spacing: 4) {
+                                                chipForOp(item.op, status: item.status)
+                                            }
+                                            .frame(width: 75, alignment: .leading)
+
+                                            // 大小
+                                            Text(item.sizeText)
+                                                .font(.system(size: 11, design: .monospaced))
+                                                .foregroundStyle(.secondary)
+                                                .frame(width: 70, alignment: .trailing)
+
+                                            // 速度
+                                            Text(item.speedText)
+                                                .font(.system(size: 11, design: .monospaced))
+                                                .foregroundStyle(item.speedBytesPerSec > 0 ? Color.accentColor : Color.secondary)
+                                                .frame(width: 80, alignment: .trailing)
+
+                                            // 耗時
+                                            Text(item.durationText)
+                                                .font(.system(size: 11, design: .monospaced))
+                                                .foregroundStyle(.secondary)
+                                                .frame(width: 60, alignment: .trailing)
+
+                                            // 檔案路徑
+                                            Text(item.path)
+                                                .font(.system(size: 11, design: .monospaced))
+                                                .lineLimit(1)
+                                                .truncationMode(.middle)
+                                                .foregroundStyle(.secondary)
+                                                .frame(minWidth: 160, maxWidth: .infinity, alignment: .leading)
+                                        }
+                                        .padding(.horizontal, 14)
+                                        .padding(.vertical, 7)
+                                        .background(index % 2 == 1 ? Color.primary.opacity(0.015) : Color.clear)
+                                        .id(item.id)
                                     }
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 7)
-                                    .background(index % 2 == 1 ? Color.primary.opacity(0.015) : Color.clear)
-                                    .id(item.id)
                                 }
                             }
-                        }
-                        .frame(minHeight: 280, maxHeight: 480)
-                        .onChange(of: filteredLogs.first?.id) { newestId in
-                            if autoScroll, let id = newestId {
-                                withAnimation {
-                                    proxy.scrollTo(id, anchor: .top)
+                            .frame(minHeight: 280, maxHeight: 480)
+                            .onChange(of: filteredLogs.first?.id) { newestId in
+                                if autoScroll, let id = newestId {
+                                    withAnimation {
+                                        proxy.scrollTo(id, anchor: .top)
+                                    }
                                 }
                             }
                         }
                     }
+                    .frame(minWidth: 920)
                 }
             }
+        }
+    }
+
+    private func fileIcon(for filename: String) -> String {
+        let ext = (filename as NSString).pathExtension.lowercased()
+        switch ext {
+        case "swift", "kt", "ts", "js", "py", "rs", "go", "c", "cpp", "h", "java", "json", "yaml", "yml", "xml", "html", "css", "md", "txt":
+            return "doc.text"
+        case "png", "jpg", "jpeg", "gif", "webp", "heic", "svg", "icns":
+            return "photo"
+        case "mp4", "mov", "mkv", "avi":
+            return "film"
+        case "mp3", "wav", "m4a", "flac":
+            return "waveform"
+        case "pdf":
+            return "doc.richtext"
+        case "zip", "tar", "gz", "7z", "dmg", "pkg":
+            return "archivebox"
+        case "db", "sqlite", "sqlite3":
+            return "cylinder"
+        default:
+            return "doc"
         }
     }
 
@@ -756,18 +799,114 @@ struct SyncActivitySection: View {
 
     private func exportLogs() {
         let savePanel = NSSavePanel()
-        savePanel.allowedContentTypes = [.commaSeparatedText]
-        savePanel.nameFieldStringValue = "SyncNexus-Activity-\(Date().formatted(date: .numeric, time: .omitted).replacingOccurrences(of: "/", with: "-")).csv"
+        let mdType = UTType(filenameExtension: "md") ?? .plainText
+        savePanel.allowedContentTypes = [mdType, .plainText, .commaSeparatedText]
+        let dateStr = Date().formatted(date: .numeric, time: .omitted).replacingOccurrences(of: "/", with: "-")
+        savePanel.nameFieldStringValue = "SyncNexus-Activity-\(dateStr).md"
         NSApp.activate(ignoringOtherApps: true)
         if savePanel.runModal() == .OK, let url = savePanel.url {
-            var csv = "Time,Group,Direction,Action,Size(Bytes),Speed(Bytes/s),Duration(s),Path,Status\n"
-            for log in filteredLogs {
-                let timeStr = log.timestamp.formatted(date: .numeric, time: .standard)
-                let row = "\"\(timeStr)\",\"\(log.groupName)\",\"\(log.directionText)\",\"\(log.op)\",\(log.size),\(Int(log.speedBytesPerSec)),\(log.duration),\"\(log.path)\",\"\(log.status)\"\n"
-                csv.append(row)
+            let ext = url.pathExtension.lowercased()
+            let content: String
+            switch ext {
+            case "txt", "text":
+                content = generateTextExport(filteredLogs)
+            case "csv":
+                content = generateCSVExport(filteredLogs)
+            case "md", "markdown":
+                fallthrough
+            default:
+                content = generateMarkdownExport(filteredLogs)
             }
-            try? csv.write(to: url, atomically: true, encoding: .utf8)
+            try? content.write(to: url, atomically: true, encoding: .utf8)
         }
+    }
+
+    private func generateMarkdownExport(_ logs: [SyncLogItem]) -> String {
+        let groupTitle = selectedGroupFilter == "ALL" ? loc("activity_all_groups") : (model.groups.first { $0.id == selectedGroupFilter }.map(model.groupName) ?? selectedGroupFilter)
+        let nowStr = Date().formatted(date: .numeric, time: .standard)
+        let totalSize = logs.reduce(Int64(0)) { $0 + $1.size }
+        let successCount = logs.filter { $0.status == "done" }.count
+        let failedCount = logs.filter { $0.status != "done" }.count
+
+        var md = """
+        # SyncNexus 同步動態記錄報告
+
+        > **匯出時間**：`\(nowStr)`  
+        > **檢視群組**：`\(groupTitle)`  
+        > **總記錄筆數**：\(logs.count) 筆  
+        > **傳輸總大小**：\(bytes(totalSize))  
+        > **狀態統計**：成功 \(successCount) 筆 / 失敗或例外 \(failedCount) 筆  
+
+        ---
+
+        ## 傳輸活動清單
+
+        | 時間 | 群組 | 傳輸檔名 | 同步方向 | 動作 / 狀態 | 大小 | 傳輸速度 | 耗時 | 相對路徑 |
+        | :--- | :--- | :--- | :--- | :--- | ---: | ---: | ---: | :--- |
+
+        """
+
+        for log in logs {
+            let timeStr = log.timestamp.formatted(date: .numeric, time: .standard)
+            let safeFileName = log.fileName.replacingOccurrences(of: "|", with: "\\|")
+            let safeGroup = log.groupName.replacingOccurrences(of: "|", with: "\\|")
+            let safeDir = log.directionText.replacingOccurrences(of: "|", with: "\\|")
+            let safeOp = "\(log.op) (\(log.status))"
+            let safePath = log.path.replacingOccurrences(of: "|", with: "\\|")
+            let row = "| \(timeStr) | \(safeGroup) | `\(safeFileName)` | \(safeDir) | \(safeOp) | \(log.sizeText) | \(log.speedText) | \(log.durationText) | `\(safePath)` |\n"
+            md.append(row)
+        }
+
+        md.append("\n---\n*本報告由 SyncNexus 自動匯出產出*\n")
+        return md
+    }
+
+    private func generateTextExport(_ logs: [SyncLogItem]) -> String {
+        let groupTitle = selectedGroupFilter == "ALL" ? loc("activity_all_groups") : (model.groups.first { $0.id == selectedGroupFilter }.map(model.groupName) ?? selectedGroupFilter)
+        let totalSize = logs.reduce(Int64(0)) { $0 + $1.size }
+        let nowStr = Date().formatted(date: .numeric, time: .standard)
+
+        var txt = """
+        ========================================================================================================================
+        SyncNexus 同步動態日誌報告 (Activity Report)
+        ========================================================================================================================
+        匯出時間：\(nowStr)
+        群組篩選：\(groupTitle)
+        記錄筆數：\(logs.count) 筆
+        傳輸總量：\(bytes(totalSize))
+        ------------------------------------------------------------------------------------------------------------------------
+        時間                 群組        檔名                     同步方向          動作     大小      速度        耗時    路徑
+        ------------------------------------------------------------------------------------------------------------------------
+
+        """
+
+        for log in logs {
+            let timeStr = log.timestamp.formatted(date: .numeric, time: .standard)
+            let line = String(format: "%-19@  %-10@  %-22@  %-16@  %-7@  %8@  %10@  %7@  %@\n",
+                             timeStr as NSString,
+                             log.groupName as NSString,
+                             log.fileName as NSString,
+                             log.directionText as NSString,
+                             log.op as NSString,
+                             log.sizeText as NSString,
+                             log.speedText as NSString,
+                             log.durationText as NSString,
+                             log.path as NSString)
+            txt.append(line)
+        }
+
+        txt.append("========================================================================================================================\n")
+        return txt
+    }
+
+    private func generateCSVExport(_ logs: [SyncLogItem]) -> String {
+        var csv = "Time,Group,FileName,Direction,Action,Size(Bytes),SizeFormatted,Speed(Bytes/s),SpeedFormatted,Duration(s),DurationFormatted,Path,Status,Error\n"
+        for log in logs {
+            let timeStr = log.timestamp.formatted(date: .numeric, time: .standard)
+            let row = "\"\(timeStr)\",\"\(log.groupName)\",\"\(log.fileName)\",\"\(log.directionText)\",\"\(log.op)\",\(log.size),\"\(log.sizeText)\",\(Int(log.speedBytesPerSec)),\"\(log.speedText)\",\(log.duration),\"\(log.durationText)\",\"\(log.path)\",\"\(log.status)\",\"\(log.error ?? "")\"\n"
+            csv.append(row)
+        }
+        return csv
     }
 }
 

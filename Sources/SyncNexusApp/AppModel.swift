@@ -53,6 +53,10 @@ public struct SyncLogItem: Identifiable, Sendable {
     public let status: String
     public let error: String?
 
+    public var fileName: String {
+        URL(fileURLWithPath: path).lastPathComponent
+    }
+
     public var directionText: String {
         if let src = sourceEndpoint, !src.isEmpty {
             return "\(DisplayNames.endpoint(src)) ➔ \(DisplayNames.endpoint(destinationEndpoint))"
@@ -141,6 +145,7 @@ final class AppModel: ObservableObject {
         for group in groups {
             startService(for: group)
         }
+        loadHistoricalSyncLogs()
 
         if let i = CommandLine.arguments.firstIndex(of: "--section"), i + 1 < CommandLine.arguments.count,
            let sec = MainSection(rawValue: CommandLine.arguments[i + 1]) { section = sec }     // debugging aid
@@ -196,8 +201,79 @@ final class AppModel: ObservableObject {
             error: event.error
         )
         syncLogs.insert(item, at: 0)
-        if syncLogs.count > 1500 {
-            syncLogs.removeLast(syncLogs.count - 1500)
+        if syncLogs.count > 3000 {
+            syncLogs.removeLast(syncLogs.count - 3000)
+        }
+    }
+
+    /// Preloads recent sync journal history from the persistent database (up to 1,000 records per group)
+    /// so the Activity Center displays full history upon app startup.
+    func loadHistoricalSyncLogs() {
+        let groupsSnapshot = self.groups
+        let groupNames = Dictionary(uniqueKeysWithValues: groupsSnapshot.map { ($0.id, groupName($0)) })
+        let paths = groupsSnapshot.map { (id: $0.id, path: registry.dbPath(for: $0.id)) }
+
+        Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self = self else { return }
+            var allItems: [SyncLogItem] = []
+            let iso = ISO8601DateFormatter()
+
+            for item in paths {
+                guard FileManager.default.fileExists(atPath: item.path) else { continue }
+                do {
+                    let store = try Store(path: item.path)
+                    let records = try store.recentJournalRecords(limit: 1000)
+                    let gName = groupNames[item.id] ?? item.id
+                    for r in records {
+                        let date = iso.date(from: r.time) ?? Date()
+                        var srcEp: String? = r.sourceEndpoint.isEmpty ? nil : r.sourceEndpoint
+                        if srcEp == nil && r.detail.hasPrefix("from ") {
+                            let detailPath = String(r.detail.dropFirst(5))
+                            srcEp = URL(fileURLWithPath: detailPath).deletingLastPathComponent().lastPathComponent
+                        }
+                        let log = SyncLogItem(
+                            timestamp: date,
+                            groupId: item.id,
+                            groupName: gName,
+                            op: r.op,
+                            path: r.path,
+                            sourceEndpoint: srcEp,
+                            destinationEndpoint: r.endpoint,
+                            size: r.size,
+                            duration: r.duration,
+                            speedBytesPerSec: r.speed,
+                            status: r.status,
+                            error: r.status.hasPrefix("failed") ? r.status : nil
+                        )
+                        allItems.append(log)
+                    }
+                } catch {
+                    // Skip if locked or inaccessible
+                }
+            }
+
+            allItems.sort { $0.timestamp > $1.timestamp }
+            let sortedItems = allItems
+
+            await MainActor.run {
+                if self.syncLogs.isEmpty {
+                    self.syncLogs = sortedItems
+                } else {
+                    var combined = self.syncLogs
+                    let existingKeys = Set(combined.map { "\($0.groupId)_\($0.path)_\(Int($0.timestamp.timeIntervalSince1970))" })
+                    for it in sortedItems {
+                        let key = "\(it.groupId)_\(it.path)_\(Int(it.timestamp.timeIntervalSince1970))"
+                        if !existingKeys.contains(key) {
+                            combined.append(it)
+                        }
+                    }
+                    combined.sort { $0.timestamp > $1.timestamp }
+                    if combined.count > 3000 {
+                        combined.removeLast(combined.count - 3000)
+                    }
+                    self.syncLogs = combined
+                }
+            }
         }
     }
 

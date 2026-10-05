@@ -42,6 +42,7 @@ struct SyncNexusApp: App {
 
         Window("Sync-Nexus", id: "settings") {
             MainWindowView(model: model)
+                .background(AppWindowIdentifierView(identifier: AppWindowPresenter.settingsID))
         }
         .windowResizability(.contentMinSize)
     }

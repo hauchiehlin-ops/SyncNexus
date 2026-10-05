@@ -7,11 +7,15 @@ struct PopoverView: View {
     @ObservedObject var model: AppModel
     @ObservedObject private var l10n = L10n.shared
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismiss) private var dismiss
 
     private func openMain(_ s: MainSection) {
         model.section = s
-        openWindow(id: "settings")
-        NSApp.activate(ignoringOtherApps: true)
+        // A MenuBarExtra window remains key unless explicitly dismissed. If the
+        // main window already exists, openWindow alone therefore leaves it hidden
+        // behind this popover and makes the button appear to do nothing.
+        dismiss()
+        AppWindowPresenter.presentSettings(using: openWindow)
     }
 
     private var totalEndpoints: Int { model.groupStates.reduce(0) { $0 + $1.snap.endpoints.count } }

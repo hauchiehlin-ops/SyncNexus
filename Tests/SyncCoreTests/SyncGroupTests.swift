@@ -172,4 +172,34 @@ struct SyncGroupTests {
         #expect(!rules.isIgnored(relativePath: "OtherProject/FileSynFake.txt"))
         #expect(!rules.isIgnored(relativePath: "OtherProject/main.swift"))
     }
+
+    @Test func journalRecordsPersistenceAndQuery() throws {
+        let dir = try tmpDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let dbPath = dir.appendingPathComponent("state.db").path
+        let store = try Store(path: dbPath)
+
+        let id = try store.journalBegin(
+            op: "copy",
+            endpoint: "Mobil",
+            path: "Sources/main.swift",
+            detail: "from /Users/test/Sources/main.swift",
+            size: 2048,
+            duration: 0.05,
+            speed: 40960,
+            sourceEndpoint: "本機"
+        )
+        try store.journalEnd(id, status: "done", size: 2048, duration: 0.05, speed: 40960, sourceEndpoint: "本機")
+
+        let records = try store.recentJournalRecords(limit: 10)
+        #expect(records.count == 1)
+        #expect(records[0].op == "copy")
+        #expect(records[0].endpoint == "Mobil")
+        #expect(records[0].path == "Sources/main.swift")
+        #expect(records[0].status == "done")
+        #expect(records[0].size == 2048)
+        #expect(records[0].duration == 0.05)
+        #expect(records[0].speed == 40960)
+        #expect(records[0].sourceEndpoint == "本機")
+    }
 }

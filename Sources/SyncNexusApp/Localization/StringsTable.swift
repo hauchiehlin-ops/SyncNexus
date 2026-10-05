@@ -113,6 +113,14 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .th: "กลุ่ม",
         .ko: "그룹"
     ],
+    "activity_col_filename": [
+        .en: "File Name",
+        .zhHant: "傳輸檔名",
+        .zhHans: "传输文件名",
+        .ja: "ファイル名",
+        .th: "ชื่อไฟล์",
+        .ko: "파일명"
+    ],
     "activity_col_direction": [
         .en: "Sync Direction",
         .zhHant: "同步方向",
