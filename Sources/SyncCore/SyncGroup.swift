@@ -9,17 +9,19 @@ public struct SyncGroup: Codable, Identifiable, Sendable, Equatable {
     public var icon: String
     public var createdAt: Date
     public var retentionDays: Int
+    public var customExcludes: [String]
 
-    public init(id: String, name: String, icon: String = "folder", createdAt: Date = Date(), retentionDays: Int = 30) {
+    public init(id: String, name: String, icon: String = "folder", createdAt: Date = Date(), retentionDays: Int = 30, customExcludes: [String] = []) {
         self.id = id
         self.name = name
         self.icon = icon
         self.createdAt = createdAt
         self.retentionDays = retentionDays
+        self.customExcludes = customExcludes
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, name, icon, createdAt, retentionDays
+        case id, name, icon, createdAt, retentionDays, customExcludes
     }
 
     public init(from decoder: Decoder) throws {
@@ -29,6 +31,7 @@ public struct SyncGroup: Codable, Identifiable, Sendable, Equatable {
         self.icon = try container.decodeIfPresent(String.self, forKey: .icon) ?? "folder"
         self.createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
         self.retentionDays = try container.decodeIfPresent(Int.self, forKey: .retentionDays) ?? 30
+        self.customExcludes = try container.decodeIfPresent([String].self, forKey: .customExcludes) ?? []
     }
 }
 
@@ -59,22 +62,25 @@ public final class SyncGroupRegistry: @unchecked Sendable {
     }
 
     @discardableResult
-    public func addGroup(name: String, icon: String = "folder", retentionDays: Int = 30) -> SyncGroup {
+    public func addGroup(name: String, icon: String = "folder", retentionDays: Int = 30, customExcludes: [String] = []) -> SyncGroup {
         lock.lock()
         defer { lock.unlock() }
         let id = "group_" + UUID().uuidString.prefix(8).lowercased()
-        let group = SyncGroup(id: id, name: name, icon: icon, createdAt: Date(), retentionDays: retentionDays)
+        let group = SyncGroup(id: id, name: name, icon: icon, createdAt: Date(), retentionDays: retentionDays, customExcludes: customExcludes)
         groups.append(group)
         save()
         return group
     }
 
-    public func updateGroup(id: String, name: String, icon: String) -> Bool {
+    public func updateGroup(id: String, name: String, icon: String, customExcludes: [String]? = nil) -> Bool {
         lock.lock()
         defer { lock.unlock() }
         guard let idx = groups.firstIndex(where: { $0.id == id }) else { return false }
         groups[idx].name = name
         groups[idx].icon = icon
+        if let customExcludes {
+            groups[idx].customExcludes = customExcludes
+        }
         save()
         return true
     }

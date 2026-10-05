@@ -16,10 +16,15 @@ public struct IgnoreRules: Sendable {
         suffixes: [".nexus-part", ".tmp", ".crdownload", ".part", ".tmp.drivedownload", ".gdoc", ".gsheet", ".gslides", ".gscript", ".gform", ".gdraw", ".gsite", ".gmap", ".gjam", ".gtable"]
     )
 
-    public init(exactNames: Set<String>, prefixes: [String], suffixes: [String]) {
+    public var pathPrefixes: [String] = []
+    public var exactPaths: Set<String> = []
+
+    public init(exactNames: Set<String>, prefixes: [String], suffixes: [String], pathPrefixes: [String] = [], exactPaths: Set<String> = []) {
         self.exactNames = exactNames
         self.prefixes = prefixes
         self.suffixes = suffixes
+        self.pathPrefixes = pathPrefixes
+        self.exactPaths = exactPaths
     }
 
     /// OS litter and partial transfers: safe to discard together with a folder that is being removed.
@@ -37,7 +42,10 @@ public struct IgnoreRules: Sendable {
     }
 
     public func isIgnored(relativePath path: String) -> Bool {
-        path.split(separator: "/").contains { isIgnored(component: String($0)) }
+        let clean = path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if exactPaths.contains(clean) { return true }
+        if pathPrefixes.contains(where: { clean == $0 || clean.hasPrefix($0 + "/") }) { return true }
+        return clean.split(separator: "/").contains { isIgnored(component: String($0)) }
     }
 }
 
@@ -81,6 +89,22 @@ extension IgnoreRules {
             case .photosLibraries: r.suffixes += [".photoslibrary", ".photolibrary"]
             case .buildCaches: r.exactNames.formUnion([".build", "build", "target", ".gradle", "DerivedData", "Pods"])
             case .pythonEnvironments: r.exactNames.formUnion(["venv", ".venv", "env", "__pycache__", ".pytest_cache", ".mypy_cache", ".tox"])
+            }
+        }
+        return r
+    }
+
+    public func applying(customPatterns: [String]) -> IgnoreRules {
+        var r = self
+        for pat in customPatterns {
+            let trimmed = pat.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            guard !trimmed.isEmpty else { continue }
+            if trimmed.contains("/") {
+                r.pathPrefixes.append(trimmed)
+            } else {
+                r.exactNames.insert(trimmed)
+                r.exactPaths.insert(trimmed)
+                r.pathPrefixes.append(trimmed)
             }
         }
         return r

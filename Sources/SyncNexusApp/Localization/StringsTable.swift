@@ -4303,6 +4303,38 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .th: "โฟลเดอร์นี้ถูกซิงค์โดยกลุ่ม '%@' (ปลายทาง '%@') อยู่แล้ว",
         .ko: "해당 폴더는 이미 '%@' 그룹('%@' 엔드포인트)에서 동기화 중입니다."
     ],
+    "folders_nested_in_other_group": [
+        .en: "Nested within group '%@' (endpoint '%@'). Sub-group path will be automatically isolated and excluded from the parent group.",
+        .zhHant: "與同步群組「%@」（端點「%@」）存在父子層巢狀關係，系統將自動於父群組排除該子路徑以避免衝突。",
+        .zhHans: "与同步群组“%@”（端点“%@”）存在父子层嵌套关系，系统将自动于父群组排除该子路径以避免冲突。",
+        .ja: "グループ「%@」（エンドポイント「%@」）と親子関係にあります。競合を防ぐため親グループから自動的に除外されます。",
+        .th: "มีความสัมพันธ์แบบซ้อนกับกลุ่ม '%@' (ปลายทาง '%@') ระบบจะแยกและยกเว้นเส้นทางนี้ในกลุ่มหลักโดยอัตโนมัติ",
+        .ko: "'%@' 그룹('%@' 엔드포인트)과 중첩 관계입니다. 충돌 방지를 위해 상위 그룹에서 자동으로 제외됩니다."
+    ],
+    "group_excludes_label": [
+        .en: "Custom Exclude Paths / Folders:",
+        .zhHant: "自訂排除路徑或資料夾：",
+        .zhHans: "自定义排除路径或文件夹：",
+        .ja: "カスタム除外パス / フォルダ:",
+        .th: "เส้นทาง/โฟลเดอร์ที่ยกเว้นที่กำหนดเอง:",
+        .ko: "사용자 지정 제외 경로/폴더:"
+    ],
+    "group_excludes_placeholder": [
+        .en: "e.g. temp, cache, sub-project (comma-separated)",
+        .zhHant: "例如：temp, cache, sub-project（以逗號或空格分隔）",
+        .zhHans: "例如：temp, cache, sub-project（以逗号或空格分隔）",
+        .ja: "例: temp, cache, sub-project (カンマ区切り)",
+        .th: "เช่น temp, cache, sub-project (คั่นด้วยเครื่องหมายจุลภาค)",
+        .ko: "예: temp, cache, sub-project (쉼표로 구분)"
+    ],
+    "group_excludes_hint": [
+        .en: "Specified folder names or relative paths will be ignored during synchronization. Nested sub-groups are automatically excluded.",
+        .zhHant: "此處設定的資料夾或相對路徑在同步時將被完全忽略。若有重疊的子群組，系統亦會自動排除。",
+        .zhHans: "此处设置的文件夹或相对路径在同步时将被完全忽略。若有重叠的子群组，系统亦会自动排除。",
+        .ja: "指定したフォルダ名または相対パスは同期から完全に除外されます。重なるサブグループは自動的に除外されます。",
+        .th: "ชื่อโฟลเดอร์หรือเส้นทางสัมพัทธ์ที่ระบุจะถูกละเว้นระหว่างการซิงค์ กลุ่มย่อยที่ซ้อนกันจะได้รับการยกเว้นโดยอัตโนมัติ",
+        .ko: "지정된 폴더 이름 또는 상대 경로는 동기화 시 완전히 무시됩니다. 중첩된 하위 그룹은 자동으로 제외됩니다."
+    ],
     "group_active_banner": [
         .en: "Current Sync Group: %@ (%d endpoints)",
         .zhHant: "目前同步群組：%@（共 %d 個端點資料夾）",

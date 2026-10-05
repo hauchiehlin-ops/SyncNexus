@@ -443,7 +443,12 @@ public final class Engine {
             report.notes.append("上次有 \(interrupted.count) 個操作中斷，已安全重新評估（每個動作皆冪等）")
         }
         policy = ConflictPolicy(rawValue: try store.meta("conflictPolicy") ?? "") ?? .keepBoth
-        effectiveIgnore = options.ignore.applying(IgnoreRules.parsePresets(try store.meta("excludePresets")))
+        var baseIgnore = options.ignore.applying(IgnoreRules.parsePresets(try store.meta("excludePresets")))
+        if let customRaw = try store.meta("customExcludes"), !customRaw.isEmpty {
+            let patterns = customRaw.split(separator: "\n").map { String($0) }
+            baseIgnore = baseIgnore.applying(customPatterns: patterns)
+        }
+        effectiveIgnore = baseIgnore
         let cfgs = try store.endpoints()
         cfgByID = Dictionary(uniqueKeysWithValues: cfgs.map { ($0.id, $0) })
         let firstRun = try store.consensusCount() == 0

@@ -159,4 +159,17 @@ struct SyncGroupTests {
         #expect(rules.isIgnored(component: "desktop.ini"))
         #expect(!rules.isIgnored(component: "Icon.png"))            // ordinary files are untouched
     }
+
+    @Test func customAndNestedExcludesWorkProperly() {
+        let rules = IgnoreRules.default.applying(customPatterns: ["FileSyn", "sub/nested", "temp_cache"])
+        #expect(rules.isIgnored(relativePath: "FileSyn"))
+        #expect(rules.isIgnored(relativePath: "FileSyn/file.txt"))
+        #expect(rules.isIgnored(relativePath: "FileSyn/deep/dir/a.swift"))
+        #expect(rules.isIgnored(relativePath: "sub/nested"))
+        #expect(rules.isIgnored(relativePath: "sub/nested/item.json"))
+        #expect(rules.isIgnored(relativePath: "temp_cache"))
+        #expect(rules.isIgnored(relativePath: "temp_cache/data.bin"))
+        #expect(!rules.isIgnored(relativePath: "OtherProject/FileSynFake.txt"))
+        #expect(!rules.isIgnored(relativePath: "OtherProject/main.swift"))
+    }
 }

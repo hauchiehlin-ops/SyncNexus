@@ -65,8 +65,10 @@ public final class Watcher {
             let comps = path.split(separator: "/")
             if comps.first == "Volumes" && comps.count == 2 { batch.full = true; touched = true; continue }      // a volume appeared or went away
             if flags[i] & mustFull != 0 { batch.full = true; touched = true; continue }
-            guard roots.contains(where: { path == $0 || path.hasPrefix($0 + "/") }) else { continue }
+            guard let matchedRoot = roots.first(where: { path == $0 || path.hasPrefix($0 + "/") }) else { continue }
             if let last = comps.last, ignore.isIgnored(component: String(last)) { continue }
+            let rel = String(path.dropFirst(matchedRoot.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            if !rel.isEmpty && ignore.isIgnored(relativePath: rel) { continue }
             batch.paths.insert(path); touched = true
         }
         if touched { immediate ? flush() : bump() }

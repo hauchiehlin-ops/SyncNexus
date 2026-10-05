@@ -344,6 +344,22 @@ public final class SyncService: @unchecked Sendable {
         }
     }
 
+    public func setCustomExcludes(_ patterns: [String], completion: @escaping @Sendable (Error?) -> Void) {
+        queue.async {
+            guard let engine = self.engine else { completion(DBError(description: "服務尚未啟動")); return }
+            do {
+                let serialized = patterns.joined(separator: "\n")
+                try engine.store.setMeta("customExcludes", serialized)
+                self.needFull = true
+                self.watchedRoots = [] // forces watcher restart with new ignore rules
+                self.runIfNeeded(confirmed: false)
+                completion(nil)
+            } catch {
+                completion(error)
+            }
+        }
+    }
+
     public func setExcludePresets(_ presets: Set<ExcludePreset>, completion: @escaping @Sendable (Error?) -> Void) {
         _ = presets
         let mandatory = ExcludePreset.defaults
@@ -707,7 +723,12 @@ public final class SyncService: @unchecked Sendable {
     private func startWatcher(_ roots: [String], since: UInt64?) {
         rootMap = roots.map { ($0, URL(fileURLWithPath: $0).resolvingSymlinksInPath().path) }
         watcher?.stop()
-        let w = Watcher(roots: roots, sinceEventId: since) { [weak self] batch in self?.queue.async { self?.ingest(batch) } }
+        var currentIgnore = snapshot.excludePresets.isEmpty ? IgnoreRules.default : IgnoreRules.default.applying(snapshot.excludePresets)
+        if let store = engine?.store, let customRaw = (try? store.meta("customExcludes")) ?? nil, !customRaw.isEmpty {
+            let patterns = customRaw.split(separator: "\n").map { String($0) }
+            currentIgnore = currentIgnore.applying(customPatterns: patterns)
+        }
+        let w = Watcher(roots: roots, ignore: currentIgnore, sinceEventId: since) { [weak self] batch in self?.queue.async { self?.ingest(batch) } }
         w.start()
         watcher = w
         watchedRoots = roots

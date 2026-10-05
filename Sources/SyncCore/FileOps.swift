@@ -75,15 +75,13 @@ public enum FileOps {
                 let url = dir.appendingPathComponent(name)
                 if name.hasSuffix(".nexus-part") { result.leftovers.append(url); continue }
                 if ignore.isIgnored(component: name) { continue }
-                guard let st = getStat(path: url.path) else { continue }
                 let rel = prefix + PortableName.canonical(name)
+                if ignore.isIgnored(relativePath: rel) { continue }
+                guard let st = getStat(path: url.path) else { continue }
                 discovered += 1
                 progress?(rel, discovered)
                 if st.isDir {
-                    // Early pruning: Never descend into ignored directories (e.g. target, .build, node_modules, .git)
-                    if ignore.isIgnored(component: name) || ignore.isIgnored(relativePath: rel) {
-                        continue
-                    }
+                    // Early pruning: Never descend into ignored directories (e.g. target, .build, node_modules, .git, or excluded sub-groups)
                     result.files[rel] = ScannedFile(rel: rel, url: url, size: 0, mtimeNs: st.mtimeNs,
                                                     mtime: Date(timeIntervalSince1970: Double(st.mtimeNs) / 1e9),
                                                     isPlaceholder: false, isDirectory: true)
@@ -100,10 +98,10 @@ public enum FileOps {
             // Incremental: only these paths (a file, or a folder with everything below it), as reported by event stream.
             for p in prefixes where !p.isEmpty {
                 if shouldCancel?() == true { throw ScanCancelled() }
-                if p.split(separator: "/").contains(where: { ignore.isIgnored(component: String($0)) }) { continue }
+                let rel = PortableName.canonical(p)
+                if ignore.isIgnored(relativePath: rel) { continue }
                 let url = root.appendingPathComponent(p)
                 guard let st = getStat(path: url.path) else { continue }
-                let rel = PortableName.canonical(p)
                 discovered += 1
                 progress?(rel, discovered)
                 if st.isDir {

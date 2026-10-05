@@ -205,6 +205,34 @@ final class AppModel: ObservableObject {
         syncLogs.removeAll()
     }
 
+    // MARK: automatic sub-group pruning & custom exclusions
+
+    /// Automatically discovers nested/sub-group endpoint roots and combines them with user custom excludes.
+    /// Injects these relative paths into each parent group's service so parent groups never touch or compete with child groups.
+    func recalculateEffectiveExcludes() {
+        for group in groups {
+            var excludes = Set(group.customExcludes)
+            let myEndpoints = snapshots[group.id]?.endpoints.map(\.root) ?? []
+            for myRoot in myEndpoints {
+                let resolvedParent = EndpointValidator.resolved(myRoot)
+                for otherGroup in groups where otherGroup.id != group.id {
+                    let otherEndpoints = snapshots[otherGroup.id]?.endpoints.map(\.root) ?? []
+                    for otherRoot in otherEndpoints {
+                        let resolvedChild = EndpointValidator.resolved(otherRoot)
+                        if resolvedChild.hasPrefix(resolvedParent + "/") {
+                            let rel = String(resolvedChild.dropFirst(resolvedParent.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                            if !rel.isEmpty {
+                                excludes.insert(rel)
+                            }
+                        }
+                    }
+                }
+            }
+            let list = Array(excludes).sorted()
+            services[group.id]?.setCustomExcludes(list) { _ in }
+        }
+    }
+
     // MARK: Finder folder icons
 
     /// Folder path → symbol of its group, for every online folder of every group whose icon is not the plain folder.
@@ -247,7 +275,12 @@ final class AppModel: ObservableObject {
     }
 
     private func apply(groupId: String, snapshot s: SyncService.Snapshot) {
+        let oldEndpoints = snapshots[groupId]?.endpoints.map(\.root) ?? []
+        let newEndpoints = s.endpoints.map(\.root)
         snapshots[groupId] = s
+        if oldEndpoints != newEndpoints {
+            recalculateEffectiveExcludes()
+        }
         if isCancellingRuns && snapshots.values.allSatisfy({ $0.progress == nil }) { isCancellingRuns = false }
         objectWillChange.send()   // the menu bar shows every group, not only the active one
         refreshFolderIcons()      // diff-based: does nothing unless a folder or a group icon changed
@@ -523,21 +556,23 @@ final class AppModel: ObservableObject {
         loadVersions()
     }
 
-    func createGroup(name: String, icon: String = "folder") {
+    func createGroup(name: String, icon: String = "folder", customExcludes: [String] = []) {
         // An unnamed group stores no text; its name is chosen per language when shown.
-        let newGroup = registry.addGroup(name: name.trimmingCharacters(in: .whitespaces), icon: icon)
+        let newGroup = registry.addGroup(name: name.trimmingCharacters(in: .whitespaces), icon: icon, customExcludes: customExcludes)
         groups = registry.allGroups()
         startService(for: newGroup)
         selectGroup(id: newGroup.id)
+        recalculateEffectiveExcludes()
         settingsMessage = loc("group_created_toast", groupName(newGroup))
     }
 
-    func updateGroup(id: String, name: String, icon: String) {
+    func updateGroup(id: String, name: String, icon: String, customExcludes: [String]? = nil) {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty || groups.first(where: { $0.id == id })?.name.isEmpty == true else { return }
-        if registry.updateGroup(id: id, name: trimmed, icon: icon) {
+        if registry.updateGroup(id: id, name: trimmed, icon: icon, customExcludes: customExcludes) {
             groups = registry.allGroups()
             refreshFolderIcons()   // a new group icon applies to its folders right away
+            recalculateEffectiveExcludes()
             settingsMessage = loc("group_updated_toast", trimmed.isEmpty ? (groups.first { $0.id == id }.map(groupName) ?? "") : trimmed)
         }
     }
@@ -783,6 +818,12 @@ final class AppModel: ObservableObject {
             if let ep = s.endpoints.first(where: { EndpointValidator.resolved($0.root) == resPath }) {
                 let gName = groups.first(where: { $0.id == gid }).map(groupName) ?? gid
                 issues.append(ValidationIssue(isError: true, message: loc("folders_used_in_other_group", gName, DisplayNames.endpoint(ep.id))))
+            } else if let ep = s.endpoints.first(where: {
+                let o = EndpointValidator.resolved($0.root)
+                return resPath.hasPrefix(o + "/") || o.hasPrefix(resPath + "/")
+            }) {
+                let gName = groups.first(where: { $0.id == gid }).map(groupName) ?? gid
+                issues.append(ValidationIssue(isError: false, message: loc("folders_nested_in_other_group", gName, DisplayNames.endpoint(ep.id))))
             }
         }
         return issues

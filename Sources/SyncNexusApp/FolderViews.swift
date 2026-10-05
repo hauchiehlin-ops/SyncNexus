@@ -378,6 +378,7 @@ struct EditGroupSheet: View {
     let group: SyncGroup
     @State private var name: String
     @State private var selectedIcon: String
+    @State private var customExcludesText: String
     let close: () -> Void
 
     init(model: AppModel, group: SyncGroup, close: @escaping () -> Void) {
@@ -385,6 +386,7 @@ struct EditGroupSheet: View {
         self.group = group
         self._name = State(initialValue: group.name)
         self._selectedIcon = State(initialValue: group.icon)
+        self._customExcludesText = State(initialValue: group.customExcludes.joined(separator: ", "))
         self.close = close
     }
 
@@ -419,6 +421,15 @@ struct EditGroupSheet: View {
                 }
             }
 
+            VStack(alignment: .leading, spacing: 6) {
+                Text(loc("group_excludes_label")).font(.system(size: 13, weight: .medium))
+                TextField(loc("group_excludes_placeholder"), text: $customExcludesText)
+                    .textFieldStyle(.roundedBorder)
+                Text(loc("group_excludes_hint"))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+
             HStack {
                 Button(role: .destructive) {
                     close()
@@ -434,7 +445,11 @@ struct EditGroupSheet: View {
                     .buttonStyle(QuietButton(kind: .secondary))
                     .keyboardShortcut(.cancelAction)
                 Button(loc("save")) {
-                    model.updateGroup(id: group.id, name: name, icon: selectedIcon)
+                    let parsedExcludes = customExcludesText
+                        .split(whereSeparator: { $0 == "," || $0 == "\n" || $0 == " " })
+                        .map { String($0).trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "/")) }
+                        .filter { !$0.isEmpty }
+                    model.updateGroup(id: group.id, name: name, icon: selectedIcon, customExcludes: parsedExcludes)
                     close()
                 }
                 .buttonStyle(QuietButton(kind: .primary))
