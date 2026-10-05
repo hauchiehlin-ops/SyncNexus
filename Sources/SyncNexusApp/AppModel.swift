@@ -1026,23 +1026,81 @@ final class AppModel: ObservableObject {
     @Published var resolvingConflictIds: Set<Int64> = []
 
     func resolve(_ c: SyncService.ConflictItem, keep: ConflictChoice) {
-        resolvingConflictIds.insert(c.id)
-        service.resolveConflict(id: c.id, keep: keep) { [weak self] err in
+        resolveBatch([(c: c, keep: keep)])
+    }
+
+    func resolveBatch(_ resolutions: [(c: SyncService.ConflictItem, keep: ConflictChoice)]) {
+        guard !resolutions.isEmpty else { return }
+        let ids = Set(resolutions.map { $0.c.id })
+        resolvingConflictIds.formUnion(ids)
+        let pairs = resolutions.map { ($0.c.id, $0.keep) }
+        service.resolveConflicts(resolutions: pairs) { [weak self] err in
             Task { @MainActor in
-                self?.resolvingConflictIds.remove(c.id)
+                self?.resolvingConflictIds.subtract(ids)
                 if let err {
                     self?.settingsMessage = loc("msg_add_failed", CoreMessages.localize(err))
                 } else {
                     withAnimation(.easeInOut(duration: 0.35)) {
-                        self?.snap.conflicts.removeAll { $0.id == c.id }
+                        self?.snap.conflicts.removeAll { ids.contains($0.id) }
                         if let gid = self?.activeGroupId {
-                            self?.snapshots[gid]?.conflicts.removeAll { $0.id == c.id }
+                            self?.snapshots[gid]?.conflicts.removeAll { ids.contains($0.id) }
                         }
                     }
-                    self?.settingsMessage = keep == .main ? loc("msg_conflict_kept_main") : loc("msg_conflict_used_extra")
+                    if resolutions.count == 1 {
+                        self?.settingsMessage = resolutions[0].keep == .main ? loc("msg_conflict_kept_main") : loc("msg_conflict_used_extra")
+                    } else {
+                        self?.settingsMessage = loc("msg_conflicts_batch_resolved", resolutions.count)
+                    }
                 }
             }
         }
+    }
+
+    func resolveAllNewer() {
+        let resolutions = snap.conflicts.compactMap { c -> (c: SyncService.ConflictItem, keep: ConflictChoice)? in
+            guard c.endpointOnline, !resolvingConflictIds.contains(c.id) else { return nil }
+            let extraNewer = (c.extraModified ?? .distantPast) > (c.mainModified ?? .distantPast)
+            return (c: c, keep: extraNewer ? .conflict : .main)
+        }
+        resolveBatch(resolutions)
+    }
+
+    func resolveAllCurrent() {
+        let resolutions = snap.conflicts.compactMap { c -> (c: SyncService.ConflictItem, keep: ConflictChoice)? in
+            guard c.endpointOnline, !resolvingConflictIds.contains(c.id) else { return nil }
+            return (c: c, keep: .main)
+        }
+        resolveBatch(resolutions)
+    }
+
+    func resolveAllEndpoint() {
+        let resolutions = snap.conflicts.compactMap { c -> (c: SyncService.ConflictItem, keep: ConflictChoice)? in
+            guard c.endpointOnline, !resolvingConflictIds.contains(c.id) else { return nil }
+            return (c: c, keep: .conflict)
+        }
+        resolveBatch(resolutions)
+    }
+
+    func resolveAllSamePath(path: String, keep: ConflictChoice) {
+        let resolutions = snap.conflicts.filter { $0.path == path && $0.endpointOnline && !resolvingConflictIds.contains($0.id) }
+            .map { (c: $0, keep: keep) }
+        resolveBatch(resolutions)
+    }
+
+    func resolveAllSamePathNewer(path: String) {
+        let resolutions = snap.conflicts.filter { $0.path == path && $0.endpointOnline && !resolvingConflictIds.contains($0.id) }
+            .map { c -> (c: SyncService.ConflictItem, keep: ConflictChoice) in
+                let extraNewer = (c.extraModified ?? .distantPast) > (c.mainModified ?? .distantPast)
+                return (c: c, keep: extraNewer ? .conflict : .main)
+            }
+        resolveBatch(resolutions)
+    }
+
+    func resolveAllSameExtension(ext: String, keep: ConflictChoice) {
+        let resolutions = snap.conflicts.filter {
+            ($0.path as NSString).pathExtension.lowercased() == ext.lowercased() && $0.endpointOnline && !resolvingConflictIds.contains($0.id)
+        }.map { (c: $0, keep: keep) }
+        resolveBatch(resolutions)
     }
 
     func revealInEndpoint(_ endpoint: String, _ rel: String) {

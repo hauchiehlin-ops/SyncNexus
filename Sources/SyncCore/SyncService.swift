@@ -440,24 +440,28 @@ public final class SyncService: @unchecked Sendable {
     }
 
     public func resolveConflict(id: Int64, keep: ConflictChoice, completion: @escaping @Sendable (Error?) -> Void) {
+        resolveConflicts(resolutions: [(id, keep)], completion: completion)
+    }
+
+    public func resolveConflicts(resolutions: [(id: Int64, keep: ConflictChoice)], completion: @escaping @Sendable (Error?) -> Void) {
         queue.async {
-            self.attemptResolveConflict(id: id, keep: keep, retriesLeft: 30, completion: completion)
+            self.attemptResolveConflicts(resolutions: resolutions, retriesLeft: 30, completion: completion)
         }
     }
 
-    private func attemptResolveConflict(id: Int64, keep: ConflictChoice, retriesLeft: Int, completion: @escaping @Sendable (Error?) -> Void) {
+    private func attemptResolveConflicts(resolutions: [(id: Int64, keep: ConflictChoice)], retriesLeft: Int, completion: @escaping @Sendable (Error?) -> Void) {
         guard let engine = self.engine else { completion(DBError(description: "服務尚未啟動")); return }
         do {
-            try engine.resolveConflictRecord(id, keep: keep)
+            try engine.resolveConflictRecords(resolutions)
             let cfgs = (try? engine.store.endpoints()) ?? []
             self.snapshot.conflicts = (try? self.currentConflicts(engine, cfgs)) ?? []
             self.publish()
             completion(nil)
-            self.runIfNeeded(confirmed: false)     // spreads the chosen version
+            self.runIfNeeded(confirmed: false)     // spreads the chosen versions
         } catch is SyncBusy where retriesLeft > 0 {
             // Background sync is active; retry after a short delay once lock is released
             self.queue.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                self?.attemptResolveConflict(id: id, keep: keep, retriesLeft: retriesLeft - 1, completion: completion)
+                self?.attemptResolveConflicts(resolutions: resolutions, retriesLeft: retriesLeft - 1, completion: completion)
             }
         } catch {
             completion(error)

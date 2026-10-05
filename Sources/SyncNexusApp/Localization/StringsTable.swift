@@ -185,6 +185,14 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .th: "เสร็จสมบูรณ์",
         .ko: "완료"
     ],
+    "badge_recommended": [
+        .en: "Recommended",
+        .zhHant: "推薦",
+        .zhHans: "推荐",
+        .ja: "おすすめ",
+        .th: "แนะนำ",
+        .ko: "추천"
+    ],
     "back": [
         .en: "Back",
         .zhHant: "上一步",
@@ -384,6 +392,110 @@ public let StringsTable: [String: [AppLanguage: String]] = [
         .ja: "「%@」のバージョン",
         .th: "เวอร์ชันบน \"%@\"",
         .ko: "'%@'의 버전"
+    ],
+    "conflicts_batch_title": [
+        .en: "One-Click Batch Resolution",
+        .zhHant: "一鍵批次處理",
+        .zhHans: "一键批量处理",
+        .ja: "一括解決",
+        .th: "แก้ไขข้อขัดแย้งแบบกลุ่ม",
+        .ko: "원클릭 일괄 해결"
+    ],
+    "conflicts_batch_desc": [
+        .en: "%d conflicts waiting for decision. Quickly resolve them using batch rules.",
+        .zhHant: "共有 %d 個衝突待決定，可使用規則一鍵快速批次套用。",
+        .zhHans: "共有 %d 个冲突待决定，可使用规则一键快速批量应用。",
+        .ja: "%d 件の競合があります。ルールに従って一括で素早く適用できます。",
+        .th: "มีข้อขัดแย้ง %d รายการที่รอการตัดสินใจ สามารถใช้กฎเพื่อแก้ไขเป็นกลุ่มได้อย่างรวดเร็ว",
+        .ko: "%d개의 충돌이 대기 중입니다. 규칙을 사용하여 한 번에 빠르게 일괄 적용할 수 있습니다."
+    ],
+    "conflicts_batch_all_newer": [
+        .en: "Keep All Newer Versions",
+        .zhHant: "一鍵全部保留較新版本",
+        .zhHans: "一键全部保留较新版本",
+        .ja: "新しい方を一括保持",
+        .th: "เก็บเวอร์ชันที่ใหม่กว่าทั้งหมดในคลิกเดียว",
+        .ko: "더 최신 버전 모두 일괄 유지"
+    ],
+    "conflicts_batch_all_current": [
+        .en: "Keep All Current Versions",
+        .zhHant: "全部保留目前版本",
+        .zhHans: "全部保留当前版本",
+        .ja: "現在のバージョンを一括保持",
+        .th: "เก็บเวอร์ชันปัจจุบันทั้งหมด",
+        .ko: "현재 버전 모두 유지"
+    ],
+    "conflicts_batch_all_endpoint": [
+        .en: "Use All Endpoint Versions",
+        .zhHant: "全部改用各端點版本",
+        .zhHans: "全部改用各端点版本",
+        .ja: "各エンドポイントのバージョンを採用",
+        .th: "ใช้เวอร์ชันปลายทางทั้งหมด",
+        .ko: "엔드포인트 버전 모두 채택"
+    ],
+    "conflicts_batch_same_file_banner": [
+        .en: "This file has conflicts across %d endpoints",
+        .zhHant: "此檔案在 %d 個端點同時發生衝突",
+        .zhHans: "此文件在 %d 个端点同时发生冲突",
+        .ja: "このファイルは %d 箇所のエンドポイントで同時に競合しています",
+        .th: "ไฟล์นี้เกิดข้อขัดแย้งพร้อมกันใน %d ปลายทาง",
+        .ko: "이 파일은 %d개의 엔드포인트에서 동시에 충돌이 발생했습니다"
+    ],
+    "conflicts_batch_apply_same_file_main": [
+        .en: "Keep Current for All (%d)",
+        .zhHant: "全部保留目前版本 (%d)",
+        .zhHans: "全部保留当前版本 (%d)",
+        .ja: "すべて現在のバージョンを保持 (%d)",
+        .th: "เก็บเวอร์ชันปัจจุบันทั้งหมด (%d)",
+        .ko: "모든 엔드포인트 현재 버전 유지 (%d)"
+    ],
+    "conflicts_batch_apply_same_file_newer": [
+        .en: "Keep Newer for All (%d)",
+        .zhHant: "全部保留較新版本 (%d)",
+        .zhHans: "全部保留较新版本 (%d)",
+        .ja: "すべて新しい方を保持 (%d)",
+        .th: "เก็บเวอร์ชันใหม่กว่าทั้งหมด (%d)",
+        .ko: "모든 엔드포인트 최신 버전 유지 (%d)"
+    ],
+    "conflicts_batch_apply_same_file_extra": [
+        .en: "Use Endpoint Copy for All (%d)",
+        .zhHant: "全部改用此端點版本 (%d)",
+        .zhHans: "全部改用此端点版本 (%d)",
+        .ja: "すべてこちらを採用 (%d)",
+        .th: "ใช้ฉบับนี้แทนทั้งหมด (%d)",
+        .ko: "모두 이 버전으로 교체 (%d)"
+    ],
+    "conflicts_batch_apply_same_ext": [
+        .en: "Apply to All .%@ Files (%d)",
+        .zhHant: "套用至所有 .%@ 檔案 (%d)",
+        .zhHans: "应用至所有 .%@ 文件 (%d)",
+        .ja: "すべての .%@ ファイルに適用 (%d)",
+        .th: "นำไปใช้กับไฟล์ .%@ ทั้งหมด (%d)",
+        .ko: "모든 .%@ 파일에 적용 (%d)"
+    ],
+    "msg_conflicts_batch_resolved": [
+        .en: "Successfully resolved %d conflicts",
+        .zhHant: "已成功批次處理 %d 個衝突",
+        .zhHans: "已成功批量处理 %d 个冲突",
+        .ja: "%d 件の競合を一括解決しました",
+        .th: "แก้ไขข้อขัดแย้งสำเร็จ %d รายการ",
+        .ko: "%d개의 충돌을 일괄 해결했습니다"
+    ],
+    "conflicts_filter_all": [
+        .en: "All (%d)",
+        .zhHant: "全部 (%d)",
+        .zhHans: "全部 (%d)",
+        .ja: "すべて (%d)",
+        .th: "ทั้งหมด (%d)",
+        .ko: "전체 (%d)"
+    ],
+    "conflicts_filter_multi_endpoint": [
+        .en: "Multi-endpoint Conflicts (%d)",
+        .zhHant: "多端點同檔衝突 (%d)",
+        .zhHans: "多端点同名冲突 (%d)",
+        .ja: "複数エンドポイント競合 (%d)",
+        .th: "ข้อขัดแย้งหลายปลายทาง (%d)",
+        .ko: "다중 엔드포인트 충돌 (%d)"
     ],
     "days_count": [
         .en: "%d days",

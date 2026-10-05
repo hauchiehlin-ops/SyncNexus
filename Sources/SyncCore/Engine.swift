@@ -1179,40 +1179,48 @@ public final class Engine {
     /// Resolve one recorded conflict on its endpoint. `.main` keeps the file that is in sync with the other
     /// endpoints and trashes the extra copy; `.conflict` makes the extra copy the real file (the previous
     /// version goes to Versions) and the next sync spreads it to every endpoint.
-    public func resolveConflictRecord(_ id: Int64, keep: ConflictChoice) throws {
+    /// Batch resolves multiple conflict records atomically under one lock.
+    public func resolveConflictRecords(_ records: [(id: Int64, keep: ConflictChoice)]) throws {
+        guard !records.isEmpty else { return }
         progressFloor = 0
         emit(.preparing, 0.02)
         defer { emit(.finalizing, 1) }
         let lock = try SyncLock.acquire(path: store.path + ".lock")
         defer { _ = lock }
-        guard let c = try store.conflict(id: id) else { throw DBError(description: "找不到這個衝突紀錄") }
-        guard let cfg = try store.endpoints().first(where: { $0.id == c.endpoint }) else {
-            throw DBError(description: "端點「\(c.endpoint)」已不存在")
-        }
-        if case .offline(let why) = try checkIdentity(cfg) { throw DBError(description: "端點「\(c.endpoint)」目前離線：\(why)") }
-        let root = URL(fileURLWithPath: cfg.root)
-        let mainURL = root.appendingPathComponent(c.path), extraURL = root.appendingPathComponent(c.conflictPath)
-        guard FileManager.default.fileExists(atPath: extraURL.path) else {
-            try store.closeConflict(id: id, status: "gone"); return
-        }
-        switch keep {
-        case .main:
-            try perform("conflict-keep-main", c.endpoint, c.path) { try options.trash(extraURL) }
-        case .conflict:
-            let hash = try FileOps.sha256(of: extraURL, shouldCancel: options.shouldCancel)
-            let mtime = (try? extraURL.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
-            try perform("conflict-keep-copy", c.endpoint, c.path) {
-                if let st = FileOps.statInfo(mainURL) {
-                    try archiveVersion(ScannedFile(rel: c.path, url: mainURL, size: st.size, mtimeNs: st.mtimeNs, mtime: Date(), isPlaceholder: false),
-                                       endpoint: c.endpoint)
-                }
-                try FileOps.copyAtomically(from: extraURL, to: mainURL, expectHash: hash, mtime: mtime,
-                                           shouldCancel: options.shouldCancel)
-                try options.trash(extraURL)
+        let total = records.count
+        for (idx, r) in records.enumerated() {
+            emit(.transferring, Double(idx + 1) / Double(max(1, total)))
+            guard let c = try store.conflict(id: r.id) else { continue }
+            guard let cfg = try store.endpoints().first(where: { $0.id == c.endpoint }) else { continue }
+            if case .offline = try checkIdentity(cfg) { continue }
+            let root = URL(fileURLWithPath: cfg.root)
+            let mainURL = root.appendingPathComponent(c.path), extraURL = root.appendingPathComponent(c.conflictPath)
+            guard FileManager.default.fileExists(atPath: extraURL.path) else {
+                try store.closeConflict(id: r.id, status: "gone"); continue
             }
+            switch r.keep {
+            case .main:
+                try perform("conflict-keep-main", c.endpoint, c.path) { try options.trash(extraURL) }
+            case .conflict:
+                let hash = try FileOps.sha256(of: extraURL, shouldCancel: options.shouldCancel)
+                let mtime = (try? extraURL.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+                try perform("conflict-keep-copy", c.endpoint, c.path) {
+                    if let st = FileOps.statInfo(mainURL) {
+                        try archiveVersion(ScannedFile(rel: c.path, url: mainURL, size: st.size, mtimeNs: st.mtimeNs, mtime: Date(), isPlaceholder: false),
+                                           endpoint: c.endpoint)
+                    }
+                    try FileOps.copyAtomically(from: extraURL, to: mainURL, expectHash: hash, mtime: mtime,
+                                               shouldCancel: options.shouldCancel)
+                    try options.trash(extraURL)
+                }
+            }
+            let closed = r.keep == .main ? "kept-main" : "kept-copy"
+            try store.closeConflict(id: r.id, status: closed)
         }
-        let closed = keep == .main ? "kept-main" : "kept-copy"
-        try store.closeConflict(id: id, status: closed)
+    }
+
+    public func resolveConflictRecord(_ id: Int64, keep: ConflictChoice) throws {
+        try resolveConflictRecords([(id: id, keep: keep)])
     }
 
     /// Copies `file` into the Versions archive. Never overwrites an earlier archived copy: two replacements of the same

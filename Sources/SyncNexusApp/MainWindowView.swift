@@ -915,8 +915,11 @@ struct SyncActivitySection: View {
 struct ConflictsSection: View {
     @ObservedObject var model: AppModel
     @ObservedObject private var l10n = L10n.shared
+    @State private var filterMultiEndpointOnly: Bool = false
+
     var body: some View {
         sectionHeader(loc("section_conflicts"), model.snap.conflicts.isEmpty ? nil : loc("conflicts_section_desc"))
+
         if model.snap.conflicts.isEmpty {
             Card(padding: 28) {
                 VStack(spacing: 10) {
@@ -926,8 +929,107 @@ struct ConflictsSection: View {
                 }
                 .frame(maxWidth: .infinity)
             }
+        } else {
+            // 全域一鍵批次處理工具卡片
+            if model.snap.conflicts.count > 1 {
+                Card(padding: 16) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(alignment: .center, spacing: 10) {
+                            Image(systemName: "bolt.shield.fill")
+                                .font(.system(size: 20))
+                                .foregroundStyle(Theme.accent)
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 8) {
+                                    Text(loc("conflicts_batch_title"))
+                                        .font(.system(size: 15, weight: .bold))
+                                    Chip(text: loc("badge_recommended"), kind: .ok)
+                                }
+                                Text(loc("conflicts_batch_desc", model.snap.conflicts.count))
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                        }
+
+                        HStack(spacing: 10) {
+                            Button {
+                                model.resolveAllNewer()
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "sparkles")
+                                    Text(loc("conflicts_batch_all_newer"))
+                                }
+                            }
+                            .buttonStyle(QuietButton(kind: .primary))
+                            .disabled(!model.resolvingConflictIds.isEmpty)
+
+                            Button {
+                                model.resolveAllCurrent()
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "doc.fill")
+                                    Text(loc("conflicts_batch_all_current"))
+                                }
+                            }
+                            .buttonStyle(QuietButton(kind: .secondary))
+                            .disabled(!model.resolvingConflictIds.isEmpty)
+
+                            Button {
+                                model.resolveAllEndpoint()
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "externaldrive.fill")
+                                    Text(loc("conflicts_batch_all_endpoint"))
+                                }
+                            }
+                            .buttonStyle(QuietButton(kind: .secondary))
+                            .disabled(!model.resolvingConflictIds.isEmpty)
+                        }
+
+                        // 快速篩選標籤：如果有同名多端點衝突
+                        let multiEndpointCount = Set(
+                            Dictionary(grouping: model.snap.conflicts, by: { $0.path })
+                                .filter { $0.value.count > 1 }
+                                .values.flatMap { $0.map(\.id) }
+                        ).count
+
+                        if multiEndpointCount > 0 {
+                            Divider().padding(.vertical, 2)
+                            HStack(spacing: 8) {
+                                Button {
+                                    filterMultiEndpointOnly = false
+                                } label: {
+                                    Text(loc("conflicts_filter_all", model.snap.conflicts.count))
+                                        .font(.system(size: 12, weight: !filterMultiEndpointOnly ? .semibold : .regular))
+                                }
+                                .buttonStyle(QuietButton(kind: !filterMultiEndpointOnly ? .primary : .plain, compact: true))
+
+                                Button {
+                                    filterMultiEndpointOnly = true
+                                } label: {
+                                    Text(loc("conflicts_filter_multi_endpoint", multiEndpointCount))
+                                        .font(.system(size: 12, weight: filterMultiEndpointOnly ? .semibold : .regular))
+                                }
+                                .buttonStyle(QuietButton(kind: filterMultiEndpointOnly ? .primary : .plain, compact: true))
+                            }
+                        }
+                    }
+                }
+            }
+
+            let displayedConflicts: [SyncService.ConflictItem] = {
+                if filterMultiEndpointOnly {
+                    let grouped = Dictionary(grouping: model.snap.conflicts, by: { $0.path })
+                    return model.snap.conflicts.filter { (grouped[$0.path]?.count ?? 0) > 1 }
+                }
+                return model.snap.conflicts
+            }()
+
+            ForEach(displayedConflicts) { c in
+                ConflictCard(model: model, c: c)
+            }
         }
-        ForEach(model.snap.conflicts) { c in ConflictCard(model: model, c: c) }
+
         if !model.snap.duplicateHints.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
                 Text(loc("conflicts_duplicate_hints_title")).font(.system(size: 16, weight: .bold))
@@ -963,17 +1065,65 @@ struct ConflictCard: View {
     private var extraNewer: Bool { (c.extraModified ?? .distantPast) > (c.mainModified ?? .distantPast) }
     private var isResolving: Bool { model.resolvingConflictIds.contains(c.id) }
 
+    private var samePathConflicts: [SyncService.ConflictItem] {
+        model.snap.conflicts.filter { $0.path == c.path }
+    }
+
+    private var fileExtension: String {
+        (c.path as NSString).pathExtension.lowercased()
+    }
+
+    private var sameExtConflicts: [SyncService.ConflictItem] {
+        guard !fileExtension.isEmpty else { return [] }
+        return model.snap.conflicts.filter { ($0.path as NSString).pathExtension.lowercased() == fileExtension }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
                 Text((c.path as NSString).lastPathComponent).font(.system(size: 22, weight: .bold)).tracking(-0.3)
                 Text(loc("conflicts_happened_on", c.path, DisplayNames.endpoint(c.endpoint))).font(.system(size: 13)).foregroundStyle(.secondary)
             }
+
+            // 同檔案多端點衝突提示橫幅與一鍵解決
+            if samePathConflicts.count > 1 {
+                HStack(spacing: 10) {
+                    Image(systemName: "square.3.layers.3d.down.right")
+                        .font(.system(size: 14))
+                        .foregroundStyle(Theme.accent)
+                    Text(loc("conflicts_batch_same_file_banner", samePathConflicts.count))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Theme.accent)
+                    Spacer()
+                    Button {
+                        model.resolveAllSamePathNewer(path: c.path)
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "sparkles")
+                            Text(loc("conflicts_batch_apply_same_file_newer", samePathConflicts.count))
+                        }
+                    }
+                    .buttonStyle(QuietButton(kind: .primary, compact: true))
+                    .disabled(isResolving)
+
+                    Button {
+                        model.resolveAllSamePath(path: c.path, keep: .main)
+                    } label: {
+                        Text(loc("conflicts_batch_apply_same_file_main", samePathConflicts.count))
+                    }
+                    .buttonStyle(QuietButton(kind: .secondary, compact: true))
+                    .disabled(isResolving)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Theme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+            }
+
             HStack(alignment: .top, spacing: 16) {
                 version(title: loc("conflicts_current_version"), note: loc("conflicts_consistent_note"), size: c.mainSize, modified: c.mainModified, newer: !extraNewer,
-                        path: c.mainPath, keep: loc("conflicts_keep_this"), primary: true) { model.resolve(c, keep: .main) }
+                        path: c.mainPath, keep: loc("conflicts_keep_this"), primary: true, choice: .main) { model.resolve(c, keep: .main) }
                 version(title: loc("conflicts_version_on_endpoint", DisplayNames.endpoint(c.endpoint)), note: loc("conflicts_local_only_note"), size: c.extraSize, modified: c.extraModified, newer: extraNewer,
-                        path: c.extraPath, keep: loc("conflicts_use_this"), primary: false) { model.resolve(c, keep: .conflict) }
+                        path: c.extraPath, keep: loc("conflicts_use_this"), primary: false, choice: .conflict) { model.resolve(c, keep: .conflict) }
             }
             if isResolving {
                 HStack(spacing: 8) {
@@ -995,7 +1145,7 @@ struct ConflictCard: View {
     }
 
     private func version(title: String, note: String, size: Int64?, modified: Date?, newer: Bool, path: String,
-                         keep: String, primary: Bool, action: @escaping () -> Void) -> some View {
+                         keep: String, primary: Bool, choice: ConflictChoice, action: @escaping () -> Void) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
                 Text(title).font(.system(size: 14, weight: .bold))
@@ -1016,6 +1166,25 @@ struct ConflictCard: View {
                 }
                 .buttonStyle(QuietButton(kind: primary ? .primary : .secondary))
                 .disabled(!c.endpointOnline || isResolving)
+
+                // 針對同副檔名的批次套用快速選單 (如果有多個同副檔名衝突)
+                if sameExtConflicts.count > 1 {
+                    Menu {
+                        Button {
+                            model.resolveAllSameExtension(ext: fileExtension, keep: choice)
+                        } label: {
+                            Text(loc("conflicts_batch_apply_same_ext", fileExtension, sameExtConflicts.count))
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.system(size: 13))
+                    }
+                    .menuStyle(.borderlessButton)
+                    .frame(width: 24, height: 24)
+                    .disabled(isResolving)
+                    .help(loc("conflicts_batch_apply_same_ext", fileExtension, sameExtConflicts.count))
+                }
+
                 Button(loc("btn_reveal_in_finder")) { model.reveal(path) }
                     .buttonStyle(QuietButton(kind: .plain))
                     .disabled(isResolving)
