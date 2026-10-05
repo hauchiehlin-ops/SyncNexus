@@ -12,7 +12,7 @@ data class SyncSnapshotState(
     val phase: String = "IDLE", // IDLE, SYNCING, PAUSED
     val endpointsCount: Int = 0,
     val trackedFilesCount: Int = 0,
-    val lastSyncTime: String = "尚未同步",
+    val lastSyncTime: String = "",   // empty = never; the screen shows the localized text
     val conflictsCount: Int = 0,
     val recentTransfers: Int = 0,
     val logs: List<SyncLogItem> = emptyList(),
@@ -43,6 +43,67 @@ object SyncNexusEngineBridge {
 
     private val endpointsByGroup = mutableMapOf<String, List<AndroidEndpoint>>()
 
+    // ---- per-group extras shown in the sidebar sections (conflicts, versions, verification, diff preview) ----
+    data class PreviewState(val running: Boolean = false, val ready: Boolean = false, val items: List<PlanItem> = emptyList())
+
+    private val _conflicts = MutableStateFlow<List<ConflictRecord>>(emptyList())
+    val conflicts: StateFlow<List<ConflictRecord>> = _conflicts.asStateFlow()
+    private val _versions = MutableStateFlow<List<VersionItem>>(emptyList())
+    val versions: StateFlow<List<VersionItem>> = _versions.asStateFlow()
+    private val _verifyRuns = MutableStateFlow<List<VerifyRun>>(emptyList())
+    val verifyRuns: StateFlow<List<VerifyRun>> = _verifyRuns.asStateFlow()
+    private val _integrity = MutableStateFlow<List<IntegrityIssue>>(emptyList())
+    val integrity: StateFlow<List<IntegrityIssue>> = _integrity.asStateFlow()
+    private val _preview = MutableStateFlow(PreviewState())
+    val preview: StateFlow<PreviewState> = _preview.asStateFlow()
+    private val _verifying = MutableStateFlow(false)
+    val verifying: StateFlow<Boolean> = _verifying.asStateFlow()
+    private val syncRunning = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    private fun refreshExtras() {
+        val engine = syncEngine ?: return
+        val st = engine.state(_activeGroupId.value)
+        _conflicts.value = st.openConflicts()
+        _versions.value = st.versionList()
+        _verifyRuns.value = st.verifyRuns()
+        _integrity.value = st.integrityIssues()
+    }
+
+    /** Runs [block] off the main thread against the active group, then refreshes the extras. */
+    private fun withActiveGroup(block: (SyncEngine, String, List<AndroidEndpoint>) -> Unit) {
+        val engine = syncEngine ?: return
+        val gid = _activeGroupId.value
+        val eps = endpointsByGroup[gid] ?: emptyList()
+        CoroutineScope(Dispatchers.IO).launch {
+            try { block(engine, gid, eps) } catch (_: Exception) {}
+            refreshExtras()
+            publishGroupStates()
+        }
+    }
+
+    /** Diff preview: what a sync would do right now, without changing anything. */
+    fun requestPreview() {
+        _preview.value = PreviewState(running = true)
+        withActiveGroup { e, gid, eps -> _preview.value = PreviewState(ready = true, items = e.preview(gid, eps)) }
+    }
+
+    fun resolveConflict(id: Long, keepMain: Boolean) = withActiveGroup { e, gid, eps ->
+        if (e.resolveConflict(gid, eps, id, keepMain) && !keepMain) runReconciliation()   // the kept copy spreads right away
+    }
+
+    fun restoreVersion(id: Long) = withActiveGroup { e, gid, eps -> if (e.restoreVersion(gid, eps, id)) runReconciliation() }
+    fun deleteVersion(id: Long) = withActiveGroup { e, gid, _ -> e.deleteVersion(gid, id) }
+
+    fun runVerification() {
+        if (_verifying.value) return
+        _verifying.value = true
+        withActiveGroup { e, gid, eps -> try { e.verify(gid, eps) } finally { _verifying.value = false } }
+    }
+
+    fun resolveIntegrity(issue: IntegrityIssue, restore: Boolean) = withActiveGroup { e, gid, eps ->
+        if (e.resolveIntegrity(gid, eps, issue, restore) && !restore) runReconciliation()
+    }
+
     /** What the last reconciliation of one group found (kept per group, so the notification can list every group). */
     data class GroupRunResult(val syncing: Boolean = false, val conflicts: Int = 0, val error: String? = null)
 
@@ -71,6 +132,7 @@ object SyncNexusEngineBridge {
         loadGroups(context)
         backups = GroupBackupStore(context)
         backups?.backup(currentSnapshot())   // every start: skipped when nothing changed
+        refreshExtras()
     }
 
     private var backups: GroupBackupStore? = null
@@ -205,7 +267,9 @@ object SyncNexusEngineBridge {
     fun selectGroup(id: String) {
         if (id == _activeGroupId.value || _groups.value.none { it.id == id }) return
         _activeGroupId.value = id
+        _preview.value = PreviewState()
         publishActive()
+        refreshExtras()
         appContext?.let { saveGroups(it) }
     }
 
@@ -232,6 +296,7 @@ object SyncNexusEngineBridge {
         _groups.value = remaining
         endpointsByGroup.remove(id)
         runResults.remove(id)
+        syncEngine?.forget(id)
         if (_activeGroupId.value == id) _activeGroupId.value = remaining.first().id
         publishActive()
         appContext?.let { ctx ->
@@ -279,6 +344,7 @@ object SyncNexusEngineBridge {
             return
         }
 
+        if (!syncRunning.compareAndSet(false, true)) return    // a run is already in progress
         CoroutineScope(Dispatchers.IO).launch {
             _snapshot.value = _snapshot.value.copy(phase = "SYNCING")
             var error: String? = null
@@ -286,13 +352,14 @@ object SyncNexusEngineBridge {
                 runResults[gid] = GroupRunResult(syncing = true)
                 publishGroupStates()
                 try {
-                    val report = engine.sync(eps)
-                    runResults[gid] = GroupRunResult(conflicts = report.conflicts)
+                    val report = engine.sync(gid, eps)
+                    val open = engine.state(gid).openConflicts().size
+                    runResults[gid] = GroupRunResult(conflicts = open)
                     if (gid == _activeGroupId.value) {
                         _snapshot.value = _snapshot.value.copy(
                             trackedFilesCount = report.trackedFiles,
                             recentTransfers = report.syncedTransfers,
-                            conflictsCount = report.conflicts,
+                            conflictsCount = open,
                             logs = report.logs.takeLast(20).reversed()
                         )
                     }
@@ -303,6 +370,8 @@ object SyncNexusEngineBridge {
                 publishGroupStates()
             }
             _snapshot.value = _snapshot.value.copy(phase = "IDLE", lastSyncTime = timeText(), error = error)
+            refreshExtras()
+            syncRunning.set(false)
         }
     }
 }

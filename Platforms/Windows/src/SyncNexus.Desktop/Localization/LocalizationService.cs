@@ -452,6 +452,681 @@ public class LocalizationService
             [AppLanguage.Ko] = "기본 버전 유지",
             [AppLanguage.Th] = "เก็บเวอร์ชันหลัก",
         },
+        ["nav_overview"] = new()
+        {
+            [AppLanguage.ZhHant] = "概覽",
+            [AppLanguage.ZhHans] = "概览",
+            [AppLanguage.En] = "Overview",
+            [AppLanguage.Ja] = "概要",
+            [AppLanguage.Ko] = "개요",
+            [AppLanguage.Th] = "ภาพรวม",
+        },
+        ["nav_activity"] = new()
+        {
+            [AppLanguage.ZhHant] = "同步動態",
+            [AppLanguage.ZhHans] = "同步动态",
+            [AppLanguage.En] = "Sync activity",
+            [AppLanguage.Ja] = "同期アクティビティ",
+            [AppLanguage.Ko] = "동기화 활동",
+            [AppLanguage.Th] = "กิจกรรมการซิงค์",
+        },
+        ["nav_conflicts"] = new()
+        {
+            [AppLanguage.ZhHant] = "衝突管理",
+            [AppLanguage.ZhHans] = "冲突管理",
+            [AppLanguage.En] = "Conflicts",
+            [AppLanguage.Ja] = "競合の管理",
+            [AppLanguage.Ko] = "충돌 관리",
+            [AppLanguage.Th] = "จัดการข้อขัดแย้ง",
+        },
+        ["nav_settings"] = new()
+        {
+            [AppLanguage.ZhHant] = "設定",
+            [AppLanguage.ZhHans] = "设置",
+            [AppLanguage.En] = "Settings",
+            [AppLanguage.Ja] = "設定",
+            [AppLanguage.Ko] = "설정",
+            [AppLanguage.Th] = "การตั้งค่า",
+        },
+        ["nav_manual"] = new()
+        {
+            [AppLanguage.ZhHant] = "操作手冊",
+            [AppLanguage.ZhHans] = "操作手册",
+            [AppLanguage.En] = "User manual",
+            [AppLanguage.Ja] = "ユーザーマニュアル",
+            [AppLanguage.Ko] = "사용 설명서",
+            [AppLanguage.Th] = "คู่มือการใช้งาน",
+        },
+        ["nav_privacy"] = new()
+        {
+            [AppLanguage.ZhHant] = "隱私政策",
+            [AppLanguage.ZhHans] = "隐私政策",
+            [AppLanguage.En] = "Privacy policy",
+            [AppLanguage.Ja] = "プライバシーポリシー",
+            [AppLanguage.Ko] = "개인정보 처리방침",
+            [AppLanguage.Th] = "นโยบายความเป็นส่วนตัว",
+        },
+        ["app_subtitle"] = new()
+        {
+            [AppLanguage.ZhHant] = "跨平台即時同步中心 (Windows / macOS / Android)",
+            [AppLanguage.ZhHans] = "跨平台实时同步中心 (Windows / macOS / Android)",
+            [AppLanguage.En] = "Cross-platform real-time sync (Windows / macOS / Android)",
+            [AppLanguage.Ja] = "クロスプラットフォーム リアルタイム同期 (Windows / macOS / Android)",
+            [AppLanguage.Ko] = "크로스 플랫폼 실시간 동기화 (Windows / macOS / Android)",
+            [AppLanguage.Th] = "ซิงค์แบบเรียลไทม์ข้ามแพลตฟอร์ม (Windows / macOS / Android)",
+        },
+        ["status_tracked_files"] = new()
+        {
+            [AppLanguage.ZhHant] = "追蹤中檔案：",
+            [AppLanguage.ZhHans] = "跟踪中文件：",
+            [AppLanguage.En] = "Tracked files: ",
+            [AppLanguage.Ja] = "追跡中のファイル：",
+            [AppLanguage.Ko] = "추적 중인 파일: ",
+            [AppLanguage.Th] = "ไฟล์ที่ติดตาม: ",
+        },
+        ["status_lan_label"] = new()
+        {
+            [AppLanguage.ZhHant] = "區域網路探索：",
+            [AppLanguage.ZhHans] = "局域网发现：",
+            [AppLanguage.En] = "Local network discovery: ",
+            [AppLanguage.Ja] = "ローカルネットワーク検出：",
+            [AppLanguage.Ko] = "로컬 네트워크 검색: ",
+            [AppLanguage.Th] = "การค้นหาในเครือข่ายท้องถิ่น: ",
+        },
+        ["status_lan_online"] = new()
+        {
+            [AppLanguage.ZhHant] = "在線（相容 Mac Bonjour / Android）",
+            [AppLanguage.ZhHans] = "在线（兼容 Mac Bonjour / Android）",
+            [AppLanguage.En] = "Online (compatible with Mac Bonjour / Android)",
+            [AppLanguage.Ja] = "オンライン（Mac Bonjour / Android 対応）",
+            [AppLanguage.Ko] = "온라인 (Mac Bonjour / Android 호환)",
+            [AppLanguage.Th] = "ออนไลน์ (รองรับ Mac Bonjour / Android)",
+        },
+        ["endpoints_header"] = new()
+        {
+            [AppLanguage.ZhHant] = "同步端點 (本機 / Google Drive / OneDrive / 外接磁碟)",
+            [AppLanguage.ZhHans] = "同步端点 (本机 / Google Drive / OneDrive / 外接磁盘)",
+            [AppLanguage.En] = "Sync endpoints (local / Google Drive / OneDrive / external drives)",
+            [AppLanguage.Ja] = "同期エンドポイント（ローカル / Google Drive / OneDrive / 外付けドライブ）",
+            [AppLanguage.Ko] = "동기화 엔드포인트 (로컬 / Google Drive / OneDrive / 외장 드라이브)",
+            [AppLanguage.Th] = "จุดซิงค์ (ในเครื่อง / Google Drive / OneDrive / ไดรฟ์ภายนอก)",
+        },
+        ["autostart_title"] = new()
+        {
+            [AppLanguage.ZhHant] = "開機時自動於背景啟動 SyncNexus",
+            [AppLanguage.ZhHans] = "开机时自动在后台启动 SyncNexus",
+            [AppLanguage.En] = "Start SyncNexus in the background at sign-in",
+            [AppLanguage.Ja] = "サインイン時にバックグラウンドで SyncNexus を起動",
+            [AppLanguage.Ko] = "로그인 시 백그라운드에서 SyncNexus 시작",
+            [AppLanguage.Th] = "เริ่ม SyncNexus ในเบื้องหลังเมื่อลงชื่อเข้าใช้",
+        },
+        ["daemon_running"] = new()
+        {
+            [AppLanguage.ZhHant] = "守護行程常駐運行中",
+            [AppLanguage.ZhHans] = "守护进程常驻运行中",
+            [AppLanguage.En] = "Background service is running",
+            [AppLanguage.Ja] = "バックグラウンドサービス稼働中",
+            [AppLanguage.Ko] = "백그라운드 서비스 실행 중",
+            [AppLanguage.Th] = "บริการเบื้องหลังกำลังทำงาน",
+        },
+        ["footer_status"] = new()
+        {
+            [AppLanguage.ZhHant] = "✅ 守護行程運作中 · 支援長路徑與雲端佔位符感應 · 系統匣就緒",
+            [AppLanguage.ZhHans] = "✅ 守护进程运行中 · 支持长路径与云端占位符感应 · 系统托盘就绪",
+            [AppLanguage.En] = "✅ Service running · long paths and cloud placeholders supported · tray ready",
+            [AppLanguage.Ja] = "✅ サービス稼働中 · 長いパスとクラウドプレースホルダーに対応 · トレイ準備完了",
+            [AppLanguage.Ko] = "✅ 서비스 실행 중 · 긴 경로 및 클라우드 자리 표시자 지원 · 트레이 준비됨",
+            [AppLanguage.Th] = "✅ บริการกำลังทำงาน · รองรับพาธยาวและไฟล์ตัวแทนคลาวด์ · ถาดระบบพร้อม",
+        },
+        ["activity_empty"] = new()
+        {
+            [AppLanguage.ZhHant] = "尚無同步動態",
+            [AppLanguage.ZhHans] = "暂无同步动态",
+            [AppLanguage.En] = "No activity yet",
+            [AppLanguage.Ja] = "アクティビティはまだありません",
+            [AppLanguage.Ko] = "아직 활동이 없습니다",
+            [AppLanguage.Th] = "ยังไม่มีกิจกรรม",
+        },
+        ["language_label"] = new()
+        {
+            [AppLanguage.ZhHant] = "語言",
+            [AppLanguage.ZhHans] = "语言",
+            [AppLanguage.En] = "Language",
+            [AppLanguage.Ja] = "言語",
+            [AppLanguage.Ko] = "언어",
+            [AppLanguage.Th] = "ภาษา",
+        },
+        ["sync_running"] = new()
+        {
+            [AppLanguage.ZhHant] = "同步中...",
+            [AppLanguage.ZhHans] = "同步中...",
+            [AppLanguage.En] = "Syncing...",
+            [AppLanguage.Ja] = "同期中...",
+            [AppLanguage.Ko] = "동기화 중...",
+            [AppLanguage.Th] = "กำลังซิงค์...",
+        },
+        ["sync_done"] = new()
+        {
+            [AppLanguage.ZhHant] = "同步完成（處理 {0} 項變更）",
+            [AppLanguage.ZhHans] = "同步完成（处理 {0} 项更改）",
+            [AppLanguage.En] = "Sync complete ({0} changes processed)",
+            [AppLanguage.Ja] = "同期が完了しました（{0} 件の変更を処理）",
+            [AppLanguage.Ko] = "동기화 완료 ({0}개 변경 처리)",
+            [AppLanguage.Th] = "ซิงค์เสร็จสิ้น (ประมวลผล {0} รายการ)",
+        },
+        ["sync_done_partial"] = new()
+        {
+            [AppLanguage.ZhHant] = "同步完成（部分端點離線）",
+            [AppLanguage.ZhHans] = "同步完成（部分端点离线）",
+            [AppLanguage.En] = "Sync complete (some endpoints offline)",
+            [AppLanguage.Ja] = "同期が完了しました（一部のエンドポイントがオフライン）",
+            [AppLanguage.Ko] = "동기화 완료 (일부 엔드포인트 오프라인)",
+            [AppLanguage.Th] = "ซิงค์เสร็จสิ้น (บางจุดออฟไลน์)",
+        },
+        ["sync_error"] = new()
+        {
+            [AppLanguage.ZhHant] = "同步錯誤：{0}",
+            [AppLanguage.ZhHans] = "同步错误：{0}",
+            [AppLanguage.En] = "Sync error: {0}",
+            [AppLanguage.Ja] = "同期エラー：{0}",
+            [AppLanguage.Ko] = "동기화 오류: {0}",
+            [AppLanguage.Th] = "ข้อผิดพลาดในการซิงค์: {0}",
+        },
+        ["dlg_hint_title"] = new()
+        {
+            [AppLanguage.ZhHant] = "提示",
+            [AppLanguage.ZhHans] = "提示",
+            [AppLanguage.En] = "Notice",
+            [AppLanguage.Ja] = "お知らせ",
+            [AppLanguage.Ko] = "알림",
+            [AppLanguage.Th] = "แจ้งเตือน",
+        },
+        ["dlg_add_header"] = new()
+        {
+            [AppLanguage.ZhHant] = "設定新同步資料夾",
+            [AppLanguage.ZhHans] = "设置新同步文件夹",
+            [AppLanguage.En] = "Set up a new sync folder",
+            [AppLanguage.Ja] = "新しい同期フォルダの設定",
+            [AppLanguage.Ko] = "새 동기화 폴더 설정",
+            [AppLanguage.Th] = "ตั้งค่าโฟลเดอร์ซิงค์ใหม่",
+        },
+        ["dlg_ep_name"] = new()
+        {
+            [AppLanguage.ZhHant] = "端點名稱 (識別代號)：",
+            [AppLanguage.ZhHans] = "端点名称 (标识代号)：",
+            [AppLanguage.En] = "Endpoint name (ID):",
+            [AppLanguage.Ja] = "エンドポイント名（ID）：",
+            [AppLanguage.Ko] = "엔드포인트 이름 (ID):",
+            [AppLanguage.Th] = "ชื่อจุดซิงค์ (ID):",
+        },
+        ["dlg_ep_path"] = new()
+        {
+            [AppLanguage.ZhHant] = "資料夾路徑：",
+            [AppLanguage.ZhHans] = "文件夹路径：",
+            [AppLanguage.En] = "Folder path:",
+            [AppLanguage.Ja] = "フォルダのパス：",
+            [AppLanguage.Ko] = "폴더 경로:",
+            [AppLanguage.Th] = "เส้นทางโฟลเดอร์:",
+        },
+        ["dlg_browse"] = new()
+        {
+            [AppLanguage.ZhHant] = "瀏覽...",
+            [AppLanguage.ZhHans] = "浏览...",
+            [AppLanguage.En] = "Browse...",
+            [AppLanguage.Ja] = "参照...",
+            [AppLanguage.Ko] = "찾아보기...",
+            [AppLanguage.Th] = "เรียกดู...",
+        },
+        ["dlg_discovered"] = new()
+        {
+            [AppLanguage.ZhHant] = "快速選取探測到的雲端路徑：",
+            [AppLanguage.ZhHans] = "快速选择探测到的云端路径：",
+            [AppLanguage.En] = "Quick pick from detected cloud folders:",
+            [AppLanguage.Ja] = "検出されたクラウドフォルダから選択：",
+            [AppLanguage.Ko] = "감지된 클라우드 폴더에서 빠르게 선택:",
+            [AppLanguage.Th] = "เลือกด่วนจากโฟลเดอร์คลาวด์ที่ตรวจพบ:",
+        },
+        ["dlg_discovered_placeholder"] = new()
+        {
+            [AppLanguage.ZhHant] = "-- 請選擇或自行輸入 --",
+            [AppLanguage.ZhHans] = "-- 请选择或自行输入 --",
+            [AppLanguage.En] = "-- Choose, or type your own --",
+            [AppLanguage.Ja] = "-- 選択または入力 --",
+            [AppLanguage.Ko] = "-- 선택하거나 직접 입력 --",
+            [AppLanguage.Th] = "-- เลือกหรือพิมพ์เอง --",
+        },
+        ["dlg_removable"] = new()
+        {
+            [AppLanguage.ZhHant] = "可移除式磁碟（USB 隨身碟 / 外接硬碟）",
+            [AppLanguage.ZhHans] = "可移动磁盘（USB 闪存盘 / 外接硬盘）",
+            [AppLanguage.En] = "Removable drive (USB stick / external disk)",
+            [AppLanguage.Ja] = "リムーバブルドライブ（USB メモリ / 外付けディスク）",
+            [AppLanguage.Ko] = "이동식 드라이브 (USB / 외장 하드)",
+            [AppLanguage.Th] = "ไดรฟ์แบบถอดได้ (USB / ฮาร์ดดิสก์ภายนอก)",
+        },
+        ["dlg_portable"] = new()
+        {
+            [AppLanguage.ZhHant] = "嚴格相容命名規範（遵循 ExFAT/Windows 命名規則）",
+            [AppLanguage.ZhHans] = "严格兼容命名规范（遵循 ExFAT/Windows 命名规则）",
+            [AppLanguage.En] = "Strict portable names (follow ExFAT / Windows naming rules)",
+            [AppLanguage.Ja] = "厳密な互換ファイル名（ExFAT / Windows の命名規則に従う）",
+            [AppLanguage.Ko] = "엄격한 호환 이름 (ExFAT / Windows 이름 규칙 준수)",
+            [AppLanguage.Th] = "ชื่อไฟล์แบบเข้ากันได้เคร่งครัด (ตามกฎ ExFAT / Windows)",
+        },
+        ["dlg_confirm_add"] = new()
+        {
+            [AppLanguage.ZhHant] = "確認加入",
+            [AppLanguage.ZhHans] = "确认加入",
+            [AppLanguage.En] = "Add",
+            [AppLanguage.Ja] = "追加",
+            [AppLanguage.Ko] = "추가",
+            [AppLanguage.Th] = "เพิ่ม",
+        },
+        ["dlg_pick_folder"] = new()
+        {
+            [AppLanguage.ZhHant] = "選取同步資料夾",
+            [AppLanguage.ZhHans] = "选择同步文件夹",
+            [AppLanguage.En] = "Choose a folder to sync",
+            [AppLanguage.Ja] = "同期するフォルダを選択",
+            [AppLanguage.Ko] = "동기화할 폴더 선택",
+            [AppLanguage.Th] = "เลือกโฟลเดอร์ที่จะซิงค์",
+        },
+        ["dlg_marker_notice"] = new()
+        {
+            [AppLanguage.ZhHant] = "💡 偵測到已有防偽標記碼（{0}...），加入後將直接認證並採用，無縫相容！",
+            [AppLanguage.ZhHans] = "💡 检测到已有防伪标记码（{0}...），加入后将直接认证并采用，无缝兼容！",
+            [AppLanguage.En] = "💡 An existing endpoint marker ({0}...) was found. It will be recognized and reused, so it stays compatible.",
+            [AppLanguage.Ja] = "💡 既存のエンドポイントマーカー（{0}...）が見つかりました。そのまま認識して利用します。",
+            [AppLanguage.Ko] = "💡 기존 엔드포인트 표식({0}...)이 발견되었습니다. 그대로 인식하여 사용합니다.",
+            [AppLanguage.Th] = "💡 พบเครื่องหมายจุดซิงค์เดิม ({0}...) จะรับรองและใช้งานต่อได้ทันที",
+        },
+        ["dlg_need_name"] = new()
+        {
+            [AppLanguage.ZhHant] = "請輸入端點名稱",
+            [AppLanguage.ZhHans] = "请输入端点名称",
+            [AppLanguage.En] = "Please enter an endpoint name.",
+            [AppLanguage.Ja] = "エンドポイント名を入力してください。",
+            [AppLanguage.Ko] = "엔드포인트 이름을 입력하세요.",
+            [AppLanguage.Th] = "โปรดกรอกชื่อจุดซิงค์",
+        },
+        ["dlg_need_path"] = new()
+        {
+            [AppLanguage.ZhHant] = "請選取有效的本機或雲端資料夾路徑",
+            [AppLanguage.ZhHans] = "请选择有效的本机或云端文件夹路径",
+            [AppLanguage.En] = "Please choose a valid local or cloud folder.",
+            [AppLanguage.Ja] = "有効なローカルまたはクラウドのフォルダを選択してください。",
+            [AppLanguage.Ko] = "유효한 로컬 또는 클라우드 폴더를 선택하세요.",
+            [AppLanguage.Th] = "โปรดเลือกโฟลเดอร์ในเครื่องหรือคลาวด์ที่ถูกต้อง",
+        },
+        ["dlg_close"] = new()
+        {
+            [AppLanguage.ZhHant] = "關閉",
+            [AppLanguage.ZhHans] = "关闭",
+            [AppLanguage.En] = "Close",
+            [AppLanguage.Ja] = "閉じる",
+            [AppLanguage.Ko] = "닫기",
+            [AppLanguage.Th] = "ปิด",
+        },
+        ["doc_window_title"] = new()
+        {
+            [AppLanguage.ZhHant] = "SyncNexus 文件檢視",
+            [AppLanguage.ZhHans] = "SyncNexus 文档查看",
+            [AppLanguage.En] = "SyncNexus document viewer",
+            [AppLanguage.Ja] = "SyncNexus ドキュメントビューア",
+            [AppLanguage.Ko] = "SyncNexus 문서 보기",
+            [AppLanguage.Th] = "ตัวดูเอกสาร SyncNexus",
+        },
+        ["doc_subtitle"] = new()
+        {
+            [AppLanguage.ZhHant] = "SyncNexus 本地優先跨平台檔案同步中心",
+            [AppLanguage.ZhHans] = "SyncNexus 本地优先跨平台文件同步中心",
+            [AppLanguage.En] = "SyncNexus: local-first cross-platform file sync",
+            [AppLanguage.Ja] = "SyncNexus：ローカル優先のクロスプラットフォーム ファイル同期",
+            [AppLanguage.Ko] = "SyncNexus: 로컬 우선 크로스 플랫폼 파일 동기화",
+            [AppLanguage.Th] = "SyncNexus ศูนย์ซิงค์ไฟล์ข้ามแพลตฟอร์มแบบเน้นในเครื่อง",
+        },
+        ["cf_header"] = new()
+        {
+            [AppLanguage.ZhHant] = "未解決的檔案衝突",
+            [AppLanguage.ZhHans] = "未解决的文件冲突",
+            [AppLanguage.En] = "Unresolved file conflicts",
+            [AppLanguage.Ja] = "未解決のファイル競合",
+            [AppLanguage.Ko] = "해결되지 않은 파일 충돌",
+            [AppLanguage.Th] = "ข้อขัดแย้งของไฟล์ที่ยังไม่แก้ไข",
+        },
+        ["cf_desc"] = new()
+        {
+            [AppLanguage.ZhHant] = "當多個設備同時修改相同檔案時，SyncNexus 會保留雙方版本避免覆蓋。",
+            [AppLanguage.ZhHans] = "当多个设备同时修改相同文件时，SyncNexus 会保留双方版本以避免覆盖。",
+            [AppLanguage.En] = "When several devices change the same file, SyncNexus keeps both versions instead of overwriting.",
+            [AppLanguage.Ja] = "複数の端末が同じファイルを変更した場合、SyncNexus は上書きせず両方の版を保持します。",
+            [AppLanguage.Ko] = "여러 기기에서 같은 파일을 수정하면 SyncNexus는 덮어쓰지 않고 두 버전을 모두 보관합니다.",
+            [AppLanguage.Th] = "เมื่อหลายอุปกรณ์แก้ไขไฟล์เดียวกัน SyncNexus จะเก็บทั้งสองเวอร์ชันแทนการเขียนทับ",
+        },
+        ["cf_col_endpoint"] = new()
+        {
+            [AppLanguage.ZhHant] = "端點",
+            [AppLanguage.ZhHans] = "端点",
+            [AppLanguage.En] = "Endpoint",
+            [AppLanguage.Ja] = "エンドポイント",
+            [AppLanguage.Ko] = "엔드포인트",
+            [AppLanguage.Th] = "จุดซิงค์",
+        },
+        ["cf_col_original"] = new()
+        {
+            [AppLanguage.ZhHant] = "原始檔案",
+            [AppLanguage.ZhHans] = "原始文件",
+            [AppLanguage.En] = "Original file",
+            [AppLanguage.Ja] = "元のファイル",
+            [AppLanguage.Ko] = "원본 파일",
+            [AppLanguage.Th] = "ไฟล์ต้นฉบับ",
+        },
+        ["cf_col_copy"] = new()
+        {
+            [AppLanguage.ZhHant] = "衝突複本",
+            [AppLanguage.ZhHans] = "冲突副本",
+            [AppLanguage.En] = "Conflict copy",
+            [AppLanguage.Ja] = "競合コピー",
+            [AppLanguage.Ko] = "충돌 사본",
+            [AppLanguage.Th] = "สำเนาข้อขัดแย้ง",
+        },
+        ["cf_col_detected"] = new()
+        {
+            [AppLanguage.ZhHant] = "偵測時間",
+            [AppLanguage.ZhHans] = "检测时间",
+            [AppLanguage.En] = "Detected",
+            [AppLanguage.Ja] = "検出日時",
+            [AppLanguage.Ko] = "감지 시간",
+            [AppLanguage.Th] = "ตรวจพบเมื่อ",
+        },
+        ["cf_keep_main_btn"] = new()
+        {
+            [AppLanguage.ZhHant] = "保留主要版本 (丟棄衝突複本)",
+            [AppLanguage.ZhHans] = "保留主要版本 (丢弃冲突副本)",
+            [AppLanguage.En] = "Keep main version (discard the copy)",
+            [AppLanguage.Ja] = "メイン版を保持（コピーは破棄）",
+            [AppLanguage.Ko] = "기본 버전 유지 (사본 삭제)",
+            [AppLanguage.Th] = "เก็บเวอร์ชันหลัก (ทิ้งสำเนา)",
+        },
+        ["cf_keep_copy_btn"] = new()
+        {
+            [AppLanguage.ZhHant] = "保留衝突複本 (覆蓋為新主版本)",
+            [AppLanguage.ZhHans] = "保留冲突副本 (覆盖为新主版本)",
+            [AppLanguage.En] = "Keep the conflict copy (it becomes the main version)",
+            [AppLanguage.Ja] = "競合コピーを保持（新しいメイン版にする）",
+            [AppLanguage.Ko] = "충돌 사본 유지 (새 기본 버전으로)",
+            [AppLanguage.Th] = "เก็บสำเนาข้อขัดแย้ง (ให้เป็นเวอร์ชันหลักใหม่)",
+        },
+        ["cf_select_first"] = new()
+        {
+            [AppLanguage.ZhHant] = "請先選擇一項衝突記錄",
+            [AppLanguage.ZhHans] = "请先选择一项冲突记录",
+            [AppLanguage.En] = "Select a conflict first.",
+            [AppLanguage.Ja] = "先に競合を 1 件選択してください。",
+            [AppLanguage.Ko] = "먼저 충돌 항목을 선택하세요.",
+            [AppLanguage.Th] = "โปรดเลือกรายการข้อขัดแย้งก่อน",
+        },
+        ["status_ready"] = new()
+        {
+            [AppLanguage.ZhHant] = "就緒",
+            [AppLanguage.ZhHans] = "就绪",
+            [AppLanguage.En] = "Ready",
+            [AppLanguage.Ja] = "準備完了",
+            [AppLanguage.Ko] = "준비됨",
+            [AppLanguage.Th] = "พร้อม",
+        },
+        ["status_partial_offline"] = new()
+        {
+            [AppLanguage.ZhHant] = "部分端點離線",
+            [AppLanguage.ZhHans] = "部分端点离线",
+            [AppLanguage.En] = "Some endpoints are offline",
+            [AppLanguage.Ja] = "一部のエンドポイントがオフライン",
+            [AppLanguage.Ko] = "일부 엔드포인트 오프라인",
+            [AppLanguage.Th] = "บางจุดซิงค์ออฟไลน์",
+        },
+        ["sync_running_fmt"] = new()
+        {
+            [AppLanguage.ZhHant] = "同步中 ({0})...",
+            [AppLanguage.ZhHans] = "同步中 ({0})...",
+            [AppLanguage.En] = "Syncing ({0})...",
+            [AppLanguage.Ja] = "同期中 ({0})...",
+            [AppLanguage.Ko] = "동기화 중 ({0})...",
+            [AppLanguage.Th] = "กำลังซิงค์ ({0})...",
+        },
+        ["trigger_periodic"] = new()
+        {
+            [AppLanguage.ZhHant] = "定時排程",
+            [AppLanguage.ZhHans] = "定时计划",
+            [AppLanguage.En] = "scheduled",
+            [AppLanguage.Ja] = "定期実行",
+            [AppLanguage.Ko] = "예약 실행",
+            [AppLanguage.Th] = "ตามกำหนดเวลา",
+        },
+        ["trigger_drive"] = new()
+        {
+            [AppLanguage.ZhHant] = "外接磁碟變更",
+            [AppLanguage.ZhHans] = "外接磁盘变化",
+            [AppLanguage.En] = "drive change",
+            [AppLanguage.Ja] = "ドライブの変更",
+            [AppLanguage.Ko] = "드라이브 변경",
+            [AppLanguage.Th] = "ไดรฟ์เปลี่ยนแปลง",
+        },
+        ["trigger_structure"] = new()
+        {
+            [AppLanguage.ZhHant] = "檔案結構異動",
+            [AppLanguage.ZhHans] = "文件结构变动",
+            [AppLanguage.En] = "folder structure changed",
+            [AppLanguage.Ja] = "フォルダ構造の変更",
+            [AppLanguage.Ko] = "폴더 구조 변경",
+            [AppLanguage.Th] = "โครงสร้างโฟลเดอร์เปลี่ยน",
+        },
+        ["trigger_paths"] = new()
+        {
+            [AppLanguage.ZhHant] = "偵測到 {0} 處檔案變更",
+            [AppLanguage.ZhHans] = "检测到 {0} 处文件变更",
+            [AppLanguage.En] = "{0} change(s) detected",
+            [AppLanguage.Ja] = "{0} 件の変更を検出",
+            [AppLanguage.Ko] = "{0}건의 변경 감지",
+            [AppLanguage.Th] = "ตรวจพบการเปลี่ยนแปลง {0} รายการ",
+        },
+        ["trigger_added"] = new()
+        {
+            [AppLanguage.ZhHant] = "新增端點",
+            [AppLanguage.ZhHans] = "新增端点",
+            [AppLanguage.En] = "endpoint added",
+            [AppLanguage.Ja] = "エンドポイント追加",
+            [AppLanguage.Ko] = "엔드포인트 추가",
+            [AppLanguage.Th] = "เพิ่มจุดซิงค์",
+        },
+        ["trigger_manual"] = new()
+        {
+            [AppLanguage.ZhHant] = "手動觸發",
+            [AppLanguage.ZhHans] = "手动触发",
+            [AppLanguage.En] = "manual",
+            [AppLanguage.Ja] = "手動実行",
+            [AppLanguage.Ko] = "수동 실행",
+            [AppLanguage.Th] = "สั่งด้วยตนเอง",
+        },
+        ["tray_minimized"] = new()
+        {
+            [AppLanguage.ZhHant] = "已最小化至系統匣，持續在背景進行檔案即時同步與對帳。",
+            [AppLanguage.ZhHans] = "已最小化到系统托盘，持续在后台进行文件实时同步与对账。",
+            [AppLanguage.En] = "Minimized to the system tray. Files keep syncing in the background.",
+            [AppLanguage.Ja] = "システムトレイに最小化しました。バックグラウンドで同期を続けます。",
+            [AppLanguage.Ko] = "시스템 트레이로 최소화되었습니다. 백그라운드에서 계속 동기화합니다.",
+            [AppLanguage.Th] = "ย่อไปที่ถาดระบบแล้ว ไฟล์ยังซิงค์ต่อในเบื้องหลัง",
+        },
+        ["core_folder_missing"] = new()
+        {
+            [AppLanguage.ZhHant] = "資料夾不存在（外接碟未掛載？）",
+            [AppLanguage.ZhHans] = "文件夹不存在（外接盘未挂载？）",
+            [AppLanguage.En] = "The folder does not exist (is the external drive mounted?)",
+            [AppLanguage.Ja] = "フォルダが存在しません（外付けドライブが接続されていませんか？）",
+            [AppLanguage.Ko] = "폴더가 없습니다 (외장 드라이브가 연결되어 있나요?)",
+            [AppLanguage.Th] = "ไม่พบโฟลเดอร์ (ไดรฟ์ภายนอกยังไม่ได้เชื่อมต่อหรือไม่)",
+        },
+        ["core_marker_mismatch"] = new()
+        {
+            [AppLanguage.ZhHant] = "標記檔與此端點不符（換了另一個資料夾或磁碟？），已停止，不傳播任何變更",
+            [AppLanguage.ZhHans] = "标记文件与此端点不符（换了另一个文件夹或磁盘？），已停止，不传播任何更改",
+            [AppLanguage.En] = "The marker file does not match this endpoint (a different folder or disk?). Stopped; nothing is propagated.",
+            [AppLanguage.Ja] = "マーカーファイルがこのエンドポイントと一致しません（別のフォルダやディスクですか？）。停止しました。変更は伝播しません。",
+            [AppLanguage.Ko] = "표식 파일이 이 엔드포인트와 일치하지 않습니다 (다른 폴더나 디스크인가요?). 중지되었으며 변경은 전파되지 않습니다.",
+            [AppLanguage.Th] = "ไฟล์เครื่องหมายไม่ตรงกับจุดซิงค์นี้ (เปลี่ยนโฟลเดอร์หรือดิสก์หรือไม่) หยุดแล้ว ไม่ส่งการเปลี่ยนแปลงใด ๆ",
+        },
+        ["core_marker_read"] = new()
+        {
+            [AppLanguage.ZhHant] = "無法讀取標記檔：{0}",
+            [AppLanguage.ZhHans] = "无法读取标记文件：{0}",
+            [AppLanguage.En] = "Could not read the marker file: {0}",
+            [AppLanguage.Ja] = "マーカーファイルを読み取れません：{0}",
+            [AppLanguage.Ko] = "표식 파일을 읽을 수 없습니다: {0}",
+            [AppLanguage.Th] = "อ่านไฟล์เครื่องหมายไม่ได้: {0}",
+        },
+        ["core_marker_lost"] = new()
+        {
+            [AppLanguage.ZhHant] = "標記檔遺失（被清空、重新格式化或換碟？），已停止，不傳播任何刪除",
+            [AppLanguage.ZhHans] = "标记文件丢失（被清空、重新格式化或换盘？），已停止，不传播任何删除",
+            [AppLanguage.En] = "The marker file is missing (emptied, reformatted, or a different disk?). Stopped; no deletions are propagated.",
+            [AppLanguage.Ja] = "マーカーファイルがありません（消去・再フォーマット・別ディスク？）。停止しました。削除は伝播しません。",
+            [AppLanguage.Ko] = "표식 파일이 없습니다 (비워졌거나 포맷되었거나 다른 디스크인가요?). 중지되었으며 삭제는 전파되지 않습니다.",
+            [AppLanguage.Th] = "ไม่พบไฟล์เครื่องหมาย (ถูกล้าง ฟอร์แมต หรือเปลี่ยนดิสก์หรือไม่) หยุดแล้ว ไม่ส่งการลบใด ๆ",
+        },
+        ["core_marker_write"] = new()
+        {
+            [AppLanguage.ZhHant] = "無法寫入標記檔：{0}",
+            [AppLanguage.ZhHans] = "无法写入标记文件：{0}",
+            [AppLanguage.En] = "Could not write the marker file: {0}",
+            [AppLanguage.Ja] = "マーカーファイルを書き込めません：{0}",
+            [AppLanguage.Ko] = "표식 파일을 쓸 수 없습니다: {0}",
+            [AppLanguage.Th] = "เขียนไฟล์เครื่องหมายไม่ได้: {0}",
+        },
+        ["core_volume_mismatch"] = new()
+        {
+            [AppLanguage.ZhHant] = "磁碟區識別碼不符（不是原本那顆磁碟），已停止",
+            [AppLanguage.ZhHans] = "磁盘卷标识不符（不是原来那块磁盘），已停止",
+            [AppLanguage.En] = "The volume ID does not match (not the original disk). Stopped.",
+            [AppLanguage.Ja] = "ボリューム ID が一致しません（元のディスクではありません）。停止しました。",
+            [AppLanguage.Ko] = "볼륨 ID가 일치하지 않습니다 (원래 디스크가 아닙니다). 중지되었습니다.",
+            [AppLanguage.Th] = "รหัสวอลลุ่มไม่ตรงกัน (ไม่ใช่ดิสก์เดิม) หยุดแล้ว",
+        },
+        ["core_not_enough"] = new()
+        {
+            [AppLanguage.ZhHant] = "在線端點不足 2 個，略過同步。",
+            [AppLanguage.ZhHans] = "在线端点不足 2 个，跳过同步。",
+            [AppLanguage.En] = "Fewer than 2 endpoints are online; sync skipped.",
+            [AppLanguage.Ja] = "オンラインのエンドポイントが 2 つ未満のため、同期をスキップしました。",
+            [AppLanguage.Ko] = "온라인 엔드포인트가 2개 미만이라 동기화를 건너뜁니다.",
+            [AppLanguage.Th] = "จุดซิงค์ออนไลน์น้อยกว่า 2 จุด ข้ามการซิงค์",
+        },
+        ["core_deletion_guard"] = new()
+        {
+            [AppLanguage.ZhHant] = "預計刪除 {0} 個檔案（共追蹤 {1} 個），超過安全防護門檻，已安全暫停，需使用者確認後方可執行。",
+            [AppLanguage.ZhHans] = "预计删除 {0} 个文件（共跟踪 {1} 个），超过安全防护阈值，已安全暂停，需用户确认后方可执行。",
+            [AppLanguage.En] = "{0} files would be deleted (of {1} tracked), above the safety threshold. Paused until you confirm.",
+            [AppLanguage.Ja] = "{0} 個のファイルを削除予定（追跡中 {1} 個）。安全しきい値を超えたため一時停止しました。確認後に実行されます。",
+            [AppLanguage.Ko] = "파일 {0}개를 삭제할 예정입니다 (추적 {1}개). 안전 기준을 초과하여 일시 중지했으며 확인 후 실행됩니다.",
+            [AppLanguage.Th] = "จะลบไฟล์ {0} ไฟล์ (จากที่ติดตาม {1}) เกินเกณฑ์ความปลอดภัย หยุดชั่วคราวจนกว่าจะยืนยัน",
+        },
+        ["core_note_conflict"] = new()
+        {
+            [AppLanguage.ZhHant] = "[{0}] 衝突 {1}：本端版本保留為「{2}」",
+            [AppLanguage.ZhHans] = "[{0}] 冲突 {1}：本端版本保留为“{2}”",
+            [AppLanguage.En] = "[{0}] Conflict {1}: this endpoint's version was kept as \"{2}\"",
+            [AppLanguage.Ja] = "[{0}] 競合 {1}：このエンドポイントの版を「{2}」として保持",
+            [AppLanguage.Ko] = "[{0}] 충돌 {1}: 이 엔드포인트의 버전을 \"{2}\"(으)로 보관",
+            [AppLanguage.Th] = "[{0}] ข้อขัดแย้ง {1}: เก็บเวอร์ชันของจุดนี้ไว้เป็น \"{2}\"",
+        },
+        ["core_note_changed"] = new()
+        {
+            [AppLanguage.ZhHant] = "[{0}] 新增/修改 {1}（版號 {2}）",
+            [AppLanguage.ZhHans] = "[{0}] 新增/修改 {1}（版号 {2}）",
+            [AppLanguage.En] = "[{0}] Added/changed {1} (revision {2})",
+            [AppLanguage.Ja] = "[{0}] 追加/変更 {1}（リビジョン {2}）",
+            [AppLanguage.Ko] = "[{0}] 추가/수정 {1} (리비전 {2})",
+            [AppLanguage.Th] = "[{0}] เพิ่ม/แก้ไข {1} (รุ่น {2})",
+        },
+        ["core_note_deleted"] = new()
+        {
+            [AppLanguage.ZhHant] = "[{0}] 刪除 {1}（版號 {2}）",
+            [AppLanguage.ZhHans] = "[{0}] 删除 {1}（版号 {2}）",
+            [AppLanguage.En] = "[{0}] Deleted {1} (revision {2})",
+            [AppLanguage.Ja] = "[{0}] 削除 {1}（リビジョン {2}）",
+            [AppLanguage.Ko] = "[{0}] 삭제 {1} (리비전 {2})",
+            [AppLanguage.Th] = "[{0}] ลบ {1} (รุ่น {2})",
+        },
+        ["core_note_trash"] = new()
+        {
+            [AppLanguage.ZhHant] = "[{0}] 移到資源回收筒 {1}",
+            [AppLanguage.ZhHans] = "[{0}] 移到回收站 {1}",
+            [AppLanguage.En] = "[{0}] Moved to the Recycle Bin: {1}",
+            [AppLanguage.Ja] = "[{0}] ごみ箱へ移動 {1}",
+            [AppLanguage.Ko] = "[{0}] 휴지통으로 이동 {1}",
+            [AppLanguage.Th] = "[{0}] ย้ายไปถังขยะ {1}",
+        },
+        ["core_note_write"] = new()
+        {
+            [AppLanguage.ZhHant] = "[{0}] 寫入 {1}（來源：{2}）",
+            [AppLanguage.ZhHans] = "[{0}] 写入 {1}（来源：{2}）",
+            [AppLanguage.En] = "[{0}] Wrote {1} (from {2})",
+            [AppLanguage.Ja] = "[{0}] 書き込み {1}（元：{2}）",
+            [AppLanguage.Ko] = "[{0}] 쓰기 {1} (원본: {2})",
+            [AppLanguage.Th] = "[{0}] เขียน {1} (จาก {2})",
+        },
+        ["core_note_nohost"] = new()
+        {
+            [AppLanguage.ZhHant] = "[{0}] {1}：目前無其他在線端點持有有效副本，稍後重試",
+            [AppLanguage.ZhHans] = "[{0}] {1}：目前没有其他在线端点持有有效副本，稍后重试",
+            [AppLanguage.En] = "[{0}] {1}: no other online endpoint holds a valid copy right now; will retry",
+            [AppLanguage.Ja] = "[{0}] {1}：有効なコピーを持つオンラインのエンドポイントがないため、後で再試行します",
+            [AppLanguage.Ko] = "[{0}] {1}: 유효한 사본을 가진 온라인 엔드포인트가 없어 나중에 다시 시도합니다",
+            [AppLanguage.Th] = "[{0}] {1}: ตอนนี้ไม่มีจุดซิงค์ออนไลน์ที่มีสำเนาที่ใช้ได้ จะลองใหม่ภายหลัง",
+        },
+        ["core_lock_timeout"] = new()
+        {
+            [AppLanguage.ZhHant] = "無法獲取同步鎖定（{0}），可能已有另一個 SyncNexus 正在對帳中。",
+            [AppLanguage.ZhHans] = "无法获取同步锁定（{0}），可能已有另一个 SyncNexus 正在对账中。",
+            [AppLanguage.En] = "Could not take the sync lock ({0}); another SyncNexus may be syncing.",
+            [AppLanguage.Ja] = "同期ロックを取得できません（{0}）。別の SyncNexus が同期中の可能性があります。",
+            [AppLanguage.Ko] = "동기화 잠금을 얻을 수 없습니다 ({0}). 다른 SyncNexus가 동기화 중일 수 있습니다.",
+            [AppLanguage.Th] = "ไม่สามารถล็อกการซิงค์ได้ ({0}) อาจมี SyncNexus อีกตัวกำลังซิงค์อยู่",
+        },
+        ["manual_title"] = new()
+        {
+            [AppLanguage.ZhHant] = "SyncNexus 操作使用手冊",
+            [AppLanguage.ZhHans] = "SyncNexus 操作使用手册",
+            [AppLanguage.En] = "SyncNexus User Manual",
+            [AppLanguage.Ja] = "SyncNexus 操作マニュアル",
+            [AppLanguage.Ko] = "SyncNexus 사용 설명서",
+            [AppLanguage.Th] = "คู่มือการใช้งาน SyncNexus",
+        },
+        ["manual_body"] = new()
+        {
+            [AppLanguage.ZhHant] = "【快速上手：如何加入同步資料夾？】\n點擊主畫面「新增同步端點...」，選取您準備要同步的目錄：\n\n1. 電腦本機資料夾：\n   打開「檔案總管」，點擊左側側邊欄的「文件」或進入 C: 槽選取您想要同步的資料夾。\n\n2. iCloud 雲碟：\n   打開「檔案總管」，點擊左側側邊欄的「iCloud 雲碟」圖示，選取準備要同步的資料夾。\n\n3. Google 雲端硬碟 (Google Drive)：\n   打開「檔案總管」，點擊左側側邊欄的「Google Drive」，點擊「我的雲端硬碟」，選取準備要同步的資料夾。\n\n4. OneDrive 雲端硬碟：\n   打開「檔案總管」，點擊左側側邊欄的「OneDrive」，選取準備要同步的資料夾。\n\n5. 外接隨身碟 / 行動硬碟：\n   插上隨身碟，打開「檔案總管」，點擊左側「本機」下方的隨身硬碟磁碟機代號（如 D: 或 E:），選取準備要同步的資料夾。格式建議為 ExFAT，方便同時與 Mac 互相插拔共用！\n\n【全自動即時同步與保護】\n• 平時完全免手動：任一資料夾檔案變更，2 秒內自動同步到其他所有端點。\n• 衝突雙向保留：離線雙向修改時，自動另存衝突複本，絕不覆蓋您的檔案。\n• 安全刪除：同步刪除時優先移入 Windows 資源回收筒，安全防手殘。",
+            [AppLanguage.ZhHans] = "【快速上手：如何添加同步文件夹？】\n点击主界面“新增同步端点...”，选择您准备要同步的目录：\n\n1. 电脑本机文件夹：\n   打开“文件资源管理器”，点击左侧边栏的“文档”或进入 C: 盘选择您想要同步的文件夹。\n\n2. iCloud 云盘：\n   打开“文件资源管理器”，点击左侧边栏的“iCloud 云盘”图标，选择准备要同步的文件夹。\n\n3. Google 云端硬盘 (Google Drive)：\n   打开“文件资源管理器”，点击左侧边栏的“Google Drive”，点击“我的云端硬盘”，选择准备要同步的文件夹。\n\n4. OneDrive 云端硬盘：\n   打开“文件资源管理器”，点击左侧边栏的“OneDrive”，选择准备要同步的文件夹。\n\n5. 外接 U 盘 / 移动硬盘：\n   插上 U 盘，打开“文件资源管理器”，点击左侧“此电脑”下方的盘符（如 D: 或 E:），选择准备要同步的文件夹。建议格式化为 ExFAT，方便与 Mac 互相插拔共用！\n\n【全自动实时同步与保护】\n• 平时完全免手动：任一文件夹中的文件变更，2 秒内自动同步到其他所有端点。\n• 冲突双向保留：离线双向修改时，自动另存冲突副本，绝不覆盖您的文件。\n• 安全删除：同步删除时优先移入 Windows 回收站，防止误删。",
+            [AppLanguage.En] = "[Quick start: how to add a folder to sync]\nClick \"Add Sync Endpoint...\" on the main window and choose the folder you want to sync:\n\n1. A folder on this PC:\n   Open File Explorer, click \"Documents\" in the left sidebar or browse your C: drive, and pick the folder.\n\n2. iCloud Drive:\n   Open File Explorer, click the \"iCloud Drive\" icon in the left sidebar, and pick the folder.\n\n3. Google Drive:\n   Open File Explorer, click \"Google Drive\" in the left sidebar, open \"My Drive\", and pick the folder.\n\n4. OneDrive:\n   Open File Explorer, click \"OneDrive\" in the left sidebar, and pick the folder.\n\n5. USB stick / external drive:\n   Plug it in, open File Explorer, click its drive letter under \"This PC\" (for example D: or E:), and pick the folder. ExFAT is recommended so the drive can be moved between Windows and Mac.\n\n[Automatic, real-time sync and protection]\n• No manual work: when a file changes in any folder, it is synced to all other endpoints within 2 seconds.\n• Conflicts keep both sides: if two sides were edited while apart, the other version is saved as a conflict copy. Your files are never overwritten.\n• Safe deletion: deletions go to the Windows Recycle Bin first, so mistakes can be undone.",
+            [AppLanguage.Ja] = "【クイックスタート：同期するフォルダの追加方法】\nメイン画面の「同期エンドポイントを追加...」をクリックし、同期したいフォルダを選びます。\n\n1. このPCのフォルダ：\n   エクスプローラーを開き、左のサイドバーの「ドキュメント」または C: ドライブから目的のフォルダを選びます。\n\n2. iCloud ドライブ：\n   エクスプローラーの左サイドバーにある「iCloud ドライブ」をクリックし、フォルダを選びます。\n\n3. Google ドライブ：\n   エクスプローラーの左サイドバーで「Google Drive」→「マイドライブ」を開き、フォルダを選びます。\n\n4. OneDrive：\n   エクスプローラーの左サイドバーで「OneDrive」をクリックし、フォルダを選びます。\n\n5. USB メモリ / 外付けドライブ：\n   接続してエクスプローラーを開き、「PC」の下のドライブ文字（D: や E: など）からフォルダを選びます。Mac と相互に使えるよう ExFAT 形式を推奨します。\n\n【全自動のリアルタイム同期と保護】\n• 手動操作は不要：いずれかのフォルダでファイルが変わると、2 秒以内に他のすべてのエンドポイントへ同期します。\n• 競合は両方を保持：離れた状態で双方が編集された場合、もう一方を競合コピーとして保存し、ファイルを上書きしません。\n• 安全な削除：削除はまず Windows のごみ箱に移動するため、取り消せます。",
+            [AppLanguage.Ko] = "[빠른 시작: 동기화할 폴더 추가 방법]\n메인 화면에서 \"동기화 엔드포인트 추가...\"를 클릭하고 동기화할 폴더를 선택하세요.\n\n1. 이 PC의 폴더:\n   파일 탐색기를 열고 왼쪽 사이드바의 \"문서\" 또는 C: 드라이브에서 폴더를 선택합니다.\n\n2. iCloud 드라이브:\n   파일 탐색기 왼쪽 사이드바의 \"iCloud 드라이브\"를 클릭하고 폴더를 선택합니다.\n\n3. Google 드라이브:\n   파일 탐색기 왼쪽 사이드바에서 \"Google Drive\"를 클릭한 뒤 \"내 드라이브\"를 열어 폴더를 선택합니다.\n\n4. OneDrive:\n   파일 탐색기 왼쪽 사이드바에서 \"OneDrive\"를 클릭하고 폴더를 선택합니다.\n\n5. USB / 외장 하드:\n   연결한 뒤 파일 탐색기의 \"내 PC\" 아래 드라이브 문자(D: 또는 E: 등)에서 폴더를 선택합니다. Mac과 번갈아 사용하려면 ExFAT 형식을 권장합니다.\n\n[완전 자동 실시간 동기화 및 보호]\n• 수동 작업 불필요: 어느 폴더에서든 파일이 바뀌면 2초 안에 다른 모든 엔드포인트로 동기화됩니다.\n• 충돌 시 양쪽 보관: 떨어져 있는 동안 양쪽이 수정되면 다른 버전을 충돌 사본으로 저장하며 파일을 덮어쓰지 않습니다.\n• 안전한 삭제: 삭제는 먼저 Windows 휴지통으로 이동하므로 실수를 되돌릴 수 있습니다.",
+            [AppLanguage.Th] = "[เริ่มต้นใช้งานอย่างรวดเร็ว: วิธีเพิ่มโฟลเดอร์ที่จะซิงค์]\nคลิก \"เพิ่มจุดซิงค์...\" ในหน้าหลัก แล้วเลือกโฟลเดอร์ที่ต้องการซิงค์\n\n1. โฟลเดอร์ในเครื่องนี้:\n   เปิดตัวสำรวจไฟล์ คลิก \"เอกสาร\" ที่แถบด้านซ้าย หรือเข้าไดรฟ์ C: แล้วเลือกโฟลเดอร์\n\n2. iCloud Drive:\n   เปิดตัวสำรวจไฟล์ คลิกไอคอน \"iCloud Drive\" ที่แถบด้านซ้าย แล้วเลือกโฟลเดอร์\n\n3. Google Drive:\n   เปิดตัวสำรวจไฟล์ คลิก \"Google Drive\" ที่แถบด้านซ้าย เปิด \"ไดรฟ์ของฉัน\" แล้วเลือกโฟลเดอร์\n\n4. OneDrive:\n   เปิดตัวสำรวจไฟล์ คลิก \"OneDrive\" ที่แถบด้านซ้าย แล้วเลือกโฟลเดอร์\n\n5. แฟลชไดรฟ์ USB / ฮาร์ดดิสก์ภายนอก:\n   เสียบอุปกรณ์ เปิดตัวสำรวจไฟล์ คลิกอักษรไดรฟ์ใต้ \"พีซีเครื่องนี้\" (เช่น D: หรือ E:) แล้วเลือกโฟลเดอร์ แนะนำให้ฟอร์แมตเป็น ExFAT เพื่อใช้สลับกับ Mac ได้\n\n[ซิงค์อัตโนมัติแบบเรียลไทม์และการปกป้อง]\n• ไม่ต้องทำเอง: เมื่อไฟล์ในโฟลเดอร์ใดเปลี่ยน จะซิงค์ไปยังจุดอื่นทั้งหมดภายใน 2 วินาที\n• เก็บทั้งสองฝั่งเมื่อขัดแย้ง: หากมีการแก้ไขทั้งสองฝั่งขณะแยกกัน จะบันทึกอีกเวอร์ชันเป็นสำเนาข้อขัดแย้ง ไม่เขียนทับไฟล์ของคุณ\n• ลบอย่างปลอดภัย: การลบจะย้ายไปถังขยะของ Windows ก่อน จึงกู้คืนได้",
+        },
+        ["privacy_title"] = new()
+        {
+            [AppLanguage.ZhHant] = "SyncNexus 隱私權保護政策",
+            [AppLanguage.ZhHans] = "SyncNexus 隐私保护政策",
+            [AppLanguage.En] = "SyncNexus Privacy Policy",
+            [AppLanguage.Ja] = "SyncNexus プライバシーポリシー",
+            [AppLanguage.Ko] = "SyncNexus 개인정보 처리방침",
+            [AppLanguage.Th] = "นโยบายความเป็นส่วนตัวของ SyncNexus",
+        },
+        ["privacy_body"] = new()
+        {
+            [AppLanguage.ZhHant] = "【SyncNexus 隱私權承諾】\n\n1. 100% 本地優先，無雲端中繼伺服器：\n   所有檔案比對、同步傳輸與特徵碼比對皆完全在您的電腦本地執行。SyncNexus 沒有經營任何雲端伺服器，絕不會上傳您的檔案內容。\n\n2. 嚴格遵循微軟應用商店與系統最小權限原則：\n   本軟體僅存取您在選取視窗中明確指定的資料夾，絕無法擅自存取您電腦中的其他私人檔案。\n\n3. 零診斷追蹤，零廣告，無任何資料收集：\n   我們不收集檔案清單、資料夾名稱、硬體序號、IP 位址或任何分析數據。程式內未植入任何廣告追蹤 SDK 或第三方數據分析工具。\n\n4. 安全刪除機制：優先移至系統資源回收筒：\n   在進行同步刪除時，檔案會優先移至 Windows 系統「資源回收筒」而非永久抹除，確保隨時可撤銷操作。您擁有資料處置的最高決定權。",
+            [AppLanguage.ZhHans] = "【SyncNexus 隐私承诺】\n\n1. 100% 本地优先，无云端中继服务器：\n   所有文件比对、同步传输与特征码比对均完全在您的电脑本地执行。SyncNexus 没有运营任何云端服务器，绝不会上传您的文件内容。\n\n2. 严格遵循微软应用商店与系统最小权限原则：\n   本软件仅访问您在选择窗口中明确指定的文件夹，绝不会擅自访问您电脑中的其他私人文件。\n\n3. 零诊断追踪，零广告，不收集任何数据：\n   我们不收集文件列表、文件夹名称、硬件序列号、IP 地址或任何分析数据。程序内未植入任何广告追踪 SDK 或第三方数据分析工具。\n\n4. 安全删除机制：优先移至系统回收站：\n   进行同步删除时，文件会优先移至 Windows 系统“回收站”而非永久删除，确保随时可以撤销操作。您拥有数据处置的最终决定权。",
+            [AppLanguage.En] = "[SyncNexus Privacy Promise]\n\n1. 100% local-first, no cloud relay server:\n   All file comparison, transfer, and checksum work happens entirely on your computer. SyncNexus runs no cloud servers and never uploads the contents of your files.\n\n2. Least privilege, as the Microsoft Store requires:\n   The app only accesses the folders you explicitly choose in the picker. It cannot reach any other private files on your computer.\n\n3. No diagnostics, no ads, no data collection:\n   We do not collect file lists, folder names, hardware serial numbers, IP addresses, or any analytics. The app contains no advertising or third-party tracking SDKs.\n\n4. Safe deletion: the Recycle Bin comes first:\n   When a deletion is synced, files are moved to the Windows Recycle Bin instead of being erased, so the action can always be undone. You have the final say over your data.",
+            [AppLanguage.Ja] = "【SyncNexus のプライバシーへの取り組み】\n\n1. 100% ローカル優先、クラウド中継サーバーなし：\n   ファイルの比較、転送、チェックサムの照合はすべてお使いのコンピューター上で行われます。SyncNexus はクラウドサーバーを運営しておらず、ファイルの内容をアップロードすることはありません。\n\n2. Microsoft Store の最小権限の原則に準拠：\n   本ソフトは、選択ダイアログで明示的に指定されたフォルダにのみアクセスします。コンピューター内のその他の個人ファイルには一切アクセスできません。\n\n3. 診断情報の収集なし、広告なし、データ収集なし：\n   ファイル一覧、フォルダ名、ハードウェアのシリアル番号、IP アドレス、分析データは収集しません。広告用トラッキング SDK やサードパーティの分析ツールも組み込まれていません。\n\n4. 安全な削除：まずごみ箱へ：\n   同期による削除では、ファイルを完全に消去せず Windows のごみ箱へ移動するため、いつでも元に戻せます。データの扱いを決めるのは常にあなたです。",
+            [AppLanguage.Ko] = "[SyncNexus 개인정보 보호 약속]\n\n1. 100% 로컬 우선, 클라우드 중계 서버 없음:\n   모든 파일 비교, 전송, 체크섬 확인은 사용자의 컴퓨터에서만 수행됩니다. SyncNexus는 클라우드 서버를 운영하지 않으며 파일 내용을 업로드하지 않습니다.\n\n2. Microsoft Store 최소 권한 원칙 준수:\n   이 앱은 선택 창에서 사용자가 명시적으로 지정한 폴더에만 접근하며, 컴퓨터의 다른 개인 파일에는 접근할 수 없습니다.\n\n3. 진단 추적 없음, 광고 없음, 데이터 수집 없음:\n   파일 목록, 폴더 이름, 하드웨어 일련번호, IP 주소, 분석 데이터를 수집하지 않습니다. 광고 추적 SDK나 제3자 분석 도구도 포함되어 있지 않습니다.\n\n4. 안전한 삭제: 휴지통 우선:\n   동기화로 삭제할 때 파일을 영구 삭제하지 않고 Windows 휴지통으로 이동하므로 언제든 되돌릴 수 있습니다. 데이터에 대한 최종 결정권은 사용자에게 있습니다.",
+            [AppLanguage.Th] = "[คำมั่นด้านความเป็นส่วนตัวของ SyncNexus]\n\n1. เน้นในเครื่อง 100% ไม่มีเซิร์ฟเวอร์คลาวด์คั่นกลาง:\n   การเปรียบเทียบไฟล์ การส่งไฟล์ และการตรวจค่าแฮชทั้งหมดทำบนคอมพิวเตอร์ของคุณเท่านั้น SyncNexus ไม่มีเซิร์ฟเวอร์คลาวด์ และจะไม่อัปโหลดเนื้อหาไฟล์ของคุณ\n\n2. ยึดหลักสิทธิ์ขั้นต่ำตามข้อกำหนดของ Microsoft Store:\n   แอปเข้าถึงเฉพาะโฟลเดอร์ที่คุณเลือกไว้อย่างชัดเจนในหน้าต่างเลือก และไม่สามารถเข้าถึงไฟล์ส่วนตัวอื่นในคอมพิวเตอร์ได้\n\n3. ไม่เก็บข้อมูลวินิจฉัย ไม่มีโฆษณา ไม่เก็บข้อมูลใด ๆ:\n   เราไม่เก็บรายชื่อไฟล์ ชื่อโฟลเดอร์ หมายเลขซีเรียลฮาร์ดแวร์ ที่อยู่ IP หรือข้อมูลวิเคราะห์ใด ๆ และไม่มี SDK ติดตามโฆษณาหรือเครื่องมือวิเคราะห์ของบุคคลที่สาม\n\n4. ลบอย่างปลอดภัย: ย้ายไปถังขยะก่อน:\n   เมื่อซิงค์การลบ ไฟล์จะถูกย้ายไปถังขยะของ Windows แทนการลบถาวร จึงเลิกทำได้เสมอ คุณมีสิทธิ์ตัดสินใจเรื่องข้อมูลของคุณ",
+        },
         ["keep_conflict"] = new()
         {
             [AppLanguage.ZhHant] = "保留衝突複本",

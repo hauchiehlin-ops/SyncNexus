@@ -1,6 +1,6 @@
 # SyncNexus Privacy Policy — Android (Google Play Review Standards)
 
-**Effective Date**: October 3, 2026  
+**Effective Date**: October 5, 2026  
 **Platform**: Google Play Store (Android)  
 **Developer**: SyncNexus Team  
 
@@ -15,24 +15,35 @@ SyncNexus adheres to the highest standards of data privacy and transparency. Thi
 
 ---
 
-### 2. Android Permissions & Prominent Disclosure
+### 2. What the App Stores on Your Device
+To provide Diff preview, Conflicts, Old versions, and Verification, SyncNexus keeps the following in the **app's private storage**:
+* For each sync group, the hash and modification time of each file as of the last time all folders agreed (used to tell which side changed).
+* The list of unresolved conflicts.
+* **A version archive**: copies of files replaced by a sync update, a conflict decision, or a restore, kept for 30 days (1 GB in total; the oldest are removed first beyond that).
+* A verification history (time, number of files, result).
+
+This data **stays on your device and is never uploaded**. Removing a group removes its records; uninstalling the app or clearing its data in Android settings deletes everything. Conflict copies are stored inside the synced folder where the conflict happened, and you decide whether to keep or discard them.
+
+---
+
+### 3. Android Permissions & Prominent Disclosure
 To deliver reliable local file synchronization, SyncNexus utilizes the following scoped permissions:
 1. **Storage Access Framework (SAF)**:
    - SyncNexus does not request broad `MANAGE_EXTERNAL_STORAGE` access. Instead, users explicitly grant access to specific folders via the system document tree picker (`takePersistableUriPermission`).
-2. **Foreground Service (`FOREGROUND_SERVICE_DATA_SYNC`)**:
-   - Required by Android to execute background synchronization reliably. A persistent notification is displayed exclusively while syncing is active to ensure user visibility.
-3. **Local Network Service Discovery (NSD / mDNS)**:
-   - Utilized solely within your local Wi-Fi network to detect nearby SyncNexus nodes (Mac / Windows). No packets are routed to the public Internet.
+2. **Foreground Service (`FOREGROUND_SERVICE_DATA_SYNC`) and Notifications (`POST_NOTIFICATIONS`)**:
+   - Required by Android to run background synchronization reliably. A persistent notification shows the state of each sync group so the activity stays visible.
+3. **Network permissions (`INTERNET`, `ACCESS_WIFI_STATE`, `CHANGE_WIFI_MULTICAST_STATE`) and Local Network Service Discovery (NSD / mDNS)**:
+   - Android requires these permissions to use NSD. They are used **solely within your local Wi-Fi network to detect nearby SyncNexus devices (Mac / Windows)**. The app connects to no external servers and uploads or downloads no data.
 4. **USB Device Attachment Listener**:
    - Used exclusively to detect connection or disconnection of external USB OTG drives for immediate sync endpoint awareness.
 
 ---
 
-### 3. User Control
-Users can revoke folder permissions at any time within the application or via Android system settings.
+### 4. User Control
+Users can remove authorized folders and delete archived versions within the application, or revoke permissions and clear local data via Android system settings, at any time.
 
 ---
 
-### 4. Contact
+### 5. Contact
 For privacy inquiries or review clarifications:  
 Repository: [https://github.com/hauchiehlin-ops/SyncNexus](https://github.com/hauchiehlin-ops/SyncNexus)

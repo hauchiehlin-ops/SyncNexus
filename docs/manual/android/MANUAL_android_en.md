@@ -1,90 +1,104 @@
-# SyncNexus User Operation Manual — Android Complete Guide
+# SyncNexus User Manual — Android Complete Guide
 
-> **Applicable Platform**: Android 10 and later (API 29+)  
-> **Current Version**: 1.2.0 (build 22)  
-> **Core Design Principles**: Local-First, Pure LAN Direct Connection, SAF Privacy Sandbox
+> **Applicable platform**: Android 8.0 and later (API 26+)  
+> **Core design principles**: Local-first, LAN-only direct connection, SAF privacy sandbox
 
 ---
 
-## Top Navigation Header
+## Getting around
 
-On the Android top app bar:
-- **Language Menu**: Instant switching across 6 languages.
-- **User Operation Manual (📖)**: Opens this native in-app manual without launching external browsers.
-- **Privacy Policy (🛡️)**: Outlines Android SAF storage sandbox access and zero-cloud commitments.
+Tap **☰** (top left) to open the sidebar. It has 8 sections: **Overview, Diff preview, Folders, Sync activity, Conflicts, Old versions, Verification, Settings**, plus the user manual and the privacy policy. The number next to "Conflicts" is how many are waiting for you.
+
+The **🌐** button in the top bar switches the interface language at any time (繁體中文, 简体中文, English, 日本語, 한국어, ภาษาไทย, or follow the system).
+
+> Syncing only **adds or updates** files. It **never deletes** anything: a file deleted on one side comes back from the others on the next sync. Every file that gets replaced is archived under "Old versions" first.
 
 ---
 
 ## Chapter 1: Overview
 
-### 1.1 Purpose and Objectives
-Overview gives you a fast snapshot of synchronization health between your mobile device and other endpoints.
-- **Sync Status**: Green (Normal Sync) and Yellow (Offline / Pending).
-- **Tracked Files**: Live count of files monitored on mobile storage.
-- **LAN P2P Direct Connect**: Utilizes Android Network Service Discovery (NSD) to find Macs and Windows PCs on the same Wi-Fi, establishing high-speed point-to-point channels.
+### 1.1 What it shows
+The state of the current sync group at a glance: number of folders, tracked files, recent transfers, last sync time, and other devices found on the same Wi-Fi (Macs / Windows PCs, found with Android NSD; **nothing goes to the Internet**). You can also switch, create, edit, and delete sync groups and manage backups here.
 
-### 1.2 【Zero-Foundation Beginner Tutorial: Step-by-Step Instructions】
-- **【Step 1】**: Check top status badge; green indicates all endpoints are synced and ready.
-- **【Step 2】**: Connect to the same Wi-Fi network; your computer appears in the P2P device list automatically.
-- **【Step 3】**: If mass deletions occur, an alert dialog pauses sync until you explicitly authorize or reject it.
+### 1.2 Steps
+- **【Step 1】**: Tap "Add Folder…" and add at least two folders. Syncing needs two or more.
+- **【Step 2】**: Tap "Reconcile & Sync Now" to sync immediately. The app also reconciles periodically in the background.
+- **【Step 3】**: On the same Wi-Fi, nearby computers appear under "Local Wi-Fi Devices".
 
 ---
 
-## Chapter 2: Diff Preview
+## Chapter 2: Diff preview
 
-### 2.1 Purpose and Objectives
-Before writing files to mobile flash storage, simulate and preview pending incoming changes from your computer.
+### 2.1 What it does
+Shows what the next sync **would do**, before any file is touched. Looking changes nothing.
 
-### 2.2 【Zero-Foundation Beginner Tutorial: Step-by-Step Instructions】
-- **【Step 1】**: Tap "Run Trial Simulation"; the app computes differences in memory without altering storage.
-- **【Step 2】**: Review change indicators: Green `+` (additions), Blue `➔` (renames), Red `−` (deletions, moved to Trash).
-- **【Step 3】**: Once verified, tap "Confirm Sync" to write changes.
+### 2.2 Steps
+- **【Step 1】**: Open "Diff preview" and tap "Check now".
+- **【Step 2】**: Each row shows the file path and the action:
+  - Green: new on a folder, or an update of an older file there (the old version is archived).
+  - Red: a conflict; that folder's own edit is kept as a conflict copy.
+- **【Step 3】**: If it looks right, go back to "Overview" and tap "Reconcile & Sync Now".
 
 ---
 
 ## Chapter 3: Folders
 
-### 3.1 Sync Groups & Adding Storage Endpoints
-SyncNexus supports independent multi-folder Sync Groups:
-- **Sync Groups Management**: Tap "+ New Group" to create isolated sync tasks (e.g. Photo Backup, Documents), and tap chips to switch.
-- **Adding Storage Endpoints**:
-  1. **Internal Storage**: Tap "Add Folder...", select target folder in Android SAF picker ➔ tap "Use this folder" and grant access.
-  2. **External SD Card / Type-C USB**: Plug in SD card or Type-C drive, select it from the sidebar picker, and authorize (**ExFAT format is strongly recommended** for easy cross-platform use on Mac and Windows).
-  3. **Change or Remove**: Tap "Change Folder" or "Remove" on endpoint cards; removing never deletes physical files.
+### 3.1 Adding and removing folders
+- **Add**: tap "Add Folder…", pick a folder in the Android picker, tap "Use this folder", and allow access.
+  1. **Internal storage**: choose the target folder.
+  2. **SD card / USB-C drive**: plug it in and select it in the picker's side menu (**ExFAT is recommended** so it works on Mac and Windows too).
+- **A folder can only belong to one group**, and a group cannot contain folders that sit inside each other, so nothing is synced twice.
+- **Remove**: tap "Remove" next to a folder. This **never deletes** the files.
 
 ---
 
-## Chapter 4: Conflicts
+## Chapter 4: Sync activity
 
-### 4.1 Dual-Version Arbitration & Zero-Overwrite Guarantee
-When files are edited offline on both phone and computer:
-- **【Step 1】**: A red indicator badge appears on the "Conflicts" tab. Tap to open.
-- **【Step 2】**: Compare modified timestamps and sizes of both versions side-by-side.
-- **【Step 3】**: Tap "Keep Primary Version" or "Use Conflict Version" to resolve and sync.
+Lists what the last sync did (copies, conflicts, failures and why), so you can check that every step succeeded.
 
 ---
 
-## Chapter 5: Versions
+## Chapter 5: Conflicts
 
-### 5.1 Historical Time Machine
-- **【Step 1】**: Set retention duration (7 / 30 / 90 days or Permanent).
-- **【Step 2】**: Search by filename to find previous revisions.
-- **【Step 3】**: Tap "Restore" to recover any superseded file with one tap.
+### 5.1 When does a conflict happen?
+The same file was changed in two places (for example on the phone and on the computer while apart) and the contents differ. SyncNexus **never overwrites silently**: the newer version becomes the main one, and the other folder's own edit is saved as "name (conflict endpoint date time).ext", **kept only in that folder** and never synced.
 
----
-
-## Chapter 6: Verification
-
-### 6.1 SHA-256 Deep Integrity
-- **【Step 1】**: Tap "Start Verification Now"; computes SHA-256 hashes in background.
-- **【Step 2】**: If corrupted files are flagged, tap "Repair from Others" to fetch a fresh bit-accurate copy from your computer.
+### 5.2 Steps
+- **【Step 1】**: When a number appears next to "Conflicts" in the sidebar, open it.
+- **【Step 2】**: Each entry shows the file, which folder it happened in, the time, and the conflict copy's name.
+- **【Step 3】**: Choose one:
+  - **Keep the synced version**: discards the conflict copy (it is archived under "Old versions" first).
+  - **Use this copy instead**: the copy replaces the main file (the old main file is archived first) and spreads to the other folders right away.
 
 ---
 
-## Chapter 7: Settings
+## Chapter 6: Old versions
 
-### 7.1 Preferences & Permissions
-- **Conflict Policy**: Choose "Keep both, let me choose" or "Newer wins".
-- **Exclusion Filters**: Automatically excludes thumbnails and system cache directories.
-- **Languages**: Instant switching between 6 languages.
-- **Battery Awareness**: Pauses heavy sync tasks when battery is below 15% and unplugged.
+### 6.1 What it keeps
+Files that get replaced (by a sync update, a conflict decision, a repair…) are first archived in the app's private storage and **kept for 30 days** (1 GB in total; beyond that the oldest go first).
+
+### 6.2 Steps
+- **【Step 1】**: Open "Old versions". Each entry shows the file, source folder, time, size, and why it was replaced.
+- **【Step 2】**: Tap "Restore" to put the file back (the current file is archived first). The next sync spreads it to the other folders.
+- **【Step 3】**: Tap "Delete" for versions you do not need.
+
+---
+
+## Chapter 7: Verification
+
+### 7.1 What it does
+Re-reads every file, computes SHA-256, and checks it still matches the record. This finds **silent corruption**: content that changed while size and modification time did not. A normal edit (which changes the modification time) is not treated as a problem.
+
+### 7.2 Steps
+- **【Step 1】**: Tap "Verify now". When it finishes, a new line appears under "History" (time, files, result).
+- **【Step 2】**: For anything under "Needs a decision", choose:
+  - **Restore the good copy**: fetches the correct content from another folder; the damaged file is archived under "Old versions".
+  - **Accept this version**: treats it as a normal edit that spreads to the other folders.
+
+---
+
+## Chapter 8: Settings
+
+- **Language**: switch between 6 languages or "Follow system"; applied immediately.
+- **User manual / Privacy policy**: opens this guide and the privacy policy.
+- **Background sync**: the app keeps a foreground service running, and Android schedules a reconcile every hour; the system defers it by itself when the battery is low.

@@ -28,6 +28,7 @@ public partial class MainWindow : Window
         DataContext = viewModel;
 
         ChkFolderIcons.IsChecked = _folderIcons.Enabled;
+        LoadSavedLanguage();
         ApplyGroupBarTexts();
         // creating / deleting a group changes which folders must be watched (and which icons they carry)
         _groups.GroupsChanged += () => Dispatcher.Invoke(() =>
@@ -62,7 +63,7 @@ public partial class MainWindow : Window
                 _viewModel.LoadEndpoints();
                 foreach (var note in report.Notes)
                 {
-                    _viewModel.RecentLogs.Insert(0, note);
+                    _viewModel.RecentLogs.Insert(0, CoreMessages.Localize(note));
                 }
             });
         };
@@ -97,7 +98,7 @@ public partial class MainWindow : Window
             RefreshFolderIcons();
             _syncService.ReconfigureFileWatchers();
             _viewModel.LoadEndpoints();
-            _ = _syncService.RequestSyncAsync("新增端點");
+            _ = _syncService.RequestSyncAsync(LocalizationService.Instance.Get("trigger_added"));
         }
     }
 
@@ -138,26 +139,56 @@ public partial class MainWindow : Window
         WindowsStartupHelper.SetRunAtStartup(ChkAutoStart.IsChecked == true);
     }
 
+    private static string LanguageFile =>
+        System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SyncNexus", "language.txt");
+
+    private static readonly AppLanguage[] LanguageOrder =
+        { AppLanguage.ZhHant, AppLanguage.ZhHans, AppLanguage.En, AppLanguage.Ja, AppLanguage.Ko, AppLanguage.Th };
+
+    /// <summary>The picker shows the language actually in use (saved choice, else the system language) instead of always "繁體中文".</summary>
+    private void LoadSavedLanguage()
+    {
+        try
+        {
+            if (System.IO.File.Exists(LanguageFile) &&
+                Enum.TryParse<AppLanguage>(System.IO.File.ReadAllText(LanguageFile).Trim(), out var saved))
+            {
+                LocalizationService.Instance.CurrentLanguage = saved;
+            }
+        }
+        catch { /* an unreadable preference just means: follow the system language */ }
+        CmbLanguage.SelectedIndex = Array.IndexOf(LanguageOrder, LocalizationService.Instance.CurrentLanguage);
+    }
+
     private void CmbLanguage_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (CmbLanguage.SelectedIndex < 0) return;
+        if (CmbLanguage.SelectedIndex < 0 || CmbLanguage.SelectedIndex >= LanguageOrder.Length) return;
 
-        LocalizationService.Instance.CurrentLanguage = CmbLanguage.SelectedIndex switch
+        LocalizationService.Instance.CurrentLanguage = LanguageOrder[CmbLanguage.SelectedIndex];
+        try
         {
-            0 => AppLanguage.ZhHant,
-            1 => AppLanguage.ZhHans,
-            2 => AppLanguage.En,
-            3 => AppLanguage.Ja,
-            4 => AppLanguage.Ko,
-            5 => AppLanguage.Th,
-            _ => AppLanguage.ZhHant
-        };
+            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(LanguageFile)!);
+            System.IO.File.WriteAllText(LanguageFile, LocalizationService.Instance.CurrentLanguage.ToString());
+        }
+        catch { /* not being able to remember the choice must not break switching */ }
 
-        // this handler already fires while the XAML is still being loaded (ComboBoxItem IsSelected): nothing else exists yet
+        // this handler can fire while the XAML is still being loaded: nothing else exists yet
         if (_viewModel is null || TxtGroupTitle is null) return;
 
         ApplyGroupBarTexts();
         _viewModel.RefreshGroupNames();   // built-in / unnamed groups follow the language
+    }
+
+    private void NavList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        // fires once while the XAML is loading, before the panels exist
+        if (EndpointsBox is null || ActivityBox is null || SettingsBar is null || StatusCard is null || GroupBar is null) return;
+
+        var index = NavList.SelectedIndex;
+        var overview = index <= 0;
+        StatusCard.Visibility = GroupBar.Visibility = EndpointsBox.Visibility = overview ? Visibility.Visible : Visibility.Collapsed;
+        ActivityBox.Visibility = index == 1 ? Visibility.Visible : Visibility.Collapsed;
+        SettingsBar.Visibility = index == 2 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void ApplyGroupBarTexts()
@@ -172,6 +203,26 @@ public partial class MainWindow : Window
         BtnGroupImport.Content = loc.Get("import_legacy_button");
         BtnGroupEdit.Content = loc.Get("group_edit_title");
         BtnGroupDelete.Content = loc.Get("group_delete_button");
+
+        // everything else on the main window follows the language too
+        TxtSubtitle.Text = loc.Get("app_subtitle");
+        BtnAddEndpoint.Content = "+ " + loc.Get("add_endpoint");
+        BtnSyncNow.Content = loc.Get("sync_now");
+        TxtTrackedLabel.Text = loc.Get("status_tracked_files");
+        TxtLanLabel.Text = loc.Get("status_lan_label");
+        TxtLanValue.Text = loc.Get("status_lan_online");
+        EndpointsBox.Header = loc.Get("endpoints_header");
+        ActivityBox.Header = loc.Get("nav_activity");
+        TxtActivityEmpty.Text = loc.Get("activity_empty");
+        ChkAutoStart.Content = loc.Get("autostart_title");
+        TxtDaemon.Text = loc.Get("daemon_running");
+        TxtFooter.Text = loc.Get("footer_status");
+        NavOverview.Content = "🏠 " + loc.Get("nav_overview");
+        NavActivity.Content = "📈 " + loc.Get("nav_activity");
+        NavSettings.Content = "⚙️ " + loc.Get("nav_settings");
+        NavBtnConflicts.Content = "⚡ " + loc.Get("nav_conflicts");
+        NavBtnManual.Content = "📖 " + loc.Get("nav_manual");
+        NavBtnPrivacy.Content = "🛡️ " + loc.Get("nav_privacy");
     }
 
     private void BtnGroupNew_Click(object sender, RoutedEventArgs e)
@@ -286,59 +337,14 @@ public partial class MainWindow : Window
 
     private void BtnManual_Click(object sender, RoutedEventArgs e)
     {
-        var title = "SyncNexus 操作使用手冊";
-        var content = @"【快速上手：如何加入同步資料夾？】
-點擊主畫面「新增同步端點...」，選取您準備要同步的目錄：
-
-1. 電腦本機資料夾：
-   打開「檔案總管」，點擊左側側邊欄的「文件」或進入 C: 槽選取您想要同步的資料夾。
-
-2. iCloud 雲碟：
-   打開「檔案總管」，點擊左側側邊欄的「iCloud 雲碟」圖示，選取準備要同步的資料夾。
-
-3. Google 雲端硬碟 (Google Drive)：
-   打開「檔案總管」，點擊左側側邊欄的「Google Drive」，點擊「我的雲端硬碟」，選取準備要同步的資料夾。
-
-4. OneDrive 雲端硬碟：
-   打開「檔案總管」，點擊左側側邊欄的「OneDrive」，選取準備要同步的資料夾。
-
-5. 外接隨身碟 / 行動硬碟：
-   插上隨身碟，打開「檔案總管」，點擊左側「本機」下方的隨身硬碟磁碟機代號（如 D: 或 E:），選取準備要同步的資料夾。格式建議為 ExFAT，方便同時與 Mac 互相插拔共用！
-
-【全自動即時同步與保護】
-• 平時完全免手動：任一資料夾檔案變更，2 秒內自動同步到其他所有端點。
-• 衝突雙向保留：離線雙向修改時，自動另存衝突複本，絕不覆蓋您的檔案。
-• 安全刪除：同步刪除時優先移入 Windows 資源回收筒，安全防手殘。";
-
-        var dialog = new DocumentViewerDialog(title, content)
-        {
-            Owner = this
-        };
-        dialog.ShowDialog();
+        var loc = LocalizationService.Instance;
+        new DocumentViewerDialog(loc.Get("manual_title"), loc.Get("manual_body")) { Owner = this }.ShowDialog();
     }
 
     private void BtnPrivacy_Click(object sender, RoutedEventArgs e)
     {
-        var title = "SyncNexus 隱私權保護政策";
-        var content = @"【SyncNexus 隱私權承諾】
-
-1. 100% 本地優先，無雲端中繼伺服器：
-   所有檔案比對、同步傳輸與特徵碼比對皆完全在您的電腦本地執行。SyncNexus 沒有經營任何雲端伺服器，絕不會上傳您的檔案內容。
-
-2. 嚴格遵循微軟應用商店與系統最小權限原則：
-   本軟體僅存取您在選取視窗中明確指定的資料夾，絕無法擅自存取您電腦中的其他私人檔案。
-
-3. 零診斷追蹤，零廣告，無任何資料收集：
-   我們不收集檔案清單、資料夾名稱、硬體序號、IP 位址或任何分析數據。程式內未植入任何廣告追蹤 SDK 或第三方數據分析工具。
-
-4. 安全刪除機制：優先移至系統資源回收筒：
-   在進行同步刪除時，檔案會優先移至 Windows 系統「資源回收筒」而非永久抹除，確保隨時可撤銷操作。您擁有資料處置的最高決定權。";
-
-        var dialog = new DocumentViewerDialog(title, content)
-        {
-            Owner = this
-        };
-        dialog.ShowDialog();
+        var loc = LocalizationService.Instance;
+        new DocumentViewerDialog(loc.Get("privacy_title"), loc.Get("privacy_body")) { Owner = this }.ShowDialog();
     }
 
     #region System Tray & Close-to-Tray
@@ -459,7 +465,7 @@ public partial class MainWindow : Window
         {
             e.Cancel = true;
             Hide();
-            MyTaskbarIcon.ShowNotification("SyncNexus", "已最小化至系統匣，持續在背景進行檔案即時同步與對帳。");
+            MyTaskbarIcon.ShowNotification("SyncNexus", LocalizationService.Instance.Get("tray_minimized"));
             return;
         }
 
@@ -483,7 +489,7 @@ public partial class MainWindow : Window
 
     private void MenuSync_Click(object sender, RoutedEventArgs e)
     {
-        _ = _syncService.RequestSyncAsync("手動觸發");
+        _ = _syncService.RequestSyncAsync(LocalizationService.Instance.Get("trigger_manual"));
     }
 
     private void MenuExit_Click(object sender, RoutedEventArgs e)

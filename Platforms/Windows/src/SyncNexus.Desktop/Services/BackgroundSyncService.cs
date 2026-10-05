@@ -1,3 +1,4 @@
+using SyncNexus.Desktop.Localization;
 using System.IO;
 using SyncNexus.Core.Engine;
 using SyncNexus.Core.IO;
@@ -28,7 +29,7 @@ public class BackgroundSyncService : IDisposable
 
         // 60-second periodic heartbeat
         _periodicTimer = new Timer(
-            async _ => await RequestSyncAsync("定時排程"),
+            async _ => await RequestSyncAsync(LocalizationService.Instance.Get("trigger_periodic")),
             null,
             TimeSpan.FromSeconds(15),
             TimeSpan.FromSeconds(60)
@@ -36,7 +37,7 @@ public class BackgroundSyncService : IDisposable
 
         _deviceWatcher.OnDeviceChanged += async () =>
         {
-            await RequestSyncAsync("外接磁碟變更");
+            await RequestSyncAsync(LocalizationService.Instance.Get("trigger_drive"));
         };
     }
 
@@ -62,7 +63,8 @@ public class BackgroundSyncService : IDisposable
                 validRoots,
                 async batch =>
                 {
-                    var reason = batch.Full ? "檔案結構異動" : $"偵測到 {batch.Paths.Count} 處檔案變更";
+                    var loc = LocalizationService.Instance;
+                    var reason = batch.Full ? loc.Get("trigger_structure") : string.Format(loc.Get("trigger_paths"), batch.Paths.Count);
                     await RequestSyncAsync(reason);
                 }
             );
@@ -82,7 +84,7 @@ public class BackgroundSyncService : IDisposable
 
         try
         {
-            OnStatusChanged?.Invoke($"同步中 ({triggerReason})...");
+            OnStatusChanged?.Invoke(string.Format(LocalizationService.Instance.Get("sync_running_fmt"), triggerReason));
             var allOk = true;
             // groups are reconciled one after another; each has its own database and engine
             foreach (var rt in _groups.Runtimes)
@@ -91,11 +93,11 @@ public class BackgroundSyncService : IDisposable
                 allOk &= report.IsSuccess;
                 OnSyncCompleted?.Invoke(rt.Group.Id, report);
             }
-            OnStatusChanged?.Invoke(allOk ? "就緒" : "部分端點離線");
+            OnStatusChanged?.Invoke(LocalizationService.Instance.Get(allOk ? "status_ready" : "status_partial_offline"));
         }
         catch (Exception ex)
         {
-            OnStatusChanged?.Invoke($"同步錯誤：{ex.Message}");
+            OnStatusChanged?.Invoke(string.Format(LocalizationService.Instance.Get("sync_error"), CoreMessages.Localize(ex.Message)));
         }
         finally
         {

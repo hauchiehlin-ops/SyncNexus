@@ -1,7 +1,7 @@
 # Homebrew Cask for Sync-Nexus. Lives in a personal tap (a GitHub repo named  homebrew-syncnexus,  file  Casks/syncnexus.rb).
 # Fill sha256 (and version, which Scripts/bump-version.sh keeps in step) from the output of Scripts/package.sh.
 cask "syncnexus" do
-  version "2.7.0"
+  version "2.8.0"
   sha256 "REPLACE_WITH_SHA256_FROM_package.sh"
 
   url "https://github.com/hauchiehlin-ops/SyncNexus/releases/download/v#{version}/SyncNexus-#{version}.zip"

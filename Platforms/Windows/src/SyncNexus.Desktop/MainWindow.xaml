@@ -5,11 +5,43 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:tb="clr-namespace:H.NotifyIcon;assembly=H.NotifyIcon.Wpf"
         mc:Ignorable="d"
-        Title="{Binding AppTitle}" Height="580" Width="720"
+        Title="{Binding AppTitle}" Height="600" Width="940"
         WindowStartupLocation="CenterScreen"
         Background="#F3F3F3">
 
-    <Grid Margin="20">
+    <Grid>
+    <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="188"/>
+        <ColumnDefinition Width="*"/>
+    </Grid.ColumnDefinitions>
+
+    <!-- Sidebar: sections of the main window, plus conflicts / manual / privacy -->
+    <Border Grid.Column="0" Background="White" BorderBrush="#E5E5E5" BorderThickness="0,0,1,0">
+        <DockPanel Margin="10,16">
+            <StackPanel DockPanel.Dock="Bottom">
+                <Button x:Name="NavBtnConflicts" Content="⚡ 衝突管理" Padding="10,7" Margin="0,0,0,6" HorizontalContentAlignment="Left"
+                        Background="Transparent" BorderThickness="0" Click="BtnConflicts_Click"/>
+                <Button x:Name="NavBtnManual" Content="📖 操作手冊" Padding="10,7" Margin="0,0,0,6" HorizontalContentAlignment="Left"
+                        Background="Transparent" BorderThickness="0" Click="BtnManual_Click"/>
+                <Button x:Name="NavBtnPrivacy" Content="🛡️ 隱私政策" Padding="10,7" HorizontalContentAlignment="Left"
+                        Background="Transparent" BorderThickness="0" Click="BtnPrivacy_Click"/>
+            </StackPanel>
+            <StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="6,0,0,14">
+                    <TextBlock Text="🔄" FontSize="22" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock Text="SyncNexus" FontSize="17" FontWeight="Bold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <ListBox x:Name="NavList" BorderThickness="0" Background="Transparent" SelectedIndex="0"
+                         SelectionChanged="NavList_SelectionChanged">
+                    <ListBoxItem x:Name="NavOverview" Content="🏠 概覽" Padding="10,8" FontSize="14"/>
+                    <ListBoxItem x:Name="NavActivity" Content="📈 同步動態" Padding="10,8" FontSize="14"/>
+                    <ListBoxItem x:Name="NavSettings" Content="⚙️ 設定" Padding="10,8" FontSize="14"/>
+                </ListBox>
+            </StackPanel>
+        </DockPanel>
+    </Border>
+
+    <Grid Grid.Column="1" Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -35,13 +67,13 @@
                 <TextBlock Text="🔄" FontSize="26" VerticalAlignment="Center" Margin="0,0,10,0"/>
                 <StackPanel>
                     <TextBlock Text="SyncNexus" FontSize="20" FontWeight="Bold" Foreground="#1E1E1E"/>
-                    <TextBlock Text="跨平台即時同步中心 (Windows / macOS / Android)" FontSize="12" Foreground="#6E6E6E"/>
+                    <TextBlock x:Name="TxtSubtitle" Text="跨平台即時同步中心 (Windows / macOS / Android)" FontSize="12" Foreground="#6E6E6E"/>
                 </StackPanel>
             </StackPanel>
             <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center">
                 <!-- 介面語系下拉式選單 -->
                 <ComboBox x:Name="CmbLanguage" Width="95" Height="28" Margin="0,0,8,0" SelectionChanged="CmbLanguage_SelectionChanged">
-                    <ComboBoxItem Content="繁體中文" IsSelected="True"/>
+                    <ComboBoxItem Content="繁體中文"/>
                     <ComboBoxItem Content="简体中文"/>
                     <ComboBoxItem Content="English"/>
                     <ComboBoxItem Content="日本語"/>
@@ -49,39 +81,29 @@
                     <ComboBoxItem Content="ภาษาไทย"/>
                 </ComboBox>
 
-                <!-- 操作手冊入口 -->
-                <Button Content="📖 操作手冊" ToolTip="查閱 Windows 操作手冊" Padding="9,5" Margin="0,0,8,0"
-                        Background="#FFFFFF" BorderBrush="#CCCCCC" Click="BtnManual_Click"/>
-
-                <!-- 隱私權政策入口 -->
-                <Button Content="🛡️ 隱私政策" ToolTip="查閱微軟應用程式商店審查隱私政策" Padding="9,5" Margin="0,0,12,0"
-                        Background="#FFFFFF" BorderBrush="#CCCCCC" Click="BtnPrivacy_Click"/>
-
-                <Button Content="+ 新增端點" Padding="12,6" Margin="0,0,8,0" Background="#FFFFFF" BorderBrush="#CCCCCC"
+                <Button x:Name="BtnAddEndpoint" Content="+ 新增端點" Padding="12,6" Margin="0,0,8,0" Background="#FFFFFF" BorderBrush="#CCCCCC"
                         FontWeight="SemiBold" Click="BtnAddEndpoint_Click"/>
-                <Button Content="⚡ 衝突管理" Padding="12,6" Margin="0,0,8,0" Background="#FFFFFF" BorderBrush="#CCCCCC"
-                        FontWeight="SemiBold" Click="BtnConflicts_Click"/>
-                <Button Content="立即對帳" Padding="14,6" Background="#0078D4" Foreground="White"
+                <Button x:Name="BtnSyncNow" Content="立即對帳" Padding="14,6" Background="#0078D4" Foreground="White"
                         FontWeight="SemiBold" Command="{Binding TriggerSyncCommand}"/>
             </StackPanel>
         </DockPanel>
 
         <!-- Status Card -->
-        <Border Grid.Row="1" Background="White" CornerRadius="8" Padding="16" Margin="0,0,0,16"
+        <Border x:Name="StatusCard" Grid.Row="1" Background="White" CornerRadius="8" Padding="16" Margin="0,0,0,16"
                 BorderBrush="#E5E5E5" BorderThickness="1">
             <DockPanel>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="追蹤中檔案：" FontSize="13" Foreground="#444444"/>
+                    <TextBlock x:Name="TxtTrackedLabel" Text="追蹤中檔案：" FontSize="13" Foreground="#444444"/>
                     <TextBlock Text="{Binding TrackedFilesCount}" FontWeight="Bold" FontSize="13" Foreground="#0078D4" Margin="0,0,16,0"/>
-                    <TextBlock Text="區域網路探索：" FontSize="13" Foreground="#444444"/>
-                    <TextBlock Text="在線（相容 Mac Bonjour / Android）" FontSize="13" Foreground="#137333"/>
+                    <TextBlock x:Name="TxtLanLabel" Text="區域網路探索：" FontSize="13" Foreground="#444444"/>
+                    <TextBlock x:Name="TxtLanValue" Text="在線（相容 Mac Bonjour / Android）" FontSize="13" Foreground="#137333"/>
                 </StackPanel>
                 <TextBlock Text="{Binding StatusMessage}" HorizontalAlignment="Right" FontSize="13" Foreground="#6E6E6E"/>
             </DockPanel>
         </Border>
 
         <!-- Sync group bar: switch between groups; new / edit / delete -->
-        <Border Grid.Row="2" Background="White" CornerRadius="8" Padding="12,8" Margin="0,0,0,12"
+        <Border x:Name="GroupBar" Grid.Row="2" Background="White" CornerRadius="8" Padding="12,8" Margin="0,0,0,12"
                 BorderBrush="#E5E5E5" BorderThickness="1">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
@@ -112,7 +134,7 @@
         </Border>
 
         <!-- Endpoints List -->
-        <GroupBox Grid.Row="3" Header="同步端點 (本機 / Google Drive / OneDrive / 外接磁碟)" Padding="10" Background="White"
+        <GroupBox x:Name="EndpointsBox" Grid.Row="3" Header="同步端點 (本機 / Google Drive / OneDrive / 外接磁碟)" Padding="10" Background="White"
                   BorderBrush="#E5E5E5" BorderThickness="1">
             <ListBox ItemsSource="{Binding Endpoints}" BorderThickness="0" Background="Transparent">
                 <ListBox.ItemTemplate>
@@ -165,23 +187,44 @@
             </ListBox>
         </GroupBox>
 
+        <!-- Sync activity: what the engine did recently -->
+        <GroupBox x:Name="ActivityBox" Grid.Row="3" Header="同步動態" Padding="10" Background="White"
+                  BorderBrush="#E5E5E5" BorderThickness="1" Visibility="Collapsed">
+            <Grid>
+                <ListBox ItemsSource="{Binding RecentLogs}" BorderThickness="0" Background="Transparent"/>
+                <TextBlock x:Name="TxtActivityEmpty" Text="尚無同步動態" Foreground="#888888" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding RecentLogs.Count}" Value="0">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
+        </GroupBox>
+
         <!-- Settings Bar -->
-        <Border Grid.Row="4" Background="#FFFFFF" CornerRadius="6" Padding="12,8" Margin="0,12,0,0"
+        <Border x:Name="SettingsBar" Grid.Row="3" VerticalAlignment="Top" Visibility="Collapsed" Background="#FFFFFF" CornerRadius="6" Padding="12,8" Margin="0,0,0,0"
                 BorderBrush="#E5E5E5" BorderThickness="1">
             <DockPanel>
                 <CheckBox x:Name="ChkAutoStart" Content="開機時自動於背景啟動 SyncNexus" VerticalAlignment="Center"
                           Click="ChkAutoStart_Click"/>
                 <CheckBox x:Name="ChkFolderIcons" Content="資料夾圖示跟隨同步群組" VerticalAlignment="Center" Margin="16,0,0,0"
                           Click="ChkFolderIcons_Click"/>
-                <TextBlock Text="守護行程常駐運行中" HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="12" Foreground="#888"/>
+                <TextBlock x:Name="TxtDaemon" Text="守護行程常駐運行中" HorizontalAlignment="Right" VerticalAlignment="Center" FontSize="12" Foreground="#888"/>
             </DockPanel>
         </Border>
 
         <!-- Footer / Logs -->
         <StatusBar Grid.Row="5" Background="Transparent" Margin="0,6,0,0">
             <StatusBarItem>
-                <TextBlock Text="✅ 守護行程運作中 · 支援長路徑與雲端佔位符感應 · 系統匣就緒" FontSize="11" Foreground="#888888"/>
+                <TextBlock x:Name="TxtFooter" Text="✅ 守護行程運作中 · 支援長路徑與雲端佔位符感應 · 系統匣就緒" FontSize="11" Foreground="#888888"/>
             </StatusBarItem>
         </StatusBar>
+    </Grid>
     </Grid>
 </Window>

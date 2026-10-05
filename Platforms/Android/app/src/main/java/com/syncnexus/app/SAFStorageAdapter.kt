@@ -38,7 +38,7 @@ class SAFStorageAdapter(private val context: Context) {
     }
 
     fun openOutputStream(uri: Uri): OutputStream? {
-        return context.contentResolver.openOutputStream(uri)
+        return context.contentResolver.openOutputStream(uri, "wt")   // truncate: a shorter file must not keep the old tail
     }
 
     fun listFiles(treeUri: Uri): List<DocumentFile> {

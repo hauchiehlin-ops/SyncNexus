@@ -5,6 +5,7 @@ using Microsoft.Win32;
 using SyncNexus.Core.Engine;
 using SyncNexus.Core.IO;
 using SyncNexus.Core.Model;
+using SyncNexus.Desktop.Localization;
 
 namespace SyncNexus.Desktop.Views;
 
@@ -18,8 +19,20 @@ public partial class AddEndpointDialog : Window
     {
         InitializeComponent();
 
+        var loc = LocalizationService.Instance;
+        Title = loc.Get("add_endpoint");
+        TxtHeader.Text = loc.Get("dlg_add_header");
+        LblName.Text = loc.Get("dlg_ep_name");
+        LblPath.Text = loc.Get("dlg_ep_path");
+        BtnBrowse.Content = loc.Get("dlg_browse");
+        LblDiscovered.Text = loc.Get("dlg_discovered");
+        ChkRemovable.Content = loc.Get("dlg_removable");
+        ChkPortable.Content = loc.Get("dlg_portable");
+        BtnCancel.Content = loc.Get("group_cancel");
+        BtnConfirm.Content = loc.Get("dlg_confirm_add");
+
         _discovered = CloudProviderProbe.ProbeAll();
-        CmbDiscovered.Items.Add("-- 請選擇或自行輸入 --");
+        CmbDiscovered.Items.Add(LocalizationService.Instance.Get("dlg_discovered_placeholder"));
         foreach (var d in _discovered)
         {
             CmbDiscovered.Items.Add($"{d.DisplayName} -> {d.Path}");
@@ -42,7 +55,7 @@ public partial class AddEndpointDialog : Window
     {
         var dialog = new OpenFolderDialog
         {
-            Title = "選取同步資料夾"
+            Title = LocalizationService.Instance.Get("dlg_pick_folder")
         };
         if (dialog.ShowDialog(this) == true)
         {
@@ -66,7 +79,7 @@ public partial class AddEndpointDialog : Window
             try
             {
                 var uuid = File.ReadAllText(marker).Trim();
-                TxtNotice.Text = $"💡 偵測到已有防偽標記碼（{uuid.Substring(0, Math.Min(8, uuid.Length))}...），加入後將直接認證並採用，無縫相容！";
+                TxtNotice.Text = string.Format(LocalizationService.Instance.Get("dlg_marker_notice"), uuid.Substring(0, Math.Min(8, uuid.Length)));
             }
             catch { }
         }
@@ -83,13 +96,13 @@ public partial class AddEndpointDialog : Window
 
         if (string.IsNullOrEmpty(id))
         {
-            MessageBox.Show(this, "請輸入端點名稱", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(this, LocalizationService.Instance.Get("dlg_need_name"), LocalizationService.Instance.Get("dlg_hint_title"), MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 
         if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
         {
-            MessageBox.Show(this, "請選取有效的本機或雲端資料夾路徑", "提示", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(this, LocalizationService.Instance.Get("dlg_need_path"), LocalizationService.Instance.Get("dlg_hint_title"), MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
 

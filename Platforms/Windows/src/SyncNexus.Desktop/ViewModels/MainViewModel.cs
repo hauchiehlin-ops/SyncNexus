@@ -13,7 +13,7 @@ public partial class EndpointItemViewModel : ObservableObject
     [ObservableProperty] private string _id = string.Empty;
     [ObservableProperty] private string _root = string.Empty;
     [ObservableProperty] private bool _isOnline;
-    [ObservableProperty] private string _statusText = "離線";
+    [ObservableProperty] private string _statusText = LocalizationService.Instance.Get("offline");
     [ObservableProperty] private string _icon = "📁";
     [ObservableProperty] private bool _isRemovable;
     [ObservableProperty] private string? _volumeUuid;
@@ -37,7 +37,7 @@ public partial class EndpointItemViewModel : ObservableObject
     public void UpdateStatus(IdentityCheckResult result)
     {
         IsOnline = result.Status == EndpointStatus.Online;
-        StatusText = IsOnline ? "在線" : (result.Reason ?? "離線");
+        StatusText = IsOnline ? LocalizationService.Instance.Get("online") : (result.Reason is { } why ? CoreMessages.Localize(why) : LocalizationService.Instance.Get("offline"));
     }
 }
 
@@ -73,7 +73,7 @@ public partial class MainViewModel : ObservableObject
     private readonly GroupManager _groups;
 
     [ObservableProperty] private string _appTitle = "SyncNexus (Windows)";
-    [ObservableProperty] private string _statusMessage = "就緒";
+    [ObservableProperty] private string _statusMessage = LocalizationService.Instance.Get("status_ready");
     [ObservableProperty] private int _trackedFilesCount = 0;
     [ObservableProperty] private bool _isSyncing = false;
     [ObservableProperty] private GroupItemViewModel? _selectedGroupItem;
@@ -181,7 +181,7 @@ public partial class MainViewModel : ObservableObject
     {
         if (IsSyncing) return;
         IsSyncing = true;
-        StatusMessage = "同步中...";
+        StatusMessage = LocalizationService.Instance.Get("sync_running");
 
         try
         {
@@ -194,17 +194,17 @@ public partial class MainViewModel : ObservableObject
                 allOk &= report.IsSuccess;
                 if (rt.Group.Id == SelectedGroupItem?.Id)
                 {
-                    foreach (var note in report.Notes) RecentLogs.Insert(0, note);
+                    foreach (var note in report.Notes) RecentLogs.Insert(0, CoreMessages.Localize(note));
                 }
             }
             LoadEndpoints();
             StatusMessage = allOk
-                ? $"同步完成（處理 {actions} 項變更）"
-                : $"同步完成（部分端點離線）";
+                ? string.Format(LocalizationService.Instance.Get("sync_done"), actions)
+                : LocalizationService.Instance.Get("sync_done_partial");
         }
         catch (Exception ex)
         {
-            StatusMessage = $"同步錯誤：{ex.Message}";
+            StatusMessage = string.Format(LocalizationService.Instance.Get("sync_error"), ex.Message);
         }
         finally
         {

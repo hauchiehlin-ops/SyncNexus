@@ -14,6 +14,7 @@ object AndroidIgnoreRules {
         if (ignoredExact.contains(name.lowercase())) return true
         if (ignoredPrefixes.any { name.startsWith(it) }) return true
         if (ignoredSuffixes.any { name.endsWith(it) }) return true
+        if (SyncPlanner.isConflictName(name)) return true   // conflict copies stay on their endpoint until resolved
         return false
     }
 }

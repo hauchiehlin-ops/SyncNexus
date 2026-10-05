@@ -32,6 +32,8 @@ class SyncForegroundService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var observing = false
 
+    override fun attachBaseContext(newBase: Context) = super.attachBaseContext(LocaleManager.wrap(newBase))
+
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
