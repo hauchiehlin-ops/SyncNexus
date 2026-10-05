@@ -31,7 +31,7 @@ Sync-Nexus 是雙向資料夾同步工具。若要同步使用者自選的任意
 
 ## 3. 資料安全性問卷 (Data Safety Section)
 * **是否收集或分享任何使用者資料？**：選擇 **否 (No)**。
-* **是否具備網路通訊？**：選擇 **否 (No)**。本應用程式未宣告 `android.permission.INTERNET`，零網路流量，極易通過資料安全審查。
+* **是否具備網路通訊？**：僅限區域網路。本應用程式宣告 `android.permission.INTERNET` 僅供同一 Wi-Fi 內的區域網路探索（NSD / mDNS），不連線任何外部伺服器、不上傳或下載資料。
 * **隱私權政策 (Privacy Policy)**：提供本專案的 `packaging/appstore/PRIVACY_POLICY.md` 網址。
 
 ---

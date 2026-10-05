@@ -21,7 +21,10 @@ data class DiscoveredDevice(
 class LocalPeerDiscovery(private val context: Context) {
 
     private val serviceType = "_syncnexus._tcp."
-    private val nsdManager = context.getSystemService(Context.NSD_SERVICE) as NsdManager
+    // Peer discovery is a convenience: if the system refuses (permission, no Wi-Fi stack), the app must still open.
+    private val nsdManager: NsdManager? = try {
+        context.getSystemService(Context.NSD_SERVICE) as? NsdManager
+    } catch (_: Exception) { null }
 
     private val _nearbyDevices = MutableStateFlow<List<DiscoveredDevice>>(emptyList())
     val nearbyDevices: StateFlow<List<DiscoveredDevice>> = _nearbyDevices.asStateFlow()
@@ -30,16 +33,17 @@ class LocalPeerDiscovery(private val context: Context) {
     private var discoveryListener: NsdManager.DiscoveryListener? = null
 
     fun start() {
+        if (nsdManager == null) return
         registerService()
         discoverServices()
     }
 
     fun stop() {
         registrationListener?.let {
-            try { nsdManager.unregisterService(it) } catch (_: Exception) {}
+            try { nsdManager?.unregisterService(it) } catch (_: Exception) {}
         }
         discoveryListener?.let {
-            try { nsdManager.stopServiceDiscovery(it) } catch (_: Exception) {}
+            try { nsdManager?.stopServiceDiscovery(it) } catch (_: Exception) {}
         }
     }
 
@@ -58,7 +62,7 @@ class LocalPeerDiscovery(private val context: Context) {
         }
 
         try {
-            nsdManager.registerService(serviceInfo, NsdManager.PROTOCOL_DNS_SD, registrationListener)
+            nsdManager?.registerService(serviceInfo, NsdManager.PROTOCOL_DNS_SD, registrationListener)
         } catch (_: Exception) {}
     }
 
@@ -84,12 +88,12 @@ class LocalPeerDiscovery(private val context: Context) {
         }
 
         try {
-            nsdManager.discoverServices(serviceType, NsdManager.PROTOCOL_DNS_SD, discoveryListener)
+            nsdManager?.discoverServices(serviceType, NsdManager.PROTOCOL_DNS_SD, discoveryListener)
         } catch (_: Exception) {}
     }
 
     private fun resolveService(serviceInfo: NsdServiceInfo) {
-        nsdManager.resolveService(serviceInfo, object : NsdManager.ResolveListener {
+        try { nsdManager?.resolveService(serviceInfo, object : NsdManager.ResolveListener {
             override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {}
 
             override fun onServiceResolved(resolved: NsdServiceInfo) {
@@ -104,6 +108,6 @@ class LocalPeerDiscovery(private val context: Context) {
                     _nearbyDevices.value = current
                 }
             }
-        })
+        }) } catch (_: Exception) {}
     }
 }
