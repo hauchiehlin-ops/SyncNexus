@@ -396,7 +396,6 @@ final class AppModel: ObservableObject {
     private func apply(groupId: String, snapshot s: SyncService.Snapshot) {
         let oldEndpoints = snapshots[groupId]?.endpoints.map(\.root) ?? []
         let newEndpoints = s.endpoints.map(\.root)
-        let previousPhase = snapshots[groupId]?.phase
         snapshots[groupId] = s
         let localizedSnapshot = Self.localized(s)
         localizedSnapshots[groupId] = localizedSnapshot
@@ -419,40 +418,6 @@ final class AppModel: ObservableObject {
                 notify(loc("status_conflicts_pending", n), loc("conflicts_section_desc"))
             }
             lastNotifiedConflicts = s.conflicts.count
-        }
-
-        // Automatic cross-group propagation:
-        // When a child group finishes syncing files into a parent folder (or vice versa), notify related groups to propagate!
-        if !autoExcludeNestedGroups, previousPhase == .syncing, s.phase == .idle, s.lastWork > 0 {
-            triggerRelatedGroupsSync(finishedGroupId: groupId)
-        }
-    }
-
-    /// Automatically notifies parent or child groups when a related group finishes syncing files
-    private func triggerRelatedGroupsSync(finishedGroupId: String) {
-        let finishedRoots = snapshots[finishedGroupId]?.endpoints.map(\.root) ?? []
-        guard !finishedRoots.isEmpty else { return }
-
-        for otherGroup in groups where otherGroup.id != finishedGroupId {
-            let otherRoots = snapshots[otherGroup.id]?.endpoints.map(\.root) ?? []
-            for otherRoot in otherRoots {
-                let resolvedOther = EndpointValidator.resolved(otherRoot)
-                let isParentOfFinished = finishedRoots.contains { fRoot in
-                    let resolvedFinished = EndpointValidator.resolved(fRoot)
-                    return resolvedFinished.hasPrefix(resolvedOther + "/")
-                }
-                let isChildOfFinished = finishedRoots.contains { fRoot in
-                    let resolvedFinished = EndpointValidator.resolved(fRoot)
-                    return resolvedOther.hasPrefix(resolvedFinished + "/")
-                }
-                if isParentOfFinished || isChildOfFinished {
-                    // Trigger sync on the related group with a short debounce to propagate changes!
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                        self?.services[otherGroup.id]?.syncNow()
-                    }
-                    break
-                }
-            }
         }
     }
 

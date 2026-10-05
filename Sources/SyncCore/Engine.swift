@@ -671,7 +671,7 @@ public final class Engine {
         }
         guard jobs.count >= 2 else { return }
         let cores = ProcessInfo.processInfo.activeProcessorCount
-        let workers = max(2, min(cores, max(4, jobs.count)))
+        let workers = max(2, min(max(2, cores / 2), 4, jobs.count))   // leave the other cores to the user
         var workerResults: [[String: FileState]] = Array(repeating: [:], count: workers)
         let lock = NSLock()
         DispatchQueue.concurrentPerform(iterations: workers) { w in

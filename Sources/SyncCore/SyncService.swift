@@ -70,7 +70,7 @@ public final class SyncService: @unchecked Sendable {
         public static let initial = Snapshot()
     }
 
-    private let queue = DispatchQueue(label: "syncnexus.service")
+    private let queue = DispatchQueue(label: "syncnexus.service", qos: .utility)   // background work must not compete with the UI or the user's apps
     private let dbPath: String
     private let versionsDir: URL
     private let logURL: URL?
@@ -101,6 +101,14 @@ public final class SyncService: @unchecked Sendable {
     private var cancelRequested = false
     private var lastProgressPublish = Date.distantPast
     private var lastProgressStage: SyncProgress.Stage?
+    /// After the user cancels, automatic triggers (watcher, timer, retries, reruns) stay quiet until this moment, otherwise
+    /// the next trigger restarts the sync a second later and "cancel" looks broken. Only an explicit user action clears it.
+    private var cancelHoldUntil = Date.distantPast
+    private static let cancelHoldSeconds: TimeInterval = 300
+    /// Automatic full scans are spaced at least this far apart; a full scan of a big tree is expensive.
+    private static let fullScanCooldown: TimeInterval = 60
+    private var lastFullScanEnd = Date.distantPast
+    private var cooldownScheduled = false
 
     private var shouldStop: Bool {
         stopLock.lock(); defer { stopLock.unlock() }
@@ -118,6 +126,15 @@ public final class SyncService: @unchecked Sendable {
 
     private func setCancelRequested(_ requested: Bool) {
         stopLock.lock(); cancelRequested = requested; stopLock.unlock()
+    }
+
+    private var cancelHeld: Bool {
+        stopLock.lock(); defer { stopLock.unlock() }
+        return Date() < cancelHoldUntil
+    }
+
+    private func setCancelHold(_ held: Bool) {
+        stopLock.lock(); cancelHoldUntil = held ? Date().addingTimeInterval(Self.cancelHoldSeconds) : .distantPast; stopLock.unlock()
     }
 
     public init(dbPath: String, versionsDir: URL, logURL: URL?, periodicSeconds: TimeInterval = 300,
@@ -260,7 +277,7 @@ public final class SyncService: @unchecked Sendable {
     }
 
     /// Re-reads every file once a week (or on request) to catch content that changed without its size or mtime changing.
-    public func verifyNow() { queue.async { self.forceDeepVerify = true; self.runIfNeeded(confirmed: false) } }
+    public func verifyNow() { setCancelHold(false); queue.async { self.forceDeepVerify = true; self.runIfNeeded(confirmed: false, manual: true) } }
 
     private func deepVerifyDue(_ engine: Engine) -> Bool {
         if forceDeepVerify { return true }
@@ -303,14 +320,18 @@ public final class SyncService: @unchecked Sendable {
             pendingConfirmedRun = true
             // If an unconfirmed scan is currently in progress, cancel it cooperatively so
             // the confirmed run can take over immediately without making the user wait.
-            if running { cancelCurrentRun() }
+            if running { setCancelRequested(true) }
         }
-        queue.async { self.runIfNeeded(confirmed: confirmed) }
+        setCancelHold(false)       // an explicit request ends the quiet period that follows a cancel
+        queue.async { self.runIfNeeded(confirmed: confirmed, manual: true) }
     }
 
-    /// Immediately requests cooperative cancellation. It is lock-only, so it is not trapped
-    /// behind the long-running work on the service queue.
-    public func cancelCurrentRun() { setCancelRequested(true) }
+    /// User-requested cancellation. It is lock-only, so it is not trapped behind the long-running work on the
+    /// service queue, and it keeps automatic triggers from restarting the run right away.
+    public func cancelCurrentRun() {
+        setCancelHold(true)
+        setCancelRequested(true)
+    }
 
     public func pause() {
         setCancelRequested(true)
@@ -319,7 +340,8 @@ public final class SyncService: @unchecked Sendable {
 
     public func resume() {
         setCancelRequested(false)
-        queue.async { self.snapshot.phase = .idle; self.runIfNeeded(confirmed: false) }
+        setCancelHold(false)
+        queue.async { self.snapshot.phase = .idle; self.runIfNeeded(confirmed: false, manual: true) }
     }
 
     // MARK: configuration (all database access stays on the service queue)
@@ -457,7 +479,7 @@ public final class SyncService: @unchecked Sendable {
             self.snapshot.conflicts = (try? self.currentConflicts(engine, cfgs)) ?? []
             self.publish()
             completion(nil)
-            self.runIfNeeded(confirmed: false)     // spreads the chosen versions
+            self.runIfNeeded(confirmed: false, manual: true)     // spreads the chosen versions
         } catch is SyncBusy where retriesLeft > 0 {
             // Background sync is active; retry after a short delay once lock is released
             self.queue.asyncAfter(deadline: .now() + 1.0) { [weak self] in
@@ -500,8 +522,14 @@ public final class SyncService: @unchecked Sendable {
         runIfNeeded(confirmed: false, incremental: true)
     }
 
-    private func runIfNeeded(confirmed: Bool, incremental: Bool = false) {
+    private func runIfNeeded(confirmed: Bool, incremental: Bool = false, manual: Bool = false) {
         guard !shouldStop, snapshot.phase != .paused, let engine else { return }
+        if !manual && cancelHeld {
+            // The user cancelled: remember that something is pending, but do not start (or queue) anything on our own.
+            needFull = true
+            rerun = false; rerunConfirmed = false; rerunFull = false
+            return
+        }
         let effectiveConfirmed = confirmed || pendingConfirmedRun
         if running {
             rerun = true; rerunConfirmed = rerunConfirmed || effectiveConfirmed
@@ -515,6 +543,21 @@ public final class SyncService: @unchecked Sendable {
         // Incremental only when asked for by the watcher and nothing doubtful is pending; every other trigger (start, wake,
         // timer, "sync now", confirmation) looks at everything.
         let wantFull = !incremental || needFull || effectiveConfirmed || forceDeepVerify || rerunFull
+        if wantFull && !manual && !effectiveConfirmed && !forceDeepVerify {
+            let wait = Self.fullScanCooldown - Date().timeIntervalSince(lastFullScanEnd)
+            if wait > 0 {
+                // Space automatic full scans out; the pending changes are not lost, they are picked up by the delayed run.
+                needFull = true
+                if !cooldownScheduled {
+                    cooldownScheduled = true
+                    queue.asyncAfter(deadline: .now() + wait + 0.5) { [weak self] in
+                        self?.cooldownScheduled = false
+                        self?.runIfNeeded(confirmed: false)
+                    }
+                }
+                return
+            }
+        }
         let taken = dirty; dirty = []; rerunFull = false
         if !wantFull && taken.isEmpty { return }
         let scope: SyncScope = wantFull ? .full : .paths(taken)
@@ -586,6 +629,7 @@ public final class SyncService: @unchecked Sendable {
         }
 
         running = false
+        if wantFull { lastFullScanEnd = Date() }
         snapshot.progress = nil
         snapshot.phase = snapshot.phase == .paused ? .paused : .idle
         publish()
