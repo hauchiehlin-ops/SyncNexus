@@ -54,7 +54,7 @@ public struct SyncLogItem: Identifiable, Sendable {
     public let error: String?
 
     public var fileName: String {
-        URL(fileURLWithPath: path).lastPathComponent
+        (path as NSString).lastPathComponent
     }
 
     public var directionText: String {

@@ -284,13 +284,13 @@ struct PopoverView: View {
     }
 
     private func endpointRow(_ ep: SyncService.EndpointStatus, group: String) -> some View {
-        let kind = EndpointValidator.describe(path: ep.root).kind
+        let kind = EndpointValidator.kind(path: ep.root, removable: ep.removable)
         return HStack(spacing: 12) {
             Image(systemName: kind.symbol).font(.system(size: 16)).frame(width: 34, height: 34)
                 .background(Theme.tile, in: RoundedRectangle(cornerRadius: 9))
             VStack(alignment: .leading, spacing: 2) {
                 Text(DisplayNames.endpoint(ep.id)).font(.system(size: 14, weight: .semibold))
-                Text(ep.online ? (model.pendingCloud(ep.id, group: group) > 0 ? loc("popover_reading_cloud", model.pendingCloud(ep.id, group: group)) : shortPath(ep.root)) : ((ep.removable && !FileManager.default.fileExists(atPath: ep.root)) ? loc("popover_unplugged_sub") : ep.detail))
+                Text(ep.online ? (model.pendingCloud(ep.id, group: group) > 0 ? loc("popover_reading_cloud", model.pendingCloud(ep.id, group: group)) : shortPath(ep.root)) : ep.detail)
                     .font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }
             Spacer(minLength: 0)

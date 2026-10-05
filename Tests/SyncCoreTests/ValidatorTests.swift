@@ -48,4 +48,12 @@ struct ValidatorTests {
         #expect(try store.endpoints().isEmpty)
         #expect(try !store.endpointHasHistory("x"))
     }
+
+    @Test func classifiesEndpointKindWithoutFilesystemQueries() {
+        #expect(EndpointValidator.kind(path: "/Users/user/Documents") == .local)
+        #expect(EndpointValidator.kind(path: "/Users/user/Library/Mobile Documents/com~apple~CloudDocs/Docs") == .icloud)
+        #expect(EndpointValidator.kind(path: "/Users/user/Library/CloudStorage/GoogleDrive-user/My Drive") == .googleDrive)
+        #expect(EndpointValidator.kind(path: "/Volumes/ExternalDisk/Backup") == .external)
+        #expect(EndpointValidator.kind(path: "/custom/path", removable: true) == .external)
+    }
 }

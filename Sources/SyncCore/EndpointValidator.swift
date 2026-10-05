@@ -22,6 +22,16 @@ public struct ValidationIssue: Sendable, Equatable {
 }
 
 public enum EndpointValidator {
+    /// Fast, side-effect-free classification for already configured endpoints.
+    /// UI rendering must not ask the filesystem for volume resource values because
+    /// external/cloud volumes can block the main thread for seconds at a time.
+    public static func kind(path: String, removable: Bool = false) -> EndpointKind {
+        if path.contains("/Library/Mobile Documents/com~apple~CloudDocs") { return .icloud }
+        if path.contains("/Library/CloudStorage/GoogleDrive-") { return .googleDrive }
+        if removable || path.hasPrefix("/Volumes/") { return .external }
+        return .local
+    }
+
     public static func resolved(_ path: String) -> String {
         var p = URL(fileURLWithPath: path).resolvingSymlinksInPath().standardized.path
         while p.count > 1 && p.hasSuffix("/") { p.removeLast() }
@@ -35,11 +45,7 @@ public enum EndpointValidator {
         let format = v?.volumeLocalizedFormatDescription
         let lower = (format ?? "").lowercased()
         let external = p.hasPrefix("/Volumes/") && (v?.volumeIsInternal == false)
-        let kind: EndpointKind
-        if p.contains("/Library/Mobile Documents/com~apple~CloudDocs") { kind = .icloud }
-        else if p.contains("/Library/CloudStorage/GoogleDrive-") { kind = .googleDrive }
-        else if external { kind = .external }
-        else { kind = .local }
+        let kind = kind(path: p, removable: external)
         let windowsFormat = ["fat", "exfat", "ntfs"].contains { lower.contains($0) }
         return VolumeDescription(kind: kind, volumeName: v?.volumeName, format: format,
                                  suggestRemovable: external, suggestPortableNames: external && windowsFormat)

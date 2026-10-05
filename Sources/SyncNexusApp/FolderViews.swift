@@ -481,7 +481,7 @@ struct FolderRow: View {
     let ep: SyncService.EndpointStatus
 
     var body: some View {
-        let kind = EndpointValidator.describe(path: ep.root).kind
+        let kind = EndpointValidator.kind(path: ep.root, removable: ep.removable)
         Card {
             HStack(alignment: .top, spacing: 14) {
                 Image(systemName: kind.symbol).font(.system(size: 18)).frame(width: 36, height: 36).background(Theme.tile, in: RoundedRectangle(cornerRadius: 10))
