@@ -17,10 +17,10 @@
 ### 🤖 Android (Google Play Store Developer Policies)
 * 🇹🇼 [繁體中文 (Traditional Chinese)](file:///Users/barretlin/GitProjects/FileSyn/docs/privacy/android/PRIVACY_android_zh-Hant.md)
 * 🇬🇧 [English (US)](file:///Users/barretlin/GitProjects/FileSyn/docs/privacy/android/PRIVACY_android_en.md)
-* 🇨🇳 [简体中文 (Simplified Chinese)](file:///Users/barretlin/GitProjects/FileSyn/docs/privacy/android/PRIVACY_android_zh-Hant.md)
-* 🇯🇵 [日本語 (Japanese)](file:///Users/barretlin/GitProjects/FileSyn/docs/privacy/android/PRIVACY_android_en.md)
-* 🇰🇷 [한국어 (Korean)](file:///Users/barretlin/GitProjects/FileSyn/docs/privacy/android/PRIVACY_android_en.md)
-* 🇹🇭 [ภาษาไทย (Thai)](file:///Users/barretlin/GitProjects/FileSyn/docs/privacy/android/PRIVACY_android_en.md)
+* 🇨🇳 [简体中文 (Simplified Chinese)](file:///Users/barretlin/GitProjects/FileSyn/docs/privacy/android/PRIVACY_android_zh-Hans.md)
+* 🇯🇵 [日本語 (Japanese)](file:///Users/barretlin/GitProjects/FileSyn/docs/privacy/android/PRIVACY_android_ja.md)
+* 🇰🇷 [한국어 (Korean)](file:///Users/barretlin/GitProjects/FileSyn/docs/privacy/android/PRIVACY_android_ko.md)
+* 🇹🇭 [ภาษาไทย (Thai)](file:///Users/barretlin/GitProjects/FileSyn/docs/privacy/android/PRIVACY_android_th.md)
 
 ---
 
