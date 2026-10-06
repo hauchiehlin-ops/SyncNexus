@@ -178,7 +178,6 @@ final class AppModel: ObservableObject {
            let sec = MainSection(rawValue: CommandLine.arguments[i + 1]) { section = sec }     // debugging aid
 
         refreshLoginState()
-        setupLoginItemOnce()
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert]) { _, _ in }
         // After sleep the event stream can have gaps: re-check everything on wake.
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
@@ -1200,14 +1199,6 @@ final class AppModel: ObservableObject {
         }
         refreshLoginState()
         if SMAppService.mainApp.status == .requiresApproval { SMAppService.openSystemSettingsLoginItems() }
-    }
-
-    /// The user asked for start-at-login, so it is switched on the first time the app runs. The menu toggle turns it off.
-    private func setupLoginItemOnce() {
-        let key = "didSetupLoginItem"
-        guard !UserDefaults.standard.bool(forKey: key) else { return }
-        UserDefaults.standard.set(true, forKey: key)
-        if SMAppService.mainApp.status == .notRegistered { setLaunchAtLogin(true) }
     }
 
     private func notify(_ title: String, _ body: String) {
