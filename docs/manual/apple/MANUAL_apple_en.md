@@ -67,7 +67,7 @@ Before committing changes to disk, **Diff Preview** provides a **Dry-Run Simulat
 
 ### 2.2 【Zero-Foundation Beginner Tutorial: Step-by-Step Instructions】
 - **【Step 1: Click Run Trial Simulation】**: Click the blue "Run Trial Simulation" button on the top-left card. The button changes to "Simulating..." while calculating all differences in memory without altering any disk files.
-- **【Step 2: Create APFS Snapshot (Optional)】**: Before massive operations, click "APFS Snapshot Safeguard" to create a macOS restore point; if sandboxed, a top floating Toast HUD confirms that Trash and Version archives remain fully active as backup shields.
+- **【Step 2: Create APFS Snapshot (Optional)】**: Before massive operations, click "APFS Snapshot Safeguard" to create a macOS restore point; once it succeeds, a top floating Toast confirms it.
 - **【Step 3: Review Change List & Symbols】**: A tree appears below: Green `+` for additions/copies; Blue `➔` for smart renames; Red `−` for deletions (marked Trash-first). If no differences exist, a green checkmark shows "All endpoints are identical".
 - **【Step 4: Click Confirm and Sync】**: After inspecting the operations, click the blue "Confirm and Sync" button at the bottom right. Changes are written across all endpoints, and a top Toast HUD announces completion.
 
@@ -77,7 +77,7 @@ Before committing changes to disk, **Diff Preview** provides a **Dry-Run Simulat
 | :--- | :--- | :--- | :--- | :--- |
 | **Run Trial Simulation** | Main card top-left (Primary Blue button) | Simulates reconciliation across all endpoints without writing to disk | Click button; changes to "Simulating..." | Generates a detailed preview list below with total count (e.g., "3 items pending sync"). |
 | **Confirm and Sync** | Bottom-right of preview list (after preview) | Executes verified changes across all endpoints | Click to confirm | Sync engine immediately applies changes; top floating toast confirms successful sync. |
-| **APFS Snapshot Safeguard** | Next to "Run Trial Simulation" button | Invokes native macOS APFS snapshots for a reliable rollback point before large syncs | Click to create snapshot | On success, shows "APFS Snapshot Created"; if unprivileged or unsupported, displays top floating Toast HUD with sandbox explanation (see below). |
+| **APFS Snapshot Safeguard** | Next to "Run Trial Simulation" button | Invokes native macOS APFS snapshots for a reliable rollback point before large syncs | Click to create snapshot | On success, a top floating Toast shows "APFS local safety snapshot created successfully" (see below). |
 
 ![Toast Notification](../assets/en/02_diff_preview_toast.png)
 
