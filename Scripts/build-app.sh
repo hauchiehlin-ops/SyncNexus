@@ -5,7 +5,7 @@
 #   Scripts/build-app.sh --sandbox    build a locally signed sandboxed app
 #   Scripts/build-app.sh --app-store  embed a Mac App Store profile and distribution-sign
 set -euo pipefail
-cd "${0:A:h}/.."
+cd "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/.."
 swift build -c release --product SyncNexusApp
 APP=build/SyncNexus.app
 rm -rf "$APP"; mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"

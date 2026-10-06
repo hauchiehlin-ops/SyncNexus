@@ -1,7 +1,7 @@
 #!/bin/zsh
 # One-time per clone: turn on the version hooks in .githooks/
 set -euo pipefail
-cd "${0:A:h}/.."
+cd "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/.."
 git rev-parse --git-dir >/dev/null 2>&1 || { echo "這裡還不是 git 倉庫，請先 git init（或 clone）後再執行。" >&2; exit 1; }
 git config core.hooksPath .githooks
 chmod +x .githooks/* Scripts/bump-version.sh

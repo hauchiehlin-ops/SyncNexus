@@ -2,7 +2,7 @@
 # package_android.sh
 # Android 打包 AAB 與 APK
 set -euo pipefail
-cd "${0:A:h}/.."
+cd "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/.."
 
 APP_VERSION=$(tr -d ' \n' < VERSION)
 BUILD_NUMBER=$(tr -d ' \n' < BUILD_NUMBER)

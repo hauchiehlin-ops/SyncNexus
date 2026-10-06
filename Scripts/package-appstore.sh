@@ -4,7 +4,7 @@
 #   Scripts/package-appstore.sh                     (dry run packaging using local sign)
 #   Scripts/package-appstore.sh "3rd Party Mac Developer Installer: Your Name (TEAMID)"
 set -euo pipefail
-cd "${0:A:h}/.."
+cd "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/.."
 
 echo "==> Building Mac App Store App..."
 Scripts/build-app.sh --app-store

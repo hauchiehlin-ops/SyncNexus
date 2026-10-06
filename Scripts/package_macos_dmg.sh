@@ -2,7 +2,7 @@
 # package_macos_dmg.sh
 # 重新打包 .dmg（官網 / 獨立分發、Apple Notarization 公證）
 set -euo pipefail
-cd "${0:A:h}/.."
+cd "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/.."
 
 APP_VERSION=$(tr -d ' \n' < VERSION)
 BUILD_NUMBER=$(tr -d ' \n' < BUILD_NUMBER)

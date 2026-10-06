@@ -2,7 +2,7 @@
 # Stress test on throw-away folders (never touches real data).
 #   Scripts/stress.sh [files=30000] [bigMB=400] [workdir]
 set -euo pipefail
-cd "${0:A:h}/.."
+cd "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/.."
 N=${1:-30000}; BIG=${2:-400}; W=${3:-/private/tmp/syncnexus-stress}
 swift build -c release --product syncnexus 2>&1 | tail -1
 S=$(swift build -c release --show-bin-path)/syncnexus

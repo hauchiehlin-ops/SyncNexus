@@ -2,7 +2,7 @@
 # package_macos_app_store.sh
 # macOS App Store 打包（建置、嵌入 profile、簽名、產出供 Transporter 上傳的 .pkg）
 set -euo pipefail
-cd "${0:A:h}/.."
+cd "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/.."
 
 if [[ "${1:-}" == "--upload" ]]; then
   print -u2 "錯誤：macOS 套件不再由此腳本直接上傳。"

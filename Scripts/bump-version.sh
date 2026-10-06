@@ -8,7 +8,7 @@
 # VERSION (x.y.z) is the marketing version; BUILD_NUMBER is an integer that goes up by one on EVERY bump
 # (CFBundleVersion, the "bundle number"). Both files are the single source of truth.
 set -euo pipefail
-cd "${0:A:h}/.."
+cd "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/.."
 
 CUR=$(tr -d ' \n' < VERSION)
 BUILD=$(tr -d ' \n' < BUILD_NUMBER)

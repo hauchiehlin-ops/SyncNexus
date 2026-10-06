@@ -7,7 +7,7 @@
 # 4. Android 打包 AAB 與 APK
 # 5. 建立 chore(release): commit 與 tag
 set -euo pipefail
-cd "${0:A:h}/.."
+cd "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/.."
 
 MODE="${1:-patch}"
 

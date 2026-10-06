@@ -2,7 +2,7 @@
 # dist.sh
 # 同時產生 macOS (.dmg) 與 Android (.apk / .aab) 正式發行檔
 set -euo pipefail
-cd "${0:A:h}/.."
+cd "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/.."
 
 BUILD_MAC=false
 BUILD_ANDROID=false
