@@ -156,7 +156,7 @@ struct MainWindowView: View {
                             .font(.system(size: 13, weight: .semibold))
                         if live.progress.stage == .scanning && live.progress.completed > 0 {
                             Text("（已發現 \(live.progress.completed.formatted()) 項）")
-                                .font(.system(size: 12))
+                                .font(.system(size: 12).monospacedDigit())
                                 .foregroundStyle(.secondary)
                         }
                         if model.groups.count > 1 {
@@ -165,15 +165,16 @@ struct MainWindowView: View {
                         Spacer(minLength: 8)
                         Text("\(Int((model.aggregateProgressFraction * 100).rounded()))%")
                             .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .frame(minWidth: 40, alignment: .trailing)
                         Button(loc("progress_cancel")) { model.cancelAllCurrentRuns() }
                             .buttonStyle(QuietButton(kind: .secondary, compact: true))
                             .disabled(model.isCancellingRuns)
                     }
                     ProgressView(value: model.aggregateProgressFraction).progressViewStyle(.linear)
-                    if let path = live.progress.currentPath, !path.isEmpty {
-                        Text(path).font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
-                            .lineLimit(1).truncationMode(.middle)
-                    }
+                    // Always present (blank when idle) so the card keeps its height while the scan reports paths.
+                    Text(live.progress.currentPath.flatMap { $0.isEmpty ? nil : $0 } ?? " ")
+                        .font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
+                        .lineLimit(1).truncationMode(.middle)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
@@ -527,7 +528,7 @@ struct SyncActivitySection: View {
                             .font(.system(size: 14, weight: .semibold))
                         if live.progress.stage == .scanning && live.progress.completed > 0 {
                             Text("（已發現 \(live.progress.completed.formatted()) 項）")
-                                .font(.system(size: 12))
+                                .font(.system(size: 12).monospacedDigit())
                                 .foregroundStyle(.secondary)
                         }
                         if model.groups.count > 1 {
@@ -538,18 +539,17 @@ struct SyncActivitySection: View {
                         Spacer()
                         Text("\(Int((model.aggregateProgressFraction * 100).rounded()))%")
                             .font(.system(size: 13, weight: .bold, design: .monospaced))
+                            .frame(minWidth: 44, alignment: .trailing)
                         Button(loc("progress_cancel")) { model.cancelAllCurrentRuns() }
                             .buttonStyle(QuietButton(kind: .secondary, compact: true))
                             .disabled(model.isCancellingRuns)
                     }
                     ProgressView(value: model.aggregateProgressFraction).progressViewStyle(.linear)
-                    if let path = live.progress.currentPath, !path.isEmpty {
-                        Text(path)
-                            .font(.system(size: 11, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    }
+                    Text(live.progress.currentPath.flatMap { $0.isEmpty ? nil : $0 } ?? " ")
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                 }
             }
         }

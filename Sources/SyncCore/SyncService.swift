@@ -647,7 +647,7 @@ public final class SyncService: @unchecked Sendable {
     private func receive(_ progress: SyncProgress) {
         snapshot.progress = progress
         let now = Date()
-        if lastProgressStage != progress.stage || progress.fraction >= 1 || now.timeIntervalSince(lastProgressPublish) >= 0.1 {
+        if lastProgressStage != progress.stage || progress.fraction >= 1 || now.timeIntervalSince(lastProgressPublish) >= 0.25 {
             lastProgressStage = progress.stage
             lastProgressPublish = now
             publish()
