@@ -1028,9 +1028,21 @@ final class AppModel: ObservableObject {
     func pendingCloud(_ id: String, group: String? = nil) -> Int { (snapshots[group ?? activeGroupId]?.skipped ?? []).filter { $0.hasPrefix("[\(id)]") && $0.contains("讀取雲端") }.count }
 
     func setCloudSpaceSaving(_ enabled: Bool) {
+        // Update the UI at once: the service queue is busy while a sync runs, so its snapshot can arrive much later.
+        let group = activeGroupId
+        let previous = snapshots[group]?.cloudSpaceSaving ?? snap.cloudSpaceSaving
+        snap.cloudSpaceSaving = enabled
+        snapshots[group]?.cloudSpaceSaving = enabled
+        localizedSnapshots[group]?.cloudSpaceSaving = enabled
         service.setCloudSpaceSaving(enabled) { [weak self] error in
             Task { @MainActor in
-                self?.settingsMessage = error.map { loc("msg_add_failed", CoreMessages.localize($0)) }
+                guard let self else { return }
+                if error != nil, self.activeGroupId == group {
+                    self.snap.cloudSpaceSaving = previous
+                    self.snapshots[group]?.cloudSpaceSaving = previous
+                    self.localizedSnapshots[group]?.cloudSpaceSaving = previous
+                }
+                self.settingsMessage = error.map { loc("msg_add_failed", CoreMessages.localize($0)) }
                     ?? loc(enabled ? "cloud_space_saving_enabled" : "cloud_space_saving_disabled")
             }
         }
