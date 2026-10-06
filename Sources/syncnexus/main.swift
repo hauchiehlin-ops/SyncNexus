@@ -21,7 +21,7 @@ func values(_ name: String) -> [String] {
     return out
 }
 
-let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("SyncNexus")
+let appSupport = DataLocations.applicationSupport.appendingPathComponent("SyncNexus")
 let dbPath = option("--db") ?? appSupport.appendingPathComponent("state.db").path
 
 func openEngine() throws -> Engine {

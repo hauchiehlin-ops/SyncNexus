@@ -30,7 +30,7 @@ At the very top of the main window, the global navigation header is arranged as 
 
 ## Chapter 1: Overview
 
-![Overview Screen](../assets/01_overview.png)
+![Overview Screen](../assets/en/01_overview.png)
 
 ### 1.1 Purpose and Objectives
 The **Overview** is SyncNexus's **global health dashboard**. Without having to inspect individual files, you can see system health at a glance, monitor total tracked files, check the last deep verification timestamp, view history capacity, and verify storage endpoint statuses.
@@ -60,7 +60,7 @@ The **Overview** is SyncNexus's **global health dashboard**. Without having to i
 
 ## Chapter 2: Diff Preview
 
-![Diff Preview Screen](../assets/02_diff_preview.png)
+![Diff Preview Screen](../assets/en/02_diff_preview.png)
 
 ### 2.1 Purpose and Objectives
 Before committing changes to disk, **Diff Preview** provides a **Dry-Run Simulation**. For developers and power users managing critical assets, this lets you inspect upcoming copies, renames, and deletions with zero risk.
@@ -79,7 +79,7 @@ Before committing changes to disk, **Diff Preview** provides a **Dry-Run Simulat
 | **Confirm and Sync** | Bottom-right of preview list (after preview) | Executes verified changes across all endpoints | Click to confirm | Sync engine immediately applies changes; top floating toast confirms successful sync. |
 | **APFS Snapshot Safeguard** | Next to "Run Trial Simulation" button | Invokes native macOS APFS snapshots for a reliable rollback point before large syncs | Click to create snapshot | On success, shows "APFS Snapshot Created"; if unprivileged or unsupported, displays top floating Toast HUD with sandbox explanation (see below). |
 
-![Toast Notification](../assets/02_diff_preview_toast.png)
+![Toast Notification](../assets/en/02_diff_preview_toast.png)
 
 > **Preview Symbols**:
 > - 🟢 **`+` (Green)**: File scheduled to be added or copied from another endpoint.
@@ -93,7 +93,7 @@ Before committing changes to disk, **Diff Preview** provides a **Dry-Run Simulat
 
 ## Chapter 3: Folders
 
-![Folders Management](../assets/03_folders_endpoints.png)
+![Folders Management](../assets/en/03_folders_endpoints.png)
 
 ### 3.1 Purpose and Multi-Folder Sync Groups
 The **Folders** tab manages synchronization targets. SyncNexus adopts an industry-leading **Folder Groups architecture model**:
@@ -124,7 +124,7 @@ The **Folders** tab manages synchronization targets. SyncNexus adopts an industr
 | **Remove...** | Right side of each endpoint card | Unbinds folder from active group | Click and confirm dialog | Unbinds folder from sync, **never deletes physical files**. |
 | **Marker Safeguard** | Endpoint card status area | Protects against wrong USB drive insertions | Continuous automatic validation | If wrong drive is plugged in, shows "Marker does not match, stopped propagating" (see below), isolating automatically! |
 
-![Marker Safeguard Alert](../assets/03_folders_offline_marker.png)
+![Marker Safeguard Alert](../assets/en/03_folders_offline_marker.png)
 
 ### 3.4 Best Practices
 - Formatting USB drives as ExFAT enables SyncNexus's automatic portable filename filters, guaranteeing flawless cross-platform sync across Mac and Windows.
@@ -133,7 +133,7 @@ The **Folders** tab manages synchronization targets. SyncNexus adopts an industr
 
 ## Chapter 4: Conflicts
 
-![Conflicts Screen](../assets/04_conflicts.png)
+![Conflicts Screen](../assets/en/04_conflicts.png)
 
 ### 4.1 Purpose and Objectives
 When a file is modified independently on two offline endpoints, SyncNexus enforces a strict **Zero-Overwrite policy**. Conflicting versions are preserved as `Filename (conflict ...)`, gathered here for side-by-side comparison and resolution.
@@ -163,7 +163,7 @@ When a file is modified independently on two offline endpoints, SyncNexus enforc
 
 ## Chapter 5: Versions
 
-![Versions Screen](../assets/05_versions.png)
+![Versions Screen](../assets/en/05_versions.png)
 
 ### 5.1 Purpose and Objectives
 **Versions** is your personal **history time machine**. Whenever a file is overwritten or updated by sync, superseded iterations are preserved in `.syncnexus-history`. Even if you mistakenly overwrite important content, you can recover yesterday's revision with a single click.
@@ -192,7 +192,7 @@ When a file is modified independently on two offline endpoints, SyncNexus enforc
 
 ## Chapter 6: Verification
 
-![Verification Screen](../assets/06_verification.png)
+![Verification Screen](../assets/en/06_verification.png)
 
 ### 6.1 Purpose and Objectives
 To protect against silent bit-rot and transmission corruption, SyncNexus uses industrial-grade **SHA-256 hashing** to verify every byte across all endpoints, ensuring 100% data integrity.
@@ -221,7 +221,7 @@ To protect against silent bit-rot and transmission corruption, SyncNexus uses in
 
 ## Chapter 7: Settings
 
-![Settings Screen](../assets/07_settings.png)
+![Settings Screen](../assets/en/07_settings.png)
 
 ### 7.1 Purpose and Objectives
 Settings provides granular configuration for conflict arbitration, exclusion filters to protect databases and code projects, system auto-start, and macOS Full Disk Access guidance.

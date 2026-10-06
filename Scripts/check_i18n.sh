@@ -56,3 +56,16 @@ for idx in docs/MANUAL.md docs/PRIVACY_POLICY.md; do
   done
 done
 echo "✅ 索引連結皆指向各自語系！"
+
+echo "==> [i18n Check] 檢查 Apple 手冊截圖 (每個語系各一套 UI 截圖)..."
+SHOTS=(01_overview 02_diff_preview 02_diff_preview_toast 03_folders_endpoints 03_folders_offline_marker 04_conflicts 05_versions 06_verification 07_settings)
+for l in "${DOC_LANGS[@]}"; do
+  for s in "${SHOTS[@]}"; do
+    [[ -f "docs/manual/assets/$l/$s.png" ]] || { echo "❌ 缺少截圖 docs/manual/assets/$l/$s.png" >&2; exit 1; }
+    [[ -f "Resources/ManualAssets/$l/$s.png" ]] || { echo "❌ 缺少 App 內截圖 Resources/ManualAssets/$l/$s.png" >&2; exit 1; }
+  done
+  # 手冊必須引用自己語系的截圖（07_settings_permissions 為系統設定畫面，所有語系共用）
+  bad=$(grep -o '(\.\./assets/[^)]*\.png)' "docs/manual/apple/MANUAL_apple_$l.md" | grep -v "assets/$l/" | grep -v "07_settings_permissions" || true)
+  [[ -z "$bad" ]] || { echo "❌ MANUAL_apple_$l.md 引用了其他語系的截圖: $bad" >&2; exit 1; }
+done
+echo "✅ 6 語系截圖齊備，且手冊皆引用對應語系！"

@@ -111,7 +111,7 @@ public final class SyncGroupRegistry: @unchecked Sendable {
     }
 
     public func logURL(for groupId: String) -> URL {
-        let baseLogs = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0]
+        let baseLogs = DataLocations.library
             .appendingPathComponent("Logs/SyncNexus")
         if groupId == "default" {
             return baseLogs.appendingPathComponent("syncnexus.log")
@@ -123,7 +123,7 @@ public final class SyncGroupRegistry: @unchecked Sendable {
         let fm = FileManager.default
         let path = baseAppSupportURL.standardizedFileURL.path
         let isStandardAppSupport = path.hasSuffix("/Library/Application Support/SyncNexus")
-        guard isStandardAppSupport && !path.contains("/Containers/") else { return }
+        guard DataLocations.overrideRoot == nil, isStandardAppSupport && !path.contains("/Containers/") else { return }
 
         let containerBase = fm.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Containers/com.syncnexus.app/Data/Library/Application Support/SyncNexus")
@@ -468,7 +468,7 @@ public final class SyncGroupRegistry: @unchecked Sendable {
 
             // If unsandboxed and container exists, keep container in sync as well
             let path = baseAppSupportURL.standardizedFileURL.path
-            if path.hasSuffix("/Library/Application Support/SyncNexus") && !path.contains("/Containers/") {
+            if DataLocations.overrideRoot == nil && path.hasSuffix("/Library/Application Support/SyncNexus") && !path.contains("/Containers/") {
                 let containerBase = fm.homeDirectoryForCurrentUser
                     .appendingPathComponent("Library/Containers/com.syncnexus.app/Data/Library/Application Support/SyncNexus")
                 let containerGroupsURL = containerBase.appendingPathComponent("groups.json")

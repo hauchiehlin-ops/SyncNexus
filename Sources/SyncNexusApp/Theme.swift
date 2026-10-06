@@ -99,7 +99,7 @@ extension EndpointKind {
 }
 
 func shortPath(_ p: String) -> String {
-    p.replacingOccurrences(of: NSHomeDirectory(), with: "~")
+    p.replacingOccurrences(of: DataLocations.displayHome, with: "~")
         .replacingOccurrences(of: "/Library/Mobile Documents/com~apple~CloudDocs", with: "/iCloud Drive")
         .replacingOccurrences(of: #"/Library/CloudStorage/GoogleDrive-[^/]+"#, with: "/Google Drive", options: .regularExpression)
 }

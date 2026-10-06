@@ -135,9 +135,9 @@ final class AppModel: ObservableObject {
     private var lastNotifiedConfirmation: String?
     private var lastNotifiedConflicts = 0
 
-    static let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+    static let appSupport = DataLocations.applicationSupport
         .appendingPathComponent("SyncNexus")
-    static let logURL = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0]
+    static let logURL = DataLocations.library
         .appendingPathComponent("Logs/SyncNexus/syncnexus.log")
 
     @Published var nearbyPeers: [LocalPeer] = []
@@ -192,7 +192,8 @@ final class AppModel: ObservableObject {
         LocalPeerDiscovery.shared.onPeersChanged = { [weak self] peers in
             Task { @MainActor in self?.nearbyPeers = peers }
         }
-        LocalPeerDiscovery.shared.start()
+        // A throw-away SYNCNEXUS_HOME environment must not announce itself to (or pair with) real devices on the LAN.
+        if DataLocations.overrideRoot == nil { LocalPeerDiscovery.shared.start() }
     }
 
     private func startService(for group: SyncGroup) {

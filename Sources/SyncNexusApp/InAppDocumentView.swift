@@ -349,18 +349,21 @@ struct InAppDocumentView: View {
         }
     }
 
+    /// Screenshots are captured per interface language (`ManualAssets/<lang>/<name>.png`); a file without a
+    /// localized version (e.g. the macOS system-settings pane) falls back to the shared `ManualAssets/<name>.png`.
     private func loadManualImage(named: String) -> NSImage? {
+        let lang = L10n.shared.currentLanguage.rawValue
+        if let url = Bundle.main.url(forResource: named, withExtension: "png", subdirectory: "ManualAssets/\(lang)"),
+           let img = NSImage(contentsOf: url) {
+            return img
+        }
         if let url = Bundle.main.url(forResource: named, withExtension: "png", subdirectory: "ManualAssets"),
            let img = NSImage(contentsOf: url) {
             return img
         }
-        let appSupportPath = "Resources/ManualAssets/\(named).png"
-        if FileManager.default.fileExists(atPath: appSupportPath), let img = NSImage(contentsOfFile: appSupportPath) {
-            return img
-        }
-        let docsPath = "docs/manual/assets/\(named).png"
-        if FileManager.default.fileExists(atPath: docsPath), let img = NSImage(contentsOfFile: docsPath) {
-            return img
+        for path in ["Resources/ManualAssets/\(lang)/\(named).png", "Resources/ManualAssets/\(named).png",
+                     "docs/manual/assets/\(lang)/\(named).png", "docs/manual/assets/\(named).png"] {
+            if FileManager.default.fileExists(atPath: path), let img = NSImage(contentsOfFile: path) { return img }
         }
         return nil
     }
