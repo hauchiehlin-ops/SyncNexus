@@ -3,6 +3,7 @@
 # macOS App Store 打包（建置、嵌入 profile、簽名、產出供 Transporter 上傳的 .pkg）
 set -euo pipefail
 export COPYFILE_DISABLE=1
+source Scripts/lib-pkg.sh
 cd "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/.."
 
 if [[ "${1:-}" == "--upload" ]]; then
@@ -31,12 +32,14 @@ TEAM_ID="$TEAM_ID" APP_BUNDLE_ID="$APP_BUNDLE_ID" ./Scripts/build-app.sh --app-s
 PKG="build/SyncNexus-$APP_VERSION-b$BUILD_NUMBER.pkg"
 echo "==> [2/3] 打包生成 App Store 提交包: $PKG"
 rm -f "$PKG"
+PKG_APP=$(stage_app_for_pkg build/SyncNexus.app)
+trap 'rm -rf "$(dirname "$PKG_APP")"' EXIT
 
 INSTALLER_IDENTITY=$(security find-identity -v -p basic | grep -E "3rd Party Mac Developer Installer|Mac Installer Distribution" | head -n 1 | sed -E 's/.*"([^"]+)".*/\1/' || true)
 
 if [[ -n "$INSTALLER_IDENTITY" ]]; then
   echo "使用認證證書簽署: $INSTALLER_IDENTITY"
-  productbuild --component build/SyncNexus.app /Applications --sign "$INSTALLER_IDENTITY" "$PKG"
+  productbuild --component "$PKG_APP" /Applications --sign "$INSTALLER_IDENTITY" "$PKG"
   xattr -c "$PKG" 2>/dev/null || true
 else
   print -u2 "錯誤：找不到 '3rd Party Mac Developer Installer' 或 'Mac Installer Distribution' 憑證"
@@ -51,6 +54,7 @@ echo "==> [3/3] 驗證 App、Provisioning Profile 與安裝套件簽章..."
 }
 codesign --verify --deep --strict build/SyncNexus.app
 pkgutil --check-signature "$PKG"
+check_pkg_readable "$PKG"
 
 echo "========================================================"
 echo "✅ macOS App Store 套件已就緒: $PKG"
