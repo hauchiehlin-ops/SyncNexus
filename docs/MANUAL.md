@@ -5,29 +5,29 @@
 ---
 
 ### 🍏 Apple (macOS / iOS / iPadOS)
-* 🇹🇼 [繁體中文 (Traditional Chinese)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/apple/MANUAL_apple_zh-Hant.md)
-* 🇬🇧 [English (US)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/apple/MANUAL_apple_en.md)
-* 🇨🇳 [简体中文 (Simplified Chinese)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/apple/MANUAL_apple_zh-Hans.md)
-* 🇯🇵 [日本語 (Japanese)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/apple/MANUAL_apple_ja.md)
-* 🇰🇷 [한국어 (Korean)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/apple/MANUAL_apple_ko.md)
-* 🇹🇭 [ภาษาไทย (Thai)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/apple/MANUAL_apple_th.md)
+* 🇹🇼 [繁體中文 (Traditional Chinese)](manual/apple/MANUAL_apple_zh-Hant.md)
+* 🇬🇧 [English (US)](manual/apple/MANUAL_apple_en.md)
+* 🇨🇳 [简体中文 (Simplified Chinese)](manual/apple/MANUAL_apple_zh-Hans.md)
+* 🇯🇵 [日本語 (Japanese)](manual/apple/MANUAL_apple_ja.md)
+* 🇰🇷 [한국어 (Korean)](manual/apple/MANUAL_apple_ko.md)
+* 🇹🇭 [ภาษาไทย (Thai)](manual/apple/MANUAL_apple_th.md)
 
 ---
 
 ### 🤖 Android
-* 🇹🇼 [繁體中文 (Traditional Chinese)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/android/MANUAL_android_zh-Hant.md)
-* 🇬🇧 [English (US)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/android/MANUAL_android_en.md)
-* 🇨🇳 [简体中文 (Simplified Chinese)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/android/MANUAL_android_zh-Hans.md)
-* 🇯🇵 [日本語 (Japanese)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/android/MANUAL_android_ja.md)
-* 🇰🇷 [한국어 (Korean)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/android/MANUAL_android_ko.md)
-* 🇹🇭 [ภาษาไทย (Thai)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/android/MANUAL_android_th.md)
+* 🇹🇼 [繁體中文 (Traditional Chinese)](manual/android/MANUAL_android_zh-Hant.md)
+* 🇬🇧 [English (US)](manual/android/MANUAL_android_en.md)
+* 🇨🇳 [简体中文 (Simplified Chinese)](manual/android/MANUAL_android_zh-Hans.md)
+* 🇯🇵 [日本語 (Japanese)](manual/android/MANUAL_android_ja.md)
+* 🇰🇷 [한국어 (Korean)](manual/android/MANUAL_android_ko.md)
+* 🇹🇭 [ภาษาไทย (Thai)](manual/android/MANUAL_android_th.md)
 
 ---
 
 ### 🪟 Windows (Windows 10 / 11)
-* 🇹🇼 [繁體中文 (Traditional Chinese)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/windows/MANUAL_windows_zh-Hant.md)
-* 🇬🇧 [English (US)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/windows/MANUAL_windows_en.md)
-* 🇨🇳 [简体中文 (Simplified Chinese)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/windows/MANUAL_windows_zh-Hans.md)
-* 🇯🇵 [日本語 (Japanese)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/windows/MANUAL_windows_ja.md)
-* 🇰🇷 [한국어 (Korean)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/windows/MANUAL_windows_ko.md)
-* 🇹🇭 [ภาษาไทย (Thai)](file:///Users/barretlin/GitProjects/FileSyn/docs/manual/windows/MANUAL_windows_th.md)
+* 🇹🇼 [繁體中文 (Traditional Chinese)](manual/windows/MANUAL_windows_zh-Hant.md)
+* 🇬🇧 [English (US)](manual/windows/MANUAL_windows_en.md)
+* 🇨🇳 [简体中文 (Simplified Chinese)](manual/windows/MANUAL_windows_zh-Hans.md)
+* 🇯🇵 [日本語 (Japanese)](manual/windows/MANUAL_windows_ja.md)
+* 🇰🇷 [한국어 (Korean)](manual/windows/MANUAL_windows_ko.md)
+* 🇹🇭 [ภาษาไทย (Thai)](manual/windows/MANUAL_windows_th.md)

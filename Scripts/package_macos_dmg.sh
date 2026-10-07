@@ -2,6 +2,7 @@
 # package_macos_dmg.sh
 # 重新打包 .dmg（官網 / 獨立分發、Apple Notarization 公證）
 set -euo pipefail
+export COPYFILE_DISABLE=1
 cd "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/.."
 
 APP_VERSION=$(tr -d ' \n' < VERSION)
@@ -18,7 +19,7 @@ echo "==> [2/3] 製作 DMG 安裝映象檔: $DMG_PATH..."
 rm -f "$DMG_PATH"
 
 TMP_DMG_DIR=$(mktemp -d /tmp/syncnexus-dmg.XXXXXX)
-cp -R build/SyncNexus.app "$TMP_DMG_DIR/"
+ditto --norsrc --noextattr --noqtn build/SyncNexus.app "$TMP_DMG_DIR/SyncNexus.app"
 ln -s /Applications "$TMP_DMG_DIR/Applications"
 
 hdiutil create -volname "Sync-Nexus" -srcfolder "$TMP_DMG_DIR" -ov -format UDZO "$DMG_PATH" >/dev/null

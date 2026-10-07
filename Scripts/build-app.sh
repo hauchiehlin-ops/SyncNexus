@@ -6,14 +6,21 @@
 #   Scripts/build-app.sh --app-store  embed a Mac App Store profile and distribution-sign
 set -euo pipefail
 cd "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/.."
+export COPYFILE_DISABLE=1   # no AppleDouble (._*) files when the project lives on exFAT/FAT/network volumes
 swift build -c release --product SyncNexusApp
-APP=build/SyncNexus.app
-rm -rf "$APP"; mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+# Assemble and sign on the local disk: codesign rejects the ._* files exFAT volumes create next to every
+# file with extended attributes. The finished bundle is copied back to build/ at the end.
+OUT_APP=build/SyncNexus.app
+STAGE=$(mktemp -d "${TMPDIR:-/tmp}/syncnexus-build.XXXXXX")
+trap 'rm -rf "$STAGE"' EXIT
+APP="$STAGE/SyncNexus.app"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$(swift build -c release --show-bin-path)/SyncNexusApp" "$APP/Contents/MacOS/SyncNexus"
 cp Scripts/Info.plist "$APP/Contents/Info.plist"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 if [[ -d Resources/ManualAssets ]]; then
-  cp -r Resources/ManualAssets "$APP/Contents/Resources/"
+  # Skip AppleDouble (._*) and .DS_Store leftovers from exFAT volumes so they never get sealed into the bundle.
+  rsync -a --exclude='._*' --exclude='.DS_Store' Resources/ManualAssets "$APP/Contents/Resources/"
 fi
 # Sign with the stable local identity or Apple Developer identity.
 SANDBOX_ARGS=()
@@ -126,7 +133,11 @@ fi
 xattr -cr "$APP" 2>/dev/null || true
 codesign --verify --deep --strict "$APP"
 codesign -dr - "$APP" 2>&1 | grep designated || true
-echo "built $APP"
+mkdir -p build
+rm -rf "$OUT_APP"
+ditto --norsrc --noextattr --noqtn "$APP" "$OUT_APP"
+codesign --verify --deep --strict "$OUT_APP"
+echo "built $OUT_APP"
 if [[ "${1:-}" == "--install" || "${2:-}" == "--install" ]]; then
   mkdir -p ~/Applications
   pkill -x SyncNexus 2>/dev/null || true; sleep 1

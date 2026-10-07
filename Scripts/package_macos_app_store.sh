@@ -2,6 +2,7 @@
 # package_macos_app_store.sh
 # macOS App Store 打包（建置、嵌入 profile、簽名、產出供 Transporter 上傳的 .pkg）
 set -euo pipefail
+export COPYFILE_DISABLE=1
 cd "$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)/.."
 
 if [[ "${1:-}" == "--upload" ]]; then
