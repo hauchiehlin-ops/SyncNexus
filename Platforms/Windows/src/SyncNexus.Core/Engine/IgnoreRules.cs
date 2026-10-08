@@ -5,6 +5,8 @@ public class IgnoreRules
     public HashSet<string> ExactNames { get; }
     public List<string> Prefixes { get; }
     public List<string> Suffixes { get; }
+    public List<string> CustomPatterns { get; }
+    public HashSet<ExcludePreset> EnabledPresets { get; }
 
     public static readonly IgnoreRules Default = new(
         exactNames: new[]
@@ -20,14 +22,36 @@ public class IgnoreRules
             ".nexus-part", ".tmp", ".crdownload", ".part", ".tmp.drivedownload",
             ".gdoc", ".gsheet", ".gslides", ".gscript", ".gform", ".gdraw",
             ".gsite", ".gmap", ".gjam", ".gtable"
-        }
+        },
+        presets: Enum.GetValues<ExcludePreset>()
     );
 
-    public IgnoreRules(IEnumerable<string> exactNames, IEnumerable<string> prefixes, IEnumerable<string> suffixes)
+    public IgnoreRules(
+        IEnumerable<string> exactNames,
+        IEnumerable<string> prefixes,
+        IEnumerable<string> suffixes,
+        IEnumerable<ExcludePreset>? presets = null,
+        IEnumerable<string>? customPatterns = null)
     {
         ExactNames = new HashSet<string>(exactNames, StringComparer.OrdinalIgnoreCase);
         Prefixes = new List<string>(prefixes);
         Suffixes = new List<string>(suffixes);
+        EnabledPresets = new HashSet<ExcludePreset>(presets ?? Enum.GetValues<ExcludePreset>());
+        CustomPatterns = new List<string>(customPatterns ?? Enumerable.Empty<string>());
+    }
+
+    /// <summary>
+    /// Creates a customized IgnoreRules instance with given presets and custom patterns.
+    /// </summary>
+    public static IgnoreRules Create(IEnumerable<ExcludePreset> presets, IEnumerable<string>? customPatterns = null)
+    {
+        return new IgnoreRules(
+            Default.ExactNames,
+            Default.Prefixes,
+            Default.Suffixes,
+            presets,
+            customPatterns
+        );
     }
 
     /// <summary>
@@ -43,11 +67,53 @@ public class IgnoreRules
     }
 
     /// <summary>
-    /// Litter plus conflict copies (which stay on their endpoint until resolved).
+    /// Checks preset exclusions.
+    /// </summary>
+    public bool IsPresetIgnored(string component)
+    {
+        if (EnabledPresets.Contains(ExcludePreset.NodeModules) &&
+            component.Equals("node_modules", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (EnabledPresets.Contains(ExcludePreset.Git) &&
+            component.Equals(".git", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (EnabledPresets.Contains(ExcludePreset.Databases) &&
+            (component.EndsWith("-wal", StringComparison.OrdinalIgnoreCase) ||
+             component.EndsWith("-shm", StringComparison.OrdinalIgnoreCase) ||
+             component.EndsWith("-journal", StringComparison.OrdinalIgnoreCase)))
+            return true;
+
+        if (EnabledPresets.Contains(ExcludePreset.PhotosLibraries) &&
+            component.EndsWith(".photoslibrary", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (EnabledPresets.Contains(ExcludePreset.BuildCaches) &&
+            (component.Equals(".build", StringComparison.OrdinalIgnoreCase) ||
+             component.Equals("build", StringComparison.OrdinalIgnoreCase) ||
+             component.Equals("target", StringComparison.OrdinalIgnoreCase) ||
+             component.Equals(".gradle", StringComparison.OrdinalIgnoreCase) ||
+             component.Equals("bin", StringComparison.OrdinalIgnoreCase) ||
+             component.Equals("obj", StringComparison.OrdinalIgnoreCase)))
+            return true;
+
+        if (EnabledPresets.Contains(ExcludePreset.PythonEnvironments) &&
+            (component.Equals("venv", StringComparison.OrdinalIgnoreCase) ||
+             component.Equals(".venv", StringComparison.OrdinalIgnoreCase) ||
+             component.Equals("__pycache__", StringComparison.OrdinalIgnoreCase) ||
+             component.Equals(".pytest_cache", StringComparison.OrdinalIgnoreCase)))
+            return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// Litter plus conflict copies plus preset exclusions.
     /// </summary>
     public bool IsIgnored(string component)
     {
-        return IsLitter(component) || ConflictNaming.IsConflictName(component);
+        return IsLitter(component) || ConflictNaming.IsConflictName(component) || IsPresetIgnored(component);
     }
 
     /// <summary>
@@ -56,6 +122,18 @@ public class IgnoreRules
     public bool IsIgnoredPath(string relativePath)
     {
         var normalized = relativePath.Replace('\\', '/');
+
+        // Check custom patterns
+        foreach (var pattern in CustomPatterns)
+        {
+            var p = pattern.Trim().Replace('\\', '/').Trim('/');
+            if (p.Length > 0 && (normalized.Equals(p, StringComparison.OrdinalIgnoreCase) ||
+                                 normalized.StartsWith(p + "/", StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+        }
+
         var parts = normalized.Split('/', StringSplitOptions.RemoveEmptyEntries);
         return parts.Any(IsIgnored);
     }

@@ -17,7 +17,7 @@ import java.text.DateFormat
 import java.util.Date
 
 private fun dateText(ms: Long): String = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(ms))
-private fun sizeText(bytes: Long): String = when {
+fun sizeText(bytes: Long): String = when {
     bytes < 1024 -> "$bytes B"
     bytes < 1024 * 1024 -> "%.1f KB".format(bytes / 1024.0)
     else -> "%.1f MB".format(bytes / 1024.0 / 1024.0)
@@ -38,16 +38,33 @@ fun PreviewSection(folderCount: Int) {
     val busy = state.running
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SectionIntro(stringResource(R.string.preview_desc))
-        Button(onClick = { SyncNexusEngineBridge.requestPreview() }, enabled = folderCount >= 2 && !busy, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(if (busy) R.string.preview_running else R.string.preview_run))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = { SyncNexusEngineBridge.requestPreview() },
+                enabled = folderCount >= 2 && !busy,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(stringResource(if (busy) R.string.preview_running else R.string.preview_run))
+            }
+            if (state.ready && state.items.isNotEmpty()) {
+                Button(
+                    onClick = { SyncNexusEngineBridge.runReconciliation() },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+                ) {
+                    Text(stringResource(R.string.preview_sync_now))
+                }
+            }
         }
         if (folderCount < 2) EmptyNote(stringResource(R.string.preview_need_two))
         else if (state.ready) {
             if (state.items.isEmpty()) EmptyNote(stringResource(R.string.preview_empty))
             else {
                 Text(stringResource(R.string.preview_summary, state.items.size), fontWeight = FontWeight.SemiBold)
+                val displayItems = state.items.take(100)
+                val remaining = state.items.size - displayItems.size
                 LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(state.items) { it ->
+                    items(displayItems) { it ->
                         Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp)) {
                             Column(Modifier.padding(12.dp)) {
                                 Text(it.path, fontWeight = FontWeight.Bold, fontSize = 14.sp)
@@ -59,6 +76,16 @@ fun PreviewSection(folderCount: Int) {
                                 Text(what, fontSize = 13.sp, color = if (it.kind == PlanKind.CONFLICT) Color(0xFFC62828) else Color(0xFF2E7D32))
                                 Text(stringResource(R.string.preview_from, it.source), fontSize = 12.sp, color = Color.Gray)
                             }
+                        }
+                    }
+                    if (remaining > 0) {
+                        item {
+                            Text(
+                                stringResource(R.string.preview_more_items, remaining),
+                                color = Color.Gray,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(8.dp)
+                            )
                         }
                     }
                 }
@@ -110,9 +137,45 @@ private fun reasonText(reason: String): String = stringResource(
 @Composable
 fun VersionsSection() {
     val versions by SyncNexusEngineBridge.versions.collectAsState()
+    val snapshot by SyncNexusEngineBridge.snapshot.collectAsState()
     var confirmRestore by remember { mutableStateOf<VersionItem?>(null) }
+    var confirmClearAll by remember { mutableStateOf(false) }
+
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SectionIntro(stringResource(R.string.versions_desc, SyncEngine.VERSION_DAYS))
+        SectionIntro(stringResource(R.string.versions_desc, snapshot.versionsRetentionDays.takeIf { it > 0 } ?: SyncEngine.VERSION_DAYS))
+        
+        // Retention and Purge Bar
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(8.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    stringResource(R.string.versions_retention_label, snapshot.versionsRetentionDays),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f)
+                )
+                OutlinedButton(
+                    onClick = { SyncNexusEngineBridge.purgeExpiredVersions() },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(stringResource(R.string.versions_btn_clean_expired), fontSize = 11.sp)
+                }
+                OutlinedButton(
+                    onClick = { confirmClearAll = true },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(stringResource(R.string.versions_btn_clear_all), fontSize = 11.sp, color = Color(0xFFC62828))
+                }
+            }
+        }
+
         if (versions.isEmpty()) EmptyNote(stringResource(R.string.versions_empty))
         else LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(versions, key = { it.id }) { v ->
@@ -139,6 +202,25 @@ fun VersionsSection() {
             text = { Text(v.path) },
             confirmButton = { TextButton(onClick = { SyncNexusEngineBridge.restoreVersion(v.id); confirmRestore = null }) { Text(stringResource(R.string.versions_restore)) } },
             dismissButton = { TextButton(onClick = { confirmRestore = null }) { Text(stringResource(R.string.group_cancel)) } }
+        )
+    }
+    if (confirmClearAll) {
+        AlertDialog(
+            onDismissRequest = { confirmClearAll = false },
+            title = { Text(stringResource(R.string.versions_alert_clear_confirm)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    SyncNexusEngineBridge.purgeAllVersions()
+                    confirmClearAll = false
+                }) {
+                    Text(stringResource(R.string.versions_btn_clear_all), color = Color(0xFFC62828))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmClearAll = false }) {
+                    Text(stringResource(R.string.group_cancel))
+                }
+            }
         )
     }
 }

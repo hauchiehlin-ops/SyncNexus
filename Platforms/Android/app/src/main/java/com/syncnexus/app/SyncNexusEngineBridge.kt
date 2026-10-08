@@ -1,6 +1,7 @@
 package com.syncnexus.app
 
 import android.content.Context
+import android.net.Uri
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,7 +17,12 @@ data class SyncSnapshotState(
     val conflictsCount: Int = 0,
     val recentTransfers: Int = 0,
     val logs: List<SyncLogItem> = emptyList(),
-    val error: String? = null
+    val error: String? = null,
+    val lastDeepVerifyTime: Long? = null,
+    val integrityIssuesCount: Int = 0,
+    val versionsBytes: Long = 0L,
+    val versionsCount: Int = 0,
+    val versionsRetentionDays: Int = 30
 )
 
 /**
@@ -60,13 +66,49 @@ object SyncNexusEngineBridge {
     val verifying: StateFlow<Boolean> = _verifying.asStateFlow()
     private val syncRunning = java.util.concurrent.atomic.AtomicBoolean(false)
 
+    // ---- Safety & Pending Confirmations ----
+    private val _pendingConfirmations = MutableStateFlow<Map<String, PendingConfirmation>>(emptyMap())
+    val pendingConfirmations: StateFlow<Map<String, PendingConfirmation>> = _pendingConfirmations.asStateFlow()
+
+    // ---- Settings States ----
+    private val _conflictPolicy = MutableStateFlow(ConflictPolicy.KEEP_BOTH)
+    val conflictPolicy: StateFlow<ConflictPolicy> = _conflictPolicy.asStateFlow()
+
+    private val _excludePresets = MutableStateFlow(AndroidIgnoreRules.defaultPresets)
+    val excludePresets: StateFlow<Set<ExcludePreset>> = _excludePresets.asStateFlow()
+
+    private val _customExcludes = MutableStateFlow<List<String>>(emptyList())
+    val customExcludes: StateFlow<List<String>> = _customExcludes.asStateFlow()
+
+    private val _autoExcludeNestedGroups = MutableStateFlow(true)
+    val autoExcludeNestedGroups: StateFlow<Boolean> = _autoExcludeNestedGroups.asStateFlow()
+
+    private val _cloudSpaceSaving = MutableStateFlow(true)
+    val cloudSpaceSaving: StateFlow<Boolean> = _cloudSpaceSaving.asStateFlow()
+
+    private val _bootStartEnabled = MutableStateFlow(true)
+    val bootStartEnabled: StateFlow<Boolean> = _bootStartEnabled.asStateFlow()
+
+    private val _pausedGroups = MutableStateFlow<Set<String>>(emptySet())
+    val pausedGroups: StateFlow<Set<String>> = _pausedGroups.asStateFlow()
+
     private fun refreshExtras() {
         val engine = syncEngine ?: return
-        val st = engine.state(_activeGroupId.value)
+        val gid = _activeGroupId.value
+        val st = engine.state(gid)
         _conflicts.value = st.openConflicts()
         _versions.value = st.versionList()
         _verifyRuns.value = st.verifyRuns()
         _integrity.value = st.integrityIssues()
+
+        _snapshot.value = _snapshot.value.copy(
+            trackedFilesCount = st.baselineSnapshot().size,
+            lastDeepVerifyTime = st.lastDeepVerifyTime(),
+            integrityIssuesCount = st.integrityIssues().size,
+            versionsBytes = st.versionsTotalBytes(),
+            versionsCount = st.versionsCount(),
+            versionsRetentionDays = st.versionsRetentionDays
+        )
     }
 
     /** Runs [block] off the main thread against the active group, then refreshes the extras. */
@@ -81,18 +123,66 @@ object SyncNexusEngineBridge {
         }
     }
 
+    private fun effectiveCustomPatterns(forGroupId: String): List<String> {
+        val patterns = _customExcludes.value.toMutableList()
+        if (_autoExcludeNestedGroups.value) {
+            val myEps = endpointsByGroup[forGroupId] ?: emptyList()
+            for (myEp in myEps) {
+                for ((otherGid, otherEps) in endpointsByGroup) {
+                    if (otherGid == forGroupId) continue
+                    for (otherEp in otherEps) {
+                        if (otherEp.uriString.startsWith(myEp.uriString + "/")) {
+                            val rel = otherEp.uriString.removePrefix(myEp.uriString + "/").trim('/')
+                            if (rel.isNotEmpty()) patterns.add(rel)
+                        }
+                    }
+                }
+            }
+        }
+        return patterns
+    }
+
     /** Diff preview: what a sync would do right now, without changing anything. */
     fun requestPreview() {
         _preview.value = PreviewState(running = true)
-        withActiveGroup { e, gid, eps -> _preview.value = PreviewState(ready = true, items = e.preview(gid, eps)) }
+        withActiveGroup { e, gid, eps ->
+            val items = e.preview(
+                gid, eps,
+                presets = _excludePresets.value,
+                customPatterns = effectiveCustomPatterns(gid),
+                conflictPolicy = _conflictPolicy.value
+            )
+            _preview.value = PreviewState(ready = true, items = items)
+        }
     }
 
     fun resolveConflict(id: Long, keepMain: Boolean) = withActiveGroup { e, gid, eps ->
-        if (e.resolveConflict(gid, eps, id, keepMain) && !keepMain) runReconciliation()   // the kept copy spreads right away
+        if (e.resolveConflict(gid, eps, id, keepMain) && !keepMain) runReconciliation()
     }
 
     fun restoreVersion(id: Long) = withActiveGroup { e, gid, eps -> if (e.restoreVersion(gid, eps, id)) runReconciliation() }
     fun deleteVersion(id: Long) = withActiveGroup { e, gid, _ -> e.deleteVersion(gid, id) }
+
+    fun setVersionsRetention(days: Int) {
+        val engine = syncEngine ?: return
+        val gid = _activeGroupId.value
+        engine.state(gid).setRetentionDays(days)
+        refreshExtras()
+    }
+
+    fun purgeExpiredVersions() {
+        val engine = syncEngine ?: return
+        val gid = _activeGroupId.value
+        engine.state(gid).purgeExpiredVersions()
+        refreshExtras()
+    }
+
+    fun purgeAllVersions() {
+        val engine = syncEngine ?: return
+        val gid = _activeGroupId.value
+        engine.state(gid).purgeAllVersions()
+        refreshExtras()
+    }
 
     fun runVerification() {
         if (_verifying.value) return
@@ -104,13 +194,117 @@ object SyncNexusEngineBridge {
         if (e.resolveIntegrity(gid, eps, issue, restore) && !restore) runReconciliation()
     }
 
+    // ---- Confirmation Management ----
+
+    fun approveConfirmation(groupId: String) {
+        _pendingConfirmations.value = _pendingConfirmations.value - groupId
+        runReconciliationForGroup(groupId, confirmed = true)
+    }
+
+    fun declineConfirmation(groupId: String) {
+        _pendingConfirmations.value = _pendingConfirmations.value - groupId
+    }
+
+    fun approveAllConfirmations() {
+        val all = _pendingConfirmations.value.keys.toList()
+        _pendingConfirmations.value = emptyMap()
+        for (gid in all) {
+            runReconciliationForGroup(gid, confirmed = true)
+        }
+    }
+
+    // ---- Settings Actions ----
+
+    fun setConflictPolicy(policy: ConflictPolicy) {
+        _conflictPolicy.value = policy
+        appContext?.getSharedPreferences("syncnexus_settings", Context.MODE_PRIVATE)
+            ?.edit()?.putString("conflict_policy", policy.name)?.apply()
+    }
+
+    fun toggleExcludePreset(preset: ExcludePreset) {
+        val current = _excludePresets.value
+        val updated = if (current.contains(preset)) current - preset else current + preset
+        _excludePresets.value = updated
+        val setStrings = updated.map { it.name }.toSet()
+        appContext?.getSharedPreferences("syncnexus_settings", Context.MODE_PRIVATE)
+            ?.edit()?.putStringSet("exclude_presets", setStrings)?.apply()
+    }
+
+    fun addCustomExclude(pattern: String) {
+        val trimmed = pattern.trim()
+        if (trimmed.isEmpty() || _customExcludes.value.contains(trimmed)) return
+        val updated = _customExcludes.value + trimmed
+        _customExcludes.value = updated
+        val setStrings = updated.toSet()
+        appContext?.getSharedPreferences("syncnexus_settings", Context.MODE_PRIVATE)
+            ?.edit()?.putStringSet("custom_excludes", setStrings)?.apply()
+    }
+
+    fun removeCustomExclude(pattern: String) {
+        val updated = _customExcludes.value - pattern
+        _customExcludes.value = updated
+        val setStrings = updated.toSet()
+        appContext?.getSharedPreferences("syncnexus_settings", Context.MODE_PRIVATE)
+            ?.edit()?.putStringSet("custom_excludes", setStrings)?.apply()
+    }
+
+    fun setAutoExcludeNestedGroups(enabled: Boolean) {
+        _autoExcludeNestedGroups.value = enabled
+        appContext?.getSharedPreferences("syncnexus_settings", Context.MODE_PRIVATE)
+            ?.edit()?.putBoolean("auto_exclude_nested", enabled)?.apply()
+    }
+
+    fun setCloudSpaceSaving(enabled: Boolean) {
+        _cloudSpaceSaving.value = enabled
+        appContext?.getSharedPreferences("syncnexus_settings", Context.MODE_PRIVATE)
+            ?.edit()?.putBoolean("cloud_space_saving", enabled)?.apply()
+    }
+
+    fun setBootStartEnabled(enabled: Boolean) {
+        _bootStartEnabled.value = enabled
+        appContext?.getSharedPreferences("syncnexus_settings", Context.MODE_PRIVATE)
+            ?.edit()?.putBoolean("boot_start_enabled", enabled)?.apply()
+    }
+
+    fun pauseGroup(groupId: String) {
+        _pausedGroups.value = _pausedGroups.value + groupId
+        appContext?.getSharedPreferences("syncnexus_settings", Context.MODE_PRIVATE)
+            ?.edit()?.putStringSet("paused_groups", _pausedGroups.value)?.apply()
+        publishGroupStates()
+    }
+
+    fun resumeGroup(groupId: String) {
+        _pausedGroups.value = _pausedGroups.value - groupId
+        appContext?.getSharedPreferences("syncnexus_settings", Context.MODE_PRIVATE)
+            ?.edit()?.putStringSet("paused_groups", _pausedGroups.value)?.apply()
+        publishGroupStates()
+        runReconciliationForGroup(groupId)
+    }
+
+    fun isGroupPaused(groupId: String): Boolean = _pausedGroups.value.contains(groupId)
+
+    fun changeEndpointFolder(endpointId: String, newUri: Uri) {
+        val gid = _activeGroupId.value
+        val list = (endpointsByGroup[gid] ?: emptyList()).toMutableList()
+        val index = list.indexOfFirst { it.id == endpointId }
+        if (index != -1) {
+            val old = list[index]
+            val newName = newUri.lastPathSegment?.substringAfterLast(':') ?: old.displayName
+            list[index] = old.copy(uriString = newUri.toString(), displayName = newName)
+            endpointsByGroup[gid] = list
+            publishActive()
+            appContext?.let { saveEndpoints(it, gid, list) }
+            runReconciliation()
+        }
+    }
+
     /** What the last reconciliation of one group found (kept per group, so the notification can list every group). */
     data class GroupRunResult(val syncing: Boolean = false, val conflicts: Int = 0, val error: String? = null)
 
     /** A group with its own state, for notifications and summaries that cover all groups. */
     data class GroupState(val group: SyncGroup, val folders: Int, val status: GroupStatusLogic.Status, val conflicts: Int)
 
-    private val runResults = java.util.concurrent.ConcurrentHashMap<String, GroupRunResult>()   // written by the sync coroutine, read by the UI
+    private val runResults = java.util.concurrent.ConcurrentHashMap<String, GroupRunResult>()
     private val _groupStates = MutableStateFlow<List<GroupState>>(emptyList())
     val groupStates: StateFlow<List<GroupState>> = _groupStates.asStateFlow()
 
@@ -118,7 +312,9 @@ object SyncNexusEngineBridge {
         _groupStates.value = _groups.value.map { g ->
             val folders = endpointsByGroup[g.id]?.size ?: 0
             val r = runResults[g.id] ?: GroupRunResult()
-            GroupState(g, folders, GroupStatusLogic.statusOf(folders, r.syncing, r.conflicts, r.error), r.conflicts)
+            val isPaused = _pausedGroups.value.contains(g.id)
+            val baseStatus = if (isPaused) GroupStatusLogic.Status.ATTENTION else GroupStatusLogic.statusOf(folders, r.syncing, r.conflicts, r.error)
+            GroupState(g, folders, baseStatus, r.conflicts)
         }
     }
 
@@ -129,10 +325,33 @@ object SyncNexusEngineBridge {
         appContext = context.applicationContext
         val safAdapter = SAFStorageAdapter(context)
         syncEngine = SyncEngine(context, safAdapter)
+        loadSettings(context)
         loadGroups(context)
         backups = GroupBackupStore(context)
-        backups?.backup(currentSnapshot())   // every start: skipped when nothing changed
+        backups?.backup(currentSnapshot())
         refreshExtras()
+    }
+
+    private fun loadSettings(context: Context) {
+        val sp = context.getSharedPreferences("syncnexus_settings", Context.MODE_PRIVATE)
+        val policyStr = sp.getString("conflict_policy", ConflictPolicy.KEEP_BOTH.name)
+        _conflictPolicy.value = try { ConflictPolicy.valueOf(policyStr ?: ConflictPolicy.KEEP_BOTH.name) } catch (_: Exception) { ConflictPolicy.KEEP_BOTH }
+
+        val presetStrings = sp.getStringSet("exclude_presets", null)
+        if (presetStrings != null) {
+            _excludePresets.value = presetStrings.mapNotNull { name ->
+                try { ExcludePreset.valueOf(name) } catch (_: Exception) { null }
+            }.toSet()
+        }
+
+        val customSet = sp.getStringSet("custom_excludes", null)
+        if (customSet != null) _customExcludes.value = customSet.toList().sorted()
+
+        _autoExcludeNestedGroups.value = sp.getBoolean("auto_exclude_nested", true)
+        _cloudSpaceSaving.value = sp.getBoolean("cloud_space_saving", true)
+        _bootStartEnabled.value = sp.getBoolean("boot_start_enabled", true)
+        val paused = sp.getStringSet("paused_groups", null)
+        if (paused != null) _pausedGroups.value = paused
     }
 
     private var backups: GroupBackupStore? = null
@@ -145,7 +364,6 @@ object SyncNexusEngineBridge {
 
     private fun applySnapshot(snapshot: GroupBackupLogic.Snapshot) {
         val ctx = appContext ?: return
-        // forget folders that are no longer referenced, then write everything
         _groups.value = snapshot.groups
         endpointsByGroup.clear()
         for (g in snapshot.groups) endpointsByGroup[g.id] = snapshot.endpoints[g.id] ?: emptyList()
@@ -155,7 +373,6 @@ object SyncNexusEngineBridge {
         publishActive()
     }
 
-    /** Replaces the current groups with a backup. The current state is backed up first, so the restore can be undone. */
     fun restoreBackup(name: String): Boolean {
         val store = backups ?: return false
         val snap = store.load(name) ?: return false
@@ -165,14 +382,13 @@ object SyncNexusEngineBridge {
         return true
     }
 
-    fun exportSettings(context: Context, uri: android.net.Uri): Boolean = try {
+    fun exportSettings(context: Context, uri: Uri): Boolean = try {
         context.contentResolver.openOutputStream(uri)?.use { it.write(GroupBackupStore.encode(currentSnapshot()).toByteArray()) } != null
     } catch (_: Exception) {
         false
     }
 
-    /** Merges settings exported earlier (or from another device). Configured groups are never overwritten. */
-    fun importSettings(context: Context, uri: android.net.Uri): GroupBackupLogic.MergeResult? {
+    fun importSettings(context: Context, uri: Uri): GroupBackupLogic.MergeResult? {
         val text = try {
             context.contentResolver.openInputStream(uri)?.use { String(it.readBytes()) }
         } catch (_: Exception) { null } ?: return null
@@ -205,9 +421,7 @@ object SyncNexusEngineBridge {
                     )
                 }
                 if (list.isNotEmpty()) groups = list
-            } catch (_: Exception) {
-                // damaged file: keep it untouched and fall back to the default group in memory only
-            }
+            } catch (_: Exception) {}
         }
         _groups.value = groups
         _activeGroupId.value = sp.getString("active_group", null)?.takeIf { id -> groups.any { it.id == id } } ?: groups.first().id
@@ -273,7 +487,6 @@ object SyncNexusEngineBridge {
         appContext?.let { saveGroups(it) }
     }
 
-    /** An empty name creates an unnamed group, shown as "New Group" in the current language. */
     fun createGroup(name: String, icon: String = "folder"): SyncGroup {
         val (list, group) = SyncGroupOps.add(_groups.value, name, icon)
         _groups.value = list
@@ -289,13 +502,13 @@ object SyncNexusEngineBridge {
         appContext?.let { saveGroups(it) }
     }
 
-    /** Removes only the group's settings; the folders' files are never touched. Returns false for the last group. */
     fun deleteGroup(id: String): Boolean {
         val remaining = SyncGroupOps.remove(_groups.value, id)
         if (remaining.size == _groups.value.size) return false
         _groups.value = remaining
         endpointsByGroup.remove(id)
         runResults.remove(id)
+        _pendingConfirmations.value = _pendingConfirmations.value - id
         syncEngine?.forget(id)
         if (_activeGroupId.value == id) _activeGroupId.value = remaining.first().id
         publishActive()
@@ -308,7 +521,6 @@ object SyncNexusEngineBridge {
 
     // ---- endpoints of the active group ----
 
-    /** Returns the id of the other group already using this folder, or null when the folder was added. */
     fun addEndpoint(endpoint: AndroidEndpoint): String? {
         val gid = _activeGroupId.value
         SyncGroupOps.groupUsing(endpoint.uriString, endpointsByGroup, gid)?.let { return it }
@@ -332,19 +544,58 @@ object SyncNexusEngineBridge {
         appContext?.let { saveEndpoints(it, gid, current) }
     }
 
-    /** Reconciles every group independently; the screen reports the active group. */
+    /** Reconciles a specific group, optionally with explicit confirmation */
+    fun runReconciliationForGroup(groupId: String, confirmed: Boolean = false) {
+        val engine = syncEngine ?: return
+        val eps = endpointsByGroup[groupId] ?: return
+        if (eps.size < 2 || _pausedGroups.value.contains(groupId)) return
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                runResults[groupId] = GroupRunResult(syncing = true)
+                publishGroupStates()
+                val report = engine.sync(
+                    groupId, eps,
+                    confirmed = confirmed,
+                    presets = _excludePresets.value,
+                    customPatterns = effectiveCustomPatterns(groupId),
+                    conflictPolicy = _conflictPolicy.value
+                )
+                if (report.pendingConfirmation != null) {
+                    _pendingConfirmations.value = _pendingConfirmations.value + (groupId to report.pendingConfirmation)
+                } else {
+                    _pendingConfirmations.value = _pendingConfirmations.value - groupId
+                }
+                val open = engine.state(groupId).openConflicts().size
+                runResults[groupId] = GroupRunResult(conflicts = open)
+                if (groupId == _activeGroupId.value) {
+                    _snapshot.value = _snapshot.value.copy(
+                        trackedFilesCount = report.trackedFiles,
+                        recentTransfers = report.syncedTransfers,
+                        conflictsCount = open,
+                        logs = report.logs.takeLast(20).reversed()
+                    )
+                }
+            } catch (e: Exception) {
+                runResults[groupId] = GroupRunResult(error = e.localizedMessage ?: e.javaClass.simpleName)
+            }
+            publishGroupStates()
+            refreshExtras()
+        }
+    }
+
+    /** Reconciles every unpaused group independently; the screen reports the active group. */
     fun runReconciliation() {
         val engine = syncEngine ?: return
         val timeText = { java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date()) }
         val activeId = _activeGroupId.value
-        val jobs = endpointsByGroup.filterValues { it.size >= 2 }
+        val jobs = endpointsByGroup.filter { (gid, eps) -> eps.size >= 2 && !_pausedGroups.value.contains(gid) }
 
         if (jobs.isEmpty()) {
             _snapshot.value = _snapshot.value.copy(phase = "IDLE", lastSyncTime = timeText())
             return
         }
 
-        if (!syncRunning.compareAndSet(false, true)) return    // a run is already in progress
+        if (!syncRunning.compareAndSet(false, true)) return
         CoroutineScope(Dispatchers.IO).launch {
             _snapshot.value = _snapshot.value.copy(phase = "SYNCING")
             var error: String? = null
@@ -352,7 +603,18 @@ object SyncNexusEngineBridge {
                 runResults[gid] = GroupRunResult(syncing = true)
                 publishGroupStates()
                 try {
-                    val report = engine.sync(gid, eps)
+                    val report = engine.sync(
+                        gid, eps,
+                        confirmed = false,
+                        presets = _excludePresets.value,
+                        customPatterns = effectiveCustomPatterns(gid),
+                        conflictPolicy = _conflictPolicy.value
+                    )
+                    if (report.pendingConfirmation != null) {
+                        _pendingConfirmations.value = _pendingConfirmations.value + (gid to report.pendingConfirmation)
+                    } else {
+                        _pendingConfirmations.value = _pendingConfirmations.value - gid
+                    }
                     val open = engine.state(gid).openConflicts().size
                     runResults[gid] = GroupRunResult(conflicts = open)
                     if (gid == _activeGroupId.value) {

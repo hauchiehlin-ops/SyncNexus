@@ -23,6 +23,7 @@ public class SyncEngine
     private readonly IStore _store;
     private readonly IgnoreRules _ignoreRules;
     private readonly DeletionGuard _deletionGuard;
+    public ConflictPolicy ConflictPolicy { get; set; } = ConflictPolicy.KeepBoth;
 
     public SyncEngine(IStore store, IgnoreRules? ignoreRules = null, DeletionGuard? deletionGuard = null)
     {
@@ -180,12 +181,21 @@ public class SyncEngine
             pathDecisions[relPath] = epDecisions;
         }
 
+        report.TrackedFiles = totalTracked;
+
         // 4. Deletion Guard check
         if (_deletionGuard.RequiresConfirmation(plannedDeletions, totalTracked) && !confirmed)
         {
             var warning = $"預計刪除 {plannedDeletions} 個檔案（共追蹤 {totalTracked} 個），超過安全防護門檻，已安全暫停，需使用者確認後方可執行。";
             report.Notes.Add(warning);
-            report.Offline.Add(warning);
+            report.PendingConfirmation = new PendingConfirmation(
+                GroupId: "",
+                PlannedDeletions: plannedDeletions,
+                PlannedUpdates: 0,
+                TotalChanges: plannedDeletions,
+                ThresholdLimit: _deletionGuard.MaxAbsolute,
+                Message: warning
+            );
             return report;
         }
 
@@ -198,23 +208,39 @@ public class SyncEngine
             var conflicts = epDecisions.Where(kv => kv.Value.Decision == Decision.Conflict).ToList();
             if (conflicts.Count > 0)
             {
-                foreach (var c in conflicts)
+                if (ConflictPolicy == ConflictPolicy.NewerWins)
                 {
-                    var epId = c.Key;
-                    var scanned = c.Value.Scanned;
-                    if (scanned == null) continue;
+                    var newest = conflicts.OrderByDescending(c => c.Value.Scanned?.Mtime ?? DateTime.MinValue).First();
+                    // Adopt the newer one
+                    epDecisions[newest.Key] = (Decision.AdoptEndpoint, newest.Value.Current, newest.Value.Scanned);
+                    foreach (var c in conflicts.Where(kv => kv.Key != newest.Key))
+                    {
+                        var epId = c.Key;
+                        var epCfg = onlineEndpoints.First(e => e.Id == epId);
+                        FileOps.ArchiveVersion(epCfg.Root, relPath);
+                        report.Notes.Add($"[{epId}] 衝突 {relPath}：採用較新版本（來自 {newest.Key}），舊版已封存");
+                    }
+                }
+                else
+                {
+                    foreach (var c in conflicts)
+                    {
+                        var epId = c.Key;
+                        var scanned = c.Value.Scanned;
+                        if (scanned == null) continue;
 
-                    var epCfg = onlineEndpoints.First(e => e.Id == epId);
-                    var conflictName = ConflictNaming.Name(Path.GetFileName(relPath), epId, DateTime.UtcNow);
-                    var dir = Path.GetDirectoryName(relPath) ?? "";
-                    var conflictRel = string.IsNullOrEmpty(dir) ? conflictName : $"{dir.Replace('\\', '/')}/{conflictName}";
-                    var conflictFull = Path.Combine(epCfg.Root, conflictRel);
+                        var epCfg = onlineEndpoints.First(e => e.Id == epId);
+                        var conflictName = ConflictNaming.Name(Path.GetFileName(relPath), epId, DateTime.UtcNow);
+                        var dir = Path.GetDirectoryName(relPath) ?? "";
+                        var conflictRel = string.IsNullOrEmpty(dir) ? conflictName : $"{dir.Replace('\\', '/')}/{conflictName}";
+                        var conflictFull = Path.Combine(epCfg.Root, conflictRel);
 
-                    FileOps.CopyAtomically(scanned.FullPath, conflictFull, scanned.Mtime);
-                    _store.AddConflict(epId, relPath, conflictRel, DateTime.UtcNow);
-                    _store.RecordJournal("conflict", epId, relPath, $"保留為 {conflictName}", "done");
-                    report.Notes.Add($"[{epId}] 衝突 {relPath}：本端版本保留為「{conflictName}」");
-                    report.Actions++;
+                        FileOps.CopyAtomically(scanned.FullPath, conflictFull, scanned.Mtime);
+                        _store.AddConflict(epId, relPath, conflictRel, DateTime.UtcNow);
+                        _store.RecordJournal("conflict", epId, relPath, $"保留為 {conflictName}", "done");
+                        report.Notes.Add($"[{epId}] 衝突 {relPath}：本端版本保留為「{conflictName}」");
+                        report.Actions++;
+                    }
                 }
             }
 
@@ -333,5 +359,229 @@ public class SyncEngine
                 report.Notes.Add($"[{targetEp.Id}] {relPath}：目前無其他在線端點持有有效副本，稍後重試");
             }
         }
+    }
+
+    /// <summary>
+    /// Generates reconciliation preview without modifying files on disk.
+    /// </summary>
+    public PreviewReport Preview()
+    {
+        var report = new PreviewReport();
+        var endpoints = _store.GetEndpoints();
+        var onlineEndpoints = endpoints.Where(ep => CheckIdentity(ep).Status == EndpointStatus.Online).ToList();
+        if (onlineEndpoints.Count < 2) return report;
+
+        var scans = new Dictionary<string, Dictionary<string, ScannedFile>>();
+        var allPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var ep in onlineEndpoints)
+        {
+            var scanned = FileOps.ScanDirectory(ep.Root, _ignoreRules);
+            scans[ep.Id] = scanned;
+            foreach (var path in scanned.Keys) allPaths.Add(path);
+        }
+
+        var consensusMap = _store.GetAllConsensus();
+        foreach (var path in consensusMap.Keys) allPaths.Add(path);
+
+        foreach (var relPath in allPaths.OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
+        {
+            consensusMap.TryGetValue(relPath, out var consensus);
+            foreach (var ep in onlineEndpoints)
+            {
+                var row = _store.GetRow(ep.Id, relPath);
+                scans[ep.Id].TryGetValue(relPath, out var scanned);
+
+                FileState? current = null;
+                if (scanned != null && !scanned.IsPlaceholder)
+                {
+                    var hash = FileOps.ComputeSha256(scanned.FullPath);
+                    current = new FileState(FileKind.File, hash, scanned.Size);
+                }
+
+                var obs = new PathObservation(row?.State, current, row?.SeenRev ?? 0);
+                var decision = Reconciler.Decide(obs, consensus);
+
+                if (decision == Decision.AdoptEndpoint)
+                {
+                    var kind = current == null ? PlanKind.Update : (consensus == null ? PlanKind.New : PlanKind.Update);
+                    report.Items.Add(new PlanItem(relPath, ep.Id, "群組端點", kind, current != null && consensus != null));
+                }
+                else if (decision == Decision.ApplyConsensus)
+                {
+                    report.Items.Add(new PlanItem(relPath, "同步群組", ep.Id, PlanKind.Update, true));
+                }
+                else if (decision == Decision.Conflict)
+                {
+                    report.Items.Add(new PlanItem(relPath, ep.Id, ep.Id, PlanKind.Conflict, true));
+                }
+            }
+        }
+
+        return report;
+    }
+
+    /// <summary>
+    /// Performs deep verification across all online endpoints, discovering silent data corruptions.
+    /// </summary>
+    public VerifyReport Verify()
+    {
+        var report = new VerifyReport();
+        var endpoints = _store.GetEndpoints();
+        var onlineEndpoints = endpoints.Where(ep => CheckIdentity(ep).Status == EndpointStatus.Online).ToList();
+
+        foreach (var ep in onlineEndpoints)
+        {
+            var scanned = FileOps.ScanDirectory(ep.Root, _ignoreRules);
+            var rows = _store.GetEndpointRows(ep.Id);
+
+            foreach (var (relPath, sf) in scanned)
+            {
+                if (sf.IsPlaceholder) continue;
+                report.Checked++;
+                if (rows.TryGetValue(relPath, out var row) && row.State != null)
+                {
+                    var actualHash = FileOps.ComputeSha256(sf.FullPath);
+                    if (actualHash != row.State.Hash)
+                    {
+                        report.Issues.Add(new IntegrityIssue(ep.Id, relPath, row.State.Hash, actualHash));
+                    }
+                }
+            }
+        }
+
+        _store.RecordJournal("verify", "all", $"{report.Checked} files", $"{report.Issues.Count} issues", "done");
+        return report;
+    }
+
+    /// <summary>
+    /// Lists all archived old versions from .syncnexus-history across all endpoints.
+    /// </summary>
+    public List<VersionItem> GetVersions()
+    {
+        var list = new List<VersionItem>();
+        var endpoints = _store.GetEndpoints();
+        long idGen = 1;
+
+        foreach (var ep in endpoints)
+        {
+            var historyDir = Path.Combine(ep.Root, ".syncnexus-history");
+            if (!Directory.Exists(historyDir)) continue;
+
+            try
+            {
+                var files = Directory.GetFiles(historyDir, "*", SearchOption.AllDirectories);
+                foreach (var file in files)
+                {
+                    var fi = new FileInfo(file);
+                    var rel = Path.GetRelativePath(historyDir, file).Replace('\\', '/');
+                    var slash = rel.IndexOf('/');
+                    var originalRel = slash >= 0 ? rel[(slash + 1)..] : rel;
+                    list.Add(new VersionItem(
+                        Id: idGen++,
+                        Endpoint: ep.Id,
+                        Path: originalRel,
+                        FullPath: file,
+                        Date: fi.LastWriteTimeUtc,
+                        Size: fi.Length,
+                        Reason: "replaced"
+                    ));
+                }
+            }
+            catch { }
+        }
+
+        return list.OrderByDescending(v => v.Date).ToList();
+    }
+
+    /// <summary>
+    /// Restores an archived version item back to its original location.
+    /// </summary>
+    public bool RestoreVersion(VersionItem item)
+    {
+        try
+        {
+            var endpoints = _store.GetEndpoints();
+            var ep = endpoints.FirstOrDefault(e => e.Id == item.Endpoint);
+            if (ep == null) return false;
+            var destPath = Path.Combine(ep.Root, item.Path);
+            var destDir = Path.GetDirectoryName(destPath);
+            if (!string.IsNullOrEmpty(destDir)) Directory.CreateDirectory(destDir);
+            File.Copy(item.FullPath, destPath, overwrite: true);
+            return true;
+        }
+        catch { return false; }
+    }
+
+    /// <summary>
+    /// Deletes a specific archived version file.
+    /// </summary>
+    public bool DeleteVersion(VersionItem item)
+    {
+        try
+        {
+            if (File.Exists(item.FullPath))
+            {
+                File.Delete(item.FullPath);
+                return true;
+            }
+        }
+        catch { }
+        return false;
+    }
+
+    /// <summary>
+    /// Purges versions older than retention days.
+    /// </summary>
+    public int PurgeExpiredVersions(int retentionDays)
+    {
+        var deleted = 0;
+        if (retentionDays <= 0) return 0;
+        var cutoff = DateTime.UtcNow.AddDays(-retentionDays);
+        var endpoints = _store.GetEndpoints();
+
+        foreach (var ep in endpoints)
+        {
+            var historyDir = Path.Combine(ep.Root, ".syncnexus-history");
+            if (!Directory.Exists(historyDir)) continue;
+            try
+            {
+                foreach (var file in Directory.GetFiles(historyDir, "*", SearchOption.AllDirectories))
+                {
+                    var fi = new FileInfo(file);
+                    if (fi.LastWriteTimeUtc < cutoff)
+                    {
+                        File.Delete(file);
+                        deleted++;
+                    }
+                }
+            }
+            catch { }
+        }
+        return deleted;
+    }
+
+    /// <summary>
+    /// Purges all archived versions.
+    /// </summary>
+    public int PurgeAllVersions()
+    {
+        var deleted = 0;
+        var endpoints = _store.GetEndpoints();
+        foreach (var ep in endpoints)
+        {
+            var historyDir = Path.Combine(ep.Root, ".syncnexus-history");
+            if (!Directory.Exists(historyDir)) continue;
+            try
+            {
+                foreach (var file in Directory.GetFiles(historyDir, "*", SearchOption.AllDirectories))
+                {
+                    File.Delete(file);
+                    deleted++;
+                }
+            }
+            catch { }
+        }
+        return deleted;
     }
 }

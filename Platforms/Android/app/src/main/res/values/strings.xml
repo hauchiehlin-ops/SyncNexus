@@ -114,4 +114,74 @@
     <string name="verify_line">%1$s · %2$d files · %3$s</string>
     <string name="verify_all_ok">No problems</string>
     <string name="verify_n_issues">%1$d problem(s)</string>
+
+    <!-- Confirmation queue -->
+    <string name="confirm_queue_title">%1$d group(s) need confirmation</string>
+    <string name="confirm_queue_approve">Approve</string>
+    <string name="confirm_queue_decline">Cancel</string>
+    <string name="confirm_queue_details">Details</string>
+    <string name="confirm_queue_approve_all">Approve all</string>
+    <string name="confirm_queue_hint">Safety threshold reached. Manual confirmation required before changes apply.</string>
+
+    <!-- Stat tiles -->
+    <string name="stat_tracked_files">Tracked Files</string>
+    <string name="stat_sub_sha256">SHA-256 verified</string>
+    <string name="stat_last_deep_verify">Deep Verify</string>
+    <string name="stat_old_versions">Old Versions</string>
+    <string name="no_anomalies">No anomalies</string>
+    <string name="suspected_corrupted_count">%1$d suspected corrupt</string>
+    <string name="never">Never</string>
+    <string name="retention_permanent_sub">Retained permanently</string>
+    <string name="retention_days_sub">Retained for %1$d days</string>
+
+    <!-- Folders page banner & endpoints -->
+    <string name="status_paused">Paused</string>
+    <string name="status_ok">Normal</string>
+    <string name="status_needs_confirm">Needs confirm</string>
+    <string name="btn_pause_sync">Pause</string>
+    <string name="btn_resume_sync">Resume</string>
+    <string name="endpoint_online">Online</string>
+    <string name="endpoint_offline">Offline</string>
+    <string name="endpoint_change_folder">Change…</string>
+    <string name="endpoint_details">Details</string>
+    <string name="endpoint_removable_tip">External/Removable storage</string>
+
+    <!-- Settings page -->
+    <string name="settings_conflict_title">Conflict Strategy</string>
+    <string name="settings_conflict_keep_both">Keep both (Default)</string>
+    <string name="settings_conflict_keep_both_desc">When conflicting edits occur, keeps both versions. The extra copy remains locally.</string>
+    <string name="settings_conflict_newer_wins">Adopt newer version</string>
+    <string name="settings_conflict_newer_wins_desc">The newer edit wins and overwrites; the older version is archived in Old Versions.</string>
+    <string name="settings_exclude_title">Exclusion Rules</string>
+    <string name="settings_exclude_desc">Preset exclusions to prevent syncing temporary files and caches.</string>
+    <string name="settings_cloud_space_saving_title">Cloud Space Saving</string>
+    <string name="settings_cloud_space_saving_desc">Cloud placeholders are materialized on demand in the background.</string>
+    <string name="settings_nested_groups_title">Auto Exclude Nested Groups</string>
+    <string name="settings_nested_groups_desc">Automatically excludes child group folders located inside parent groups.</string>
+    <string name="settings_autostart_title">Launch at Startup</string>
+    <string name="settings_autostart_desc">Start background synchronization service automatically when device boots.</string>
+    <string name="settings_folder_icons_title">Folder Icons Follow Groups</string>
+    <string name="settings_folder_icons_unsupported">Not supported on Android (Custom folder icons are not supported by the Android system).</string>
+
+    <!-- Exclude Presets -->
+    <string name="preset_node_modules">node_modules (Package folders)</string>
+    <string name="preset_node_modules_desc">Many small files, can be reinstalled anytime.</string>
+    <string name="preset_git">.git (Version control)</string>
+    <string name="preset_git_desc">Partial .git sync can corrupt repository; use Git directly.</string>
+    <string name="preset_databases">Database temporary files (-wal, -shm, -journal)</string>
+    <string name="preset_databases_desc">Active databases will produce inconsistent copies.</string>
+    <string name="preset_photos">Photo libraries (.photoslibrary)</string>
+    <string name="preset_photos_desc">Active photo database that can be corrupted if synced.</string>
+    <string name="preset_build_caches">Build caches (.build, build, target, .gradle, Pods)</string>
+    <string name="preset_build_caches_desc">Build artifacts that cause conflicts and waste bandwidth.</string>
+    <string name="preset_python">Python environments (venv, .venv, __pycache__)</string>
+    <string name="preset_python_desc">Contains machine-specific absolute paths.</string>
+
+    <!-- Versions retention & preview -->
+    <string name="versions_retention_label">Retention: %1$d days</string>
+    <string name="versions_btn_clean_expired">Clean expired</string>
+    <string name="versions_btn_clear_all">Clear all</string>
+    <string name="versions_alert_clear_confirm">Clear all old versions?</string>
+    <string name="preview_sync_now">Execute sync now</string>
+    <string name="preview_more_items">And %1$d more items not shown…</string>
 </resources>

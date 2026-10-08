@@ -25,6 +25,8 @@ class GroupStateStore(context: Context, val groupId: String) {
     private val runs = mutableListOf<VerifyRun>()
     private val integrity = mutableListOf<IntegrityIssue>()
     private var nextId = 1L
+    var versionsRetentionDays: Int = 30
+        private set
 
     init { load() }
 
@@ -35,12 +37,20 @@ class GroupStateStore(context: Context, val groupId: String) {
     @Synchronized fun versionList(): List<VersionItem> = versions.sortedByDescending { it.time }
     @Synchronized fun verifyRuns(): List<VerifyRun> = runs.sortedByDescending { it.time }
     @Synchronized fun integrityIssues(): List<IntegrityIssue> = integrity.toList()
+    @Synchronized fun versionsTotalBytes(): Long = versions.sumOf { it.size }
+    @Synchronized fun versionsCount(): Int = versions.size
+    @Synchronized fun lastDeepVerifyTime(): Long? = runs.maxByOrNull { it.time }?.time
 
     // ---- writes ----
     @Synchronized fun setBaseline(path: String, b: Baseline) { baseline[path] = b }
     @Synchronized fun dropBaselineEndpoint(path: String, endpoint: String) {
         val b = baseline[path] ?: return
         baseline[path] = b.copy(eps = b.eps - endpoint)
+        save()
+    }
+
+    @Synchronized fun setRetentionDays(days: Int) {
+        versionsRetentionDays = days
         save()
     }
 
@@ -62,10 +72,12 @@ class GroupStateStore(context: Context, val groupId: String) {
     /** Drops versions older than [days] and, beyond [maxBytes], the oldest ones; returns how many were removed. */
     @Synchronized fun purgeVersions(days: Int, maxBytes: Long, now: Long): Int {
         var removed = 0
-        val cutoff = now - days * 86_400_000L
-        for (v in versions.toList()) {
-            val f = File(versionsDir, v.file)
-            if (v.time < cutoff || !f.exists()) { f.delete(); versions.remove(v); removed++ }
+        if (days > 0) {
+            val cutoff = now - days * 86_400_000L
+            for (v in versions.toList()) {
+                val f = File(versionsDir, v.file)
+                if (v.time < cutoff || !f.exists()) { f.delete(); versions.remove(v); removed++ }
+            }
         }
         var total = versions.sumOf { it.size }
         for (v in versions.sortedBy { it.time }) {
@@ -74,6 +86,20 @@ class GroupStateStore(context: Context, val groupId: String) {
         }
         if (removed > 0) save()
         return removed
+    }
+
+    @Synchronized fun purgeExpiredVersions(now: Long = System.currentTimeMillis()): Int {
+        return if (versionsRetentionDays > 0) purgeVersions(versionsRetentionDays, Long.MAX_VALUE, now) else 0
+    }
+
+    @Synchronized fun purgeAllVersions(): Int {
+        val count = versions.size
+        for (v in versions) {
+            File(versionsDir, v.file).delete()
+        }
+        versions.clear()
+        save()
+        return count
     }
 
     @Synchronized fun recordVerification(run: VerifyRun, issues: List<IntegrityIssue>) {
@@ -90,6 +116,7 @@ class GroupStateStore(context: Context, val groupId: String) {
     private fun save() {
         val o = JSONObject()
         o.put("nextId", nextId)
+        o.put("retentionDays", versionsRetentionDays)
         o.put("baseline", JSONObject().also { m ->
             for ((p, b) in baseline) m.put(p, JSONObject().put("h", b.hash).put("e", JSONObject().also { e ->
                 for ((ep, sm) in b.eps) e.put(ep, JSONArray().put(sm.first).put(sm.second))
@@ -116,6 +143,7 @@ class GroupStateStore(context: Context, val groupId: String) {
         try {
             val o = JSONObject(file.readText())
             nextId = o.optLong("nextId", 1)
+            versionsRetentionDays = o.optInt("retentionDays", 30)
             o.optJSONObject("baseline")?.let { m ->
                 for (p in m.keys()) {
                     val b = m.getJSONObject(p)
@@ -133,8 +161,6 @@ class GroupStateStore(context: Context, val groupId: String) {
             o.optJSONArray("integrity")?.let { a -> for (i in 0 until a.length()) a.getJSONObject(i).let {
                 integrity += IntegrityIssue(it.getString("ep"), it.getString("path")) } }
         } catch (_: Exception) {
-            // damaged state: start from an empty baseline. Files are never deleted by the engine, so the worst case is
-            // a round of "differing files" being kept as conflict copies.
             baseline.clear()
         }
     }

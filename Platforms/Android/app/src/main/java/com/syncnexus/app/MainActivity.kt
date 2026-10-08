@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -73,6 +74,10 @@ class MainActivity : ComponentActivity() {
                             android.widget.Toast.makeText(this, getString(R.string.group_folder_in_use, shown), android.widget.Toast.LENGTH_LONG).show()
                         }
                     },
+                    onChangeFolder = { epId, uri ->
+                        safAdapter.takePersistablePermission(uri)
+                        SyncNexusEngineBridge.changeEndpointFolder(epId, uri)
+                    },
                     onRemoveFolder = { epId ->
                         SyncNexusEngineBridge.removeEndpoint(epId)
                     },
@@ -118,6 +123,7 @@ private fun switchLanguage(context: android.content.Context, tag: String?) {
 fun SyncNexusScreen(
     peerDiscovery: LocalPeerDiscovery,
     onAddFolder: (Uri) -> Unit,
+    onChangeFolder: (String, Uri) -> Unit,
     onRemoveFolder: (String) -> Unit,
     onSyncNow: () -> Unit
 ) {
@@ -208,9 +214,17 @@ fun SyncNexusScreen(
                     Section.CONFLICTS -> ConflictsSection()
                     Section.VERSIONS -> VersionsSection()
                     Section.VERIFY -> VerifySection(endpoints.size)
-                    Section.FOLDERS -> FoldersSection(endpoints, onAdd = { folderPickerLauncher.launch(null) }, onRemoveFolder)
+                    Section.FOLDERS -> FoldersSection(
+                        activeGroupId = activeGroupId,
+                        groups = groups,
+                        endpoints = endpoints,
+                        snapshot = snapshot,
+                        onAdd = { folderPickerLauncher.launch(null) },
+                        onChangeFolder = onChangeFolder,
+                        onRemoveFolder = onRemoveFolder
+                    )
                     Section.ACTIVITY -> ActivitySection(snapshot)
-                    Section.SETTINGS -> SettingsSection(context)
+                    Section.SETTINGS -> SettingsSection(context, groups, activeGroupId)
                 }
             }
         }
@@ -237,6 +251,149 @@ private fun LanguageMenu(expanded: Boolean, onDismiss: () -> Unit, onPick: (Stri
 }
 
 @Composable
+private fun ConfirmationQueueCard(
+    confirmations: Map<String, PendingConfirmation>,
+    groups: List<SyncGroup>
+) {
+    if (confirmations.isEmpty()) return
+    val context = androidx.compose.ui.platform.LocalContext.current
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0))
+    ) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.confirm_queue_title, confirmations.size),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = Color(0xFFE65100)
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                if (confirmations.size > 1) {
+                    TextButton(onClick = { SyncNexusEngineBridge.approveAllConfirmations() }) {
+                        Text(
+                            stringResource(R.string.confirm_queue_approve_all),
+                            color = Color(0xFFE65100),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            }
+            Text(stringResource(R.string.confirm_queue_hint), fontSize = 12.sp, color = Color(0xFF795548))
+            HorizontalDivider(color = Color(0xFFFFCC80))
+            confirmations.forEach { (gid, conf) ->
+                val groupName = groups.firstOrNull { it.id == gid }?.let { SyncGroupNaming.display(context, it, groups) } ?: gid
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                ) {
+                    Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(groupName, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.weight(1f))
+                            Text("⚠️ 門檻 ${conf.thresholdLimit}", fontSize = 11.sp, color = Color.Gray)
+                        }
+                        Text(conf.message, fontSize = 12.sp, color = Color.DarkGray)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                            Button(
+                                onClick = { SyncNexusEngineBridge.approveConfirmation(gid) },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+                            ) {
+                                Text(stringResource(R.string.confirm_queue_approve), fontSize = 12.sp)
+                            }
+                            OutlinedButton(
+                                onClick = { SyncNexusEngineBridge.declineConfirmation(gid) },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(stringResource(R.string.confirm_queue_decline), fontSize = 12.sp, color = Color(0xFFC62828))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OverviewStatTiles(snapshot: SyncSnapshotState) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Tile 1: Tracked Files
+        Card(
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(10.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Column(modifier = Modifier.padding(10.dp)) {
+                Text(stringResource(R.string.stat_tracked_files), fontSize = 11.sp, color = Color.Gray, maxLines = 1)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("${snapshot.trackedFilesCount}", fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(stringResource(R.string.stat_sub_sha256), fontSize = 10.sp, color = Color.Gray, maxLines = 1)
+            }
+        }
+
+        // Tile 2: Deep Verification
+        Card(
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(10.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Column(modifier = Modifier.padding(10.dp)) {
+                Text(stringResource(R.string.stat_last_deep_verify), fontSize = 11.sp, color = Color.Gray, maxLines = 1)
+                Spacer(modifier = Modifier.height(4.dp))
+                val verifyTimeText = if (snapshot.lastDeepVerifyTime > 0) {
+                    java.text.SimpleDateFormat("MM/dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(snapshot.lastDeepVerifyTime))
+                } else {
+                    stringResource(R.string.never)
+                }
+                Text(verifyTimeText, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                Spacer(modifier = Modifier.height(2.dp))
+                val issuesText = if (snapshot.integrityIssuesCount > 0) {
+                    stringResource(R.string.suspected_corrupted_count, snapshot.integrityIssuesCount)
+                } else {
+                    stringResource(R.string.no_anomalies)
+                }
+                Text(
+                    issuesText,
+                    fontSize = 10.sp,
+                    color = if (snapshot.integrityIssuesCount > 0) Color(0xFFC62828) else Color(0xFF2E7D32),
+                    maxLines = 1
+                )
+            }
+        }
+
+        // Tile 3: Old Versions
+        Card(
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(10.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Column(modifier = Modifier.padding(10.dp)) {
+                Text(stringResource(R.string.stat_old_versions), fontSize = 11.sp, color = Color.Gray, maxLines = 1)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("${snapshot.versionsCount} (${sizeText(snapshot.versionsBytes)})", fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                Spacer(modifier = Modifier.height(2.dp))
+                val retentionSub = if (snapshot.versionsRetentionDays == 0) {
+                    stringResource(R.string.retention_permanent_sub)
+                } else {
+                    stringResource(R.string.retention_days_sub, snapshot.versionsRetentionDays)
+                }
+                Text(retentionSub, fontSize = 10.sp, color = Color.Gray, maxLines = 1)
+            }
+        }
+    }
+}
+
+@Composable
 private fun OverviewSection(
     snapshot: SyncSnapshotState,
     folderCount: Int,
@@ -246,10 +403,16 @@ private fun OverviewSection(
     onAddFolder: () -> Unit,
     onSyncNow: () -> Unit
 ) {
+    val pendingConfirmations by SyncNexusEngineBridge.pendingConfirmations.collectAsState()
+
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        // Confirmation Queue Card (when deletion guard triggered)
+        ConfirmationQueueCard(confirmations = pendingConfirmations, groups = groups)
+
+        // Status Card
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
@@ -264,7 +427,6 @@ private fun OverviewSection(
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(stringResource(R.string.status_folder_count, folderCount), fontSize = 14.sp)
-                Text(stringResource(R.string.status_tracked_files, snapshot.trackedFilesCount), fontSize = 14.sp)
                 Text(stringResource(R.string.status_recent_transfers, snapshot.recentTransfers), fontSize = 14.sp)
                 Text(
                     stringResource(
@@ -279,6 +441,10 @@ private fun OverviewSection(
             }
         }
 
+        // 3 Stat Tiles
+        OverviewStatTiles(snapshot)
+
+        // Groups Selector Card
         SyncGroupCard(groups = groups, activeGroupId = activeGroupId)
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -324,9 +490,92 @@ private fun OverviewSection(
 }
 
 @Composable
-private fun FoldersSection(endpoints: List<AndroidEndpoint>, onAdd: () -> Unit, onRemoveFolder: (String) -> Unit) {
+private fun FoldersSection(
+    activeGroupId: String,
+    groups: List<SyncGroup>,
+    endpoints: List<AndroidEndpoint>,
+    snapshot: SyncSnapshotState,
+    onAdd: () -> Unit,
+    onChangeFolder: (String, Uri) -> Unit,
+    onRemoveFolder: (String) -> Unit
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val activeGroup = groups.firstOrNull { it.id == activeGroupId }
+    val groupName = activeGroup?.let { SyncGroupNaming.display(context, it, groups) } ?: activeGroupId
+    val pausedGroups by SyncNexusEngineBridge.pausedGroups.collectAsState()
+    val isPaused = pausedGroups.contains(activeGroupId)
+    val pendingConfirmations by SyncNexusEngineBridge.pendingConfirmations.collectAsState()
+    val hasPending = pendingConfirmations.containsKey(activeGroupId)
+
+    var changingEpId by remember { mutableStateOf<String?>(null) }
+    val changeFolderPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { uri: Uri? ->
+        uri?.let { u -> changingEpId?.let { epId -> onChangeFolder(epId, u) } }
+        changingEpId = null
+    }
+
     Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Button(onClick = onAdd, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.btn_add_folder)) }
+        // Group Banner
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Row(
+                modifier = Modifier.padding(14.dp).fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(groupName, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        // Status badge
+                        val (statusText, statusColor) = when {
+                            isPaused -> stringResource(R.string.status_paused) to Color(0xFF757575)
+                            hasPending -> stringResource(R.string.status_needs_confirm) to Color(0xFFE65100)
+                            snapshot.phase == "SYNCING" -> stringResource(R.string.sync_status_syncing) to Color(0xFF1976D2)
+                            else -> stringResource(R.string.status_ok) to Color(0xFF2E7D32)
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = statusColor.copy(alpha = 0.15f)
+                        ) {
+                            Text(
+                                statusText,
+                                color = statusColor,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                    Text(
+                        stringResource(R.string.status_folder_count, endpoints.size),
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+                }
+                if (isPaused) {
+                    Button(
+                        onClick = { SyncNexusEngineBridge.resumeGroup(activeGroupId) },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))
+                    ) {
+                        Text(stringResource(R.string.btn_resume_sync), fontSize = 12.sp)
+                    }
+                } else {
+                    OutlinedButton(
+                        onClick = { SyncNexusEngineBridge.pauseGroup(activeGroupId) }
+                    ) {
+                        Text(stringResource(R.string.btn_pause_sync), fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+
+        Button(onClick = onAdd, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.btn_add_folder))
+        }
+
         if (endpoints.isEmpty()) {
             Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                 Text(stringResource(R.string.empty_folders_hint), color = Color.Gray, lineHeight = 20.sp)
@@ -335,16 +584,34 @@ private fun FoldersSection(endpoints: List<AndroidEndpoint>, onAdd: () -> Unit, 
             LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(endpoints, key = { it.uriString }) { ep ->
                     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp)) {
-                        Row(
-                            modifier = Modifier.padding(12.dp).fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(ep.displayName, fontWeight = FontWeight.Bold)
-                                Text(ep.uriString, fontSize = 11.sp, color = Color.Gray, maxLines = 1)
+                        Column(modifier = Modifier.padding(12.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(ep.displayName, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                Spacer(modifier = Modifier.weight(1f))
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color(0xFF2E7D32).copy(alpha = 0.1f)
+                                ) {
+                                    Text(
+                                        stringResource(R.string.endpoint_online),
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF2E7D32),
+                                        fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
                             }
-                            TextButton(onClick = { onRemoveFolder(ep.id) }) {
-                                Text(stringResource(R.string.btn_remove), color = Color(0xFFC62828))
+                            Text(ep.uriString, fontSize = 11.sp, color = Color.Gray, maxLines = 1)
+                            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                                TextButton(onClick = {
+                                    changingEpId = ep.id
+                                    changeFolderPicker.launch(null)
+                                }) {
+                                    Text(stringResource(R.string.endpoint_change_folder), fontSize = 12.sp)
+                                }
+                                TextButton(onClick = { onRemoveFolder(ep.id) }) {
+                                    Text(stringResource(R.string.btn_remove), color = Color(0xFFC62828), fontSize = 12.sp)
+                                }
                             }
                         }
                     }
@@ -375,12 +642,152 @@ private fun ActivitySection(snapshot: SyncSnapshotState) {
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun SettingsSection(context: android.content.Context) {
+private fun SettingsSection(
+    context: android.content.Context,
+    groups: List<SyncGroup>,
+    activeGroupId: String
+) {
     val current = LocaleManager.saved(context)
+    val conflictPolicy by SyncNexusEngineBridge.conflictPolicy.collectAsState()
+    val excludePresets by SyncNexusEngineBridge.excludePresets.collectAsState()
+    val autoExcludeNested by SyncNexusEngineBridge.autoExcludeNestedGroups.collectAsState()
+    val cloudSpaceSaving by SyncNexusEngineBridge.cloudSpaceSaving.collectAsState()
+    val bootStart by SyncNexusEngineBridge.bootStartEnabled.collectAsState()
+
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
+        // Group Switcher Card
+        SyncGroupCard(groups = groups, activeGroupId = activeGroupId)
+
+        // Conflict Policy Section
+        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.settings_conflict_title), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                // Keep Both
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().clickable { SyncNexusEngineBridge.setConflictPolicy(ConflictPolicy.KEEP_BOTH) }
+                ) {
+                    RadioButton(
+                        selected = conflictPolicy == ConflictPolicy.KEEP_BOTH,
+                        onClick = { SyncNexusEngineBridge.setConflictPolicy(ConflictPolicy.KEEP_BOTH) }
+                    )
+                    Column(modifier = Modifier.padding(start = 4.dp)) {
+                        Text(stringResource(R.string.settings_conflict_keep_both), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text(stringResource(R.string.settings_conflict_keep_both_desc), fontSize = 12.sp, color = Color.Gray)
+                    }
+                }
+                // Newer Wins
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth().clickable { SyncNexusEngineBridge.setConflictPolicy(ConflictPolicy.NEWER_WINS) }
+                ) {
+                    RadioButton(
+                        selected = conflictPolicy == ConflictPolicy.NEWER_WINS,
+                        onClick = { SyncNexusEngineBridge.setConflictPolicy(ConflictPolicy.NEWER_WINS) }
+                    )
+                    Column(modifier = Modifier.padding(start = 4.dp)) {
+                        Text(stringResource(R.string.settings_conflict_newer_wins), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text(stringResource(R.string.settings_conflict_newer_wins_desc), fontSize = 12.sp, color = Color.Gray)
+                    }
+                }
+            }
+        }
+
+        // Exclude Presets Section
+        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(stringResource(R.string.settings_exclude_title), fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Text(stringResource(R.string.settings_exclude_desc), fontSize = 12.sp, color = Color.Gray)
+
+                val presetItems = listOf(
+                    Triple(ExcludePreset.NODE_MODULES, R.string.preset_node_modules, R.string.preset_node_modules_desc),
+                    Triple(ExcludePreset.GIT, R.string.preset_git, R.string.preset_git_desc),
+                    Triple(ExcludePreset.DATABASES, R.string.preset_databases, R.string.preset_databases_desc),
+                    Triple(ExcludePreset.PHOTOS_LIBRARIES, R.string.preset_photos, R.string.preset_photos_desc),
+                    Triple(ExcludePreset.BUILD_CACHES, R.string.preset_build_caches, R.string.preset_build_caches_desc),
+                    Triple(ExcludePreset.PYTHON_ENVIRONMENTS, R.string.preset_python, R.string.preset_python_desc)
+                )
+
+                presetItems.forEach { (preset, titleRes, descRes) ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(stringResource(titleRes), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                            Text(stringResource(descRes), fontSize = 11.sp, color = Color.Gray)
+                        }
+                        Switch(
+                            checked = excludePresets.contains(preset),
+                            onCheckedChange = { SyncNexusEngineBridge.toggleExcludePreset(preset) }
+                        )
+                    }
+                }
+            }
+        }
+
+        // Behavioral Preferences
+        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+            Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                // Nested Groups
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.settings_nested_groups_title), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Text(stringResource(R.string.settings_nested_groups_desc), fontSize = 11.sp, color = Color.Gray)
+                    }
+                    Switch(
+                        checked = autoExcludeNested,
+                        onCheckedChange = { SyncNexusEngineBridge.setAutoExcludeNestedGroups(it) }
+                    )
+                }
+
+                HorizontalDivider()
+
+                // Cloud Space Saving
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.settings_cloud_space_saving_title), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Text(stringResource(R.string.settings_cloud_space_saving_desc), fontSize = 11.sp, color = Color.Gray)
+                    }
+                    Switch(
+                        checked = cloudSpaceSaving,
+                        onCheckedChange = { SyncNexusEngineBridge.setCloudSpaceSaving(it) }
+                    )
+                }
+
+                HorizontalDivider()
+
+                // Boot Auto-Start
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(stringResource(R.string.settings_autostart_title), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Text(stringResource(R.string.settings_autostart_desc), fontSize = 11.sp, color = Color.Gray)
+                    }
+                    Switch(
+                        checked = bootStart,
+                        onCheckedChange = { SyncNexusEngineBridge.setBootStartEnabled(it) }
+                    )
+                }
+
+                HorizontalDivider()
+
+                // Folder Icons (Unsupported note)
+                Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(stringResource(R.string.settings_folder_icons_title), fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    Text(
+                        stringResource(R.string.settings_folder_icons_unsupported),
+                        fontSize = 12.sp,
+                        color = Color.Gray,
+                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                    )
+                }
+            }
+        }
+
+        // Language Section
         Text(stringResource(R.string.settings_language_title), fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
         androidx.compose.foundation.layout.FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),

@@ -114,4 +114,74 @@
     <string name="verify_line">%1$s · %2$d 個檔案 · %3$s</string>
     <string name="verify_all_ok">沒有問題</string>
     <string name="verify_n_issues">%1$d 個問題</string>
+
+    <!-- 待確認群組清單 -->
+    <string name="confirm_queue_title">%1$d 個群組需要確認</string>
+    <string name="confirm_queue_approve">同意</string>
+    <string name="confirm_queue_decline">取消</string>
+    <string name="confirm_queue_details">詳情</string>
+    <string name="confirm_queue_approve_all">全部同意</string>
+    <string name="confirm_queue_hint">已達安全保護門檻，需手動確認後方可執行變更。</string>
+
+    <!-- 統計磚 -->
+    <string name="stat_tracked_files">追蹤檔案</string>
+    <string name="stat_sub_sha256">SHA-256 比對</string>
+    <string name="stat_last_deep_verify">最後深度驗證</string>
+    <string name="stat_old_versions">舊版本</string>
+    <string name="no_anomalies">無異常</string>
+    <string name="suspected_corrupted_count">疑似損毀 %1$d 項</string>
+    <string name="never">尚未驗證</string>
+    <string name="retention_permanent_sub">永久保留</string>
+    <string name="retention_days_sub">保留 %1$d 天</string>
+
+    <!-- 資料夾橫幅與端點列 -->
+    <string name="status_paused">已暫停</string>
+    <string name="status_ok">正常</string>
+    <string name="status_needs_confirm">待確認</string>
+    <string name="btn_pause_sync">暫停</string>
+    <string name="btn_resume_sync">恢復</string>
+    <string name="endpoint_online">線上</string>
+    <string name="endpoint_offline">離線</string>
+    <string name="endpoint_change_folder">更換資料夾…</string>
+    <string name="endpoint_details">詳細資訊</string>
+    <string name="endpoint_removable_tip">外接/可移除儲存空間</string>
+
+    <!-- 設定頁面 -->
+    <string name="settings_conflict_title">衝突策略</string>
+    <string name="settings_conflict_keep_both">保留兩份（預設）</string>
+    <string name="settings_conflict_keep_both_desc">發生衝突時保留兩份，額外複本留在本地。</string>
+    <string name="settings_conflict_newer_wins">採用較新的</string>
+    <string name="settings_conflict_newer_wins_desc">修改時間較新者勝出，較舊版本封存至舊版本。</string>
+    <string name="settings_exclude_title">排除規則</string>
+    <string name="settings_exclude_desc">預設排除項目，避免同步暫存檔與編譯快取。</string>
+    <string name="settings_cloud_space_saving_title">雲端省空間</string>
+    <string name="settings_cloud_space_saving_desc">雲端占位檔按需於背景讀取，不阻塞同步。</string>
+    <string name="settings_nested_groups_title">巢狀群組自動排除</string>
+    <string name="settings_nested_groups_desc">自動排除位於父群組內部的子群組資料夾，避免重複同步。</string>
+    <string name="settings_autostart_title">開機自動啟動</string>
+    <string name="settings_autostart_desc">開機時自動於背景啟動同步服務。</string>
+    <string name="settings_folder_icons_title">資料夾圖示跟隨群組</string>
+    <string name="settings_folder_icons_unsupported">此平台不適用（受限於 Android 系統架構，無法自訂實體資料夾圖示）。</string>
+
+    <!-- 排除預設集 -->
+    <string name="preset_node_modules">node_modules（套件資料夾）</string>
+    <string name="preset_node_modules_desc">檔案瑣碎，可隨時重新安裝。</string>
+    <string name="preset_git">.git（版本控制資料夾）</string>
+    <string name="preset_git_desc">同步未完成的 .git 可能損壞版本庫，請直接使用 Git。</string>
+    <string name="preset_databases">資料庫暫存檔（-wal、-shm、-journal）</string>
+    <string name="preset_databases_desc">使用中的資料庫會得到不一致的複本。</string>
+    <string name="preset_photos">照片圖庫（.photoslibrary）</string>
+    <string name="preset_photos_desc">使用中的照片資料庫，同步會損壞圖庫。</string>
+    <string name="preset_build_caches">專案編譯快取（.build、build、target、.gradle）</string>
+    <string name="preset_build_caches_desc">編譯產物瑣碎且耗損傳輸效能。</string>
+    <string name="preset_python">Python 虛擬環境與快取（venv、.venv、__pycache__）</string>
+    <string name="preset_python_desc">包含本機絕對路徑，無法跨裝置共用。</string>
+
+    <!-- 舊版本與預覽 -->
+    <string name="versions_retention_label">版本保留天數：%1$d 天</string>
+    <string name="versions_btn_clean_expired">清除已過期</string>
+    <string name="versions_btn_clear_all">清除全部</string>
+    <string name="versions_alert_clear_confirm">確定清除全部舊版本？</string>
+    <string name="preview_sync_now">立即執行同步</string>
+    <string name="preview_more_items">尚有 %1$d 項未列出…</string>
 </resources>

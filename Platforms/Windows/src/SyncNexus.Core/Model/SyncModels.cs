@@ -40,10 +40,13 @@ public record ConflictRecord(
 );
 
 public record VersionItem(
+    long Id,
     string Endpoint,
     string Path,
     string FullPath,
-    DateTime Date
+    DateTime Date,
+    long Size = 0,
+    string Reason = "replaced"
 );
 
 public record JournalEntry(
@@ -56,15 +59,81 @@ public record JournalEntry(
     string Status
 );
 
+public enum ConflictPolicy
+{
+    KeepBoth,
+    NewerWins
+}
+
+public enum ExcludePreset
+{
+    NodeModules,
+    Git,
+    Databases,
+    PhotosLibraries,
+    BuildCaches,
+    PythonEnvironments
+}
+
+public record PendingConfirmation(
+    string GroupId,
+    int PlannedDeletions,
+    int PlannedUpdates,
+    int TotalChanges,
+    int ThresholdLimit,
+    string Message
+);
+
+public enum PlanKind
+{
+    New,
+    Update,
+    Conflict
+}
+
+public record PlanItem(
+    string Path,
+    string Source,
+    string Target,
+    PlanKind Kind,
+    bool Overwrites
+);
+
+public class PreviewReport
+{
+    public List<PlanItem> Items { get; set; } = new();
+}
+
+public record IntegrityIssue(
+    string Endpoint,
+    string Path,
+    string StoredHash,
+    string ActualHash
+);
+
+public record VerifyRun(
+    DateTime Time,
+    int Checked,
+    int Issues
+);
+
+public class VerifyReport
+{
+    public int Checked { get; set; }
+    public List<IntegrityIssue> Issues { get; set; } = new();
+}
+
 public class SyncReport
 {
     public int Actions { get; set; }
     public int Work { get; set; }
     public int Skipped { get; set; }
+    public int TrackedFiles { get; set; }
+    public PendingConfirmation? PendingConfirmation { get; set; }
     public List<string> Offline { get; set; } = new();
     public List<string> Notes { get; set; } = new();
 
-    public bool IsSuccess => Offline.Count == 0;
+    public bool IsSuccess => Offline.Count == 0 && PendingConfirmation == null;
 }
 
 public record SyncGroup(

@@ -86,9 +86,12 @@ public class BackgroundSyncService : IDisposable
         {
             OnStatusChanged?.Invoke(string.Format(LocalizationService.Instance.Get("sync_running_fmt"), triggerReason));
             var allOk = true;
-            // groups are reconciled one after another; each has its own database and engine
             foreach (var rt in _groups.Runtimes)
             {
+                var settings = SettingsService.Instance.GetGroup(rt.Group.Id);
+                if (settings.IsPaused) continue;
+                SettingsService.Instance.ApplyToEngine(rt.Group.Id, rt.Engine);
+
                 var report = await Task.Run(() => rt.Engine.SyncAll());
                 allOk &= report.IsSuccess;
                 OnSyncCompleted?.Invoke(rt.Group.Id, report);

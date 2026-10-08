@@ -32,7 +32,8 @@ data class SyncExecutionReport(
     val trackedFiles: Int,
     val syncedTransfers: Int,
     val conflicts: Int,
-    val logs: List<SyncLogItem>
+    val logs: List<SyncLogItem>,
+    val pendingConfirmation: PendingConfirmation? = null
 )
 
 data class SyncGroup(
@@ -60,7 +61,13 @@ class SyncEngine(
     /** Forgets everything remembered about a deleted group. */
     @Synchronized fun forget(groupId: String) { stores.remove(groupId)?.deleteAll() ?: GroupStateStore(context, groupId).deleteAll() }
 
-    private fun isIgnored(name: String): Boolean = AndroidIgnoreRules.isIgnored(name)
+    private fun isIgnored(
+        name: String,
+        relPath: String,
+        presets: Set<ExcludePreset> = AndroidIgnoreRules.defaultPresets,
+        customPatterns: List<String> = emptyList()
+    ): Boolean = AndroidIgnoreRules.isIgnored(name, relPath, presets, customPatterns)
+
     private fun str(id: Int, vararg args: Any): String = LocaleManager.wrap(context).getString(id, *args)
     private fun now() = System.currentTimeMillis()
     private fun clock() = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
@@ -85,15 +92,21 @@ class SyncEngine(
      * Walks a folder tree. A file whose size and modification time match what was recorded for this endpoint keeps its
      * recorded hash instead of being read again (battery and time), unless [force] asks for a full re-read.
      */
-    fun scanEndpoint(endpoint: AndroidEndpoint, baseline: Map<String, Baseline>, force: Boolean): Map<String, ScannedDocFile> {
+    fun scanEndpoint(
+        endpoint: AndroidEndpoint,
+        baseline: Map<String, Baseline>,
+        force: Boolean,
+        presets: Set<ExcludePreset> = AndroidIgnoreRules.defaultPresets,
+        customPatterns: List<String> = emptyList()
+    ): Map<String, ScannedDocFile> {
         val root = safAdapter.getDocumentTree(Uri.parse(endpoint.uriString)) ?: return emptyMap()
         val result = mutableMapOf<String, ScannedDocFile>()
 
         fun walk(dir: DocumentFile, prefix: String) {
             for (child in dir.listFiles()) {
                 val name = child.name ?: continue
-                if (isIgnored(name)) continue
                 val rel = if (prefix.isEmpty()) name else "$prefix/$name"
+                if (isIgnored(name, rel, presets, customPatterns)) continue
                 if (child.isDirectory) {
                     walk(child, rel)
                 } else if (child.isFile) {
@@ -119,9 +132,15 @@ class SyncEngine(
         }
     } catch (_: Exception) { null }
 
-    private fun scanAll(groupId: String, endpoints: List<AndroidEndpoint>, force: Boolean): Map<String, Map<String, ScannedDocFile>> {
+    private fun scanAll(
+        groupId: String,
+        endpoints: List<AndroidEndpoint>,
+        force: Boolean,
+        presets: Set<ExcludePreset> = AndroidIgnoreRules.defaultPresets,
+        customPatterns: List<String> = emptyList()
+    ): Map<String, Map<String, ScannedDocFile>> {
         val base = state(groupId).baselineSnapshot()
-        return endpoints.associate { it.id to scanEndpoint(it, base, force) }
+        return endpoints.associate { it.id to scanEndpoint(it, base, force, presets, customPatterns) }
     }
 
     private fun infoMap(scan: Map<String, Map<String, ScannedDocFile>>) = scan.mapValues { (_, m) -> m.mapValues { it.value.info } }
@@ -129,24 +148,49 @@ class SyncEngine(
     // ---------------------------------------------------------------- preview
 
     /** What a sync would do right now; changes nothing. */
-    fun preview(groupId: String, endpoints: List<AndroidEndpoint>): List<PlanItem> {
+    fun preview(
+        groupId: String,
+        endpoints: List<AndroidEndpoint>,
+        presets: Set<ExcludePreset> = AndroidIgnoreRules.defaultPresets,
+        customPatterns: List<String> = emptyList(),
+        conflictPolicy: ConflictPolicy = ConflictPolicy.KEEP_BOTH
+    ): List<PlanItem> {
         if (endpoints.size < 2) return emptyList()
-        val scan = scanAll(groupId, endpoints, force = false)
-        return SyncPlanner.plan(endpoints.map { it.id }, infoMap(scan), state(groupId).baselineSnapshot())
+        val scan = scanAll(groupId, endpoints, force = false, presets = presets, customPatterns = customPatterns)
+        return SyncPlanner.plan(endpoints.map { it.id }, infoMap(scan), state(groupId).baselineSnapshot(), conflictPolicy)
     }
 
     // ---------------------------------------------------------------- sync
 
-    fun sync(groupId: String, endpoints: List<AndroidEndpoint>): SyncExecutionReport = synchronized(opLock) {
+    fun sync(
+        groupId: String,
+        endpoints: List<AndroidEndpoint>,
+        confirmed: Boolean = false,
+        presets: Set<ExcludePreset> = AndroidIgnoreRules.defaultPresets,
+        customPatterns: List<String> = emptyList(),
+        conflictPolicy: ConflictPolicy = ConflictPolicy.KEEP_BOTH
+    ): SyncExecutionReport = synchronized(opLock) {
         if (endpoints.size < 2) return SyncExecutionReport(0, 0, 0, emptyList())
         val store = state(groupId)
-        store.purgeVersions(VERSION_DAYS, VERSION_MAX_BYTES, now())
+        store.purgeVersions(store.versionsRetentionDays, VERSION_MAX_BYTES, now())
 
         val logs = mutableListOf<SyncLogItem>()
-        val scan = scanAll(groupId, endpoints, force = false)
+        val scan = scanAll(groupId, endpoints, force = false, presets = presets, customPatterns = customPatterns)
         val snaps = infoMap(scan)
-        val plan = SyncPlanner.plan(endpoints.map { it.id }, snaps, store.baselineSnapshot())
+        val plan = SyncPlanner.plan(endpoints.map { it.id }, snaps, store.baselineSnapshot(), conflictPolicy)
         val byId = endpoints.associateBy { it.id }
+
+        // DeletionGuard safety check on major overwrites / changes
+        val overwritesCount = plan.count { it.overwrites || it.kind == PlanKind.CONFLICT }
+        val totalTracked = store.baselineSnapshot().size
+        val guard = DeletionGuard()
+        if (guard.requiresConfirmation(overwritesCount, totalTracked) && !confirmed) {
+            val reason = "預計變更/覆蓋 $overwritesCount 個檔案（共追蹤 $totalTracked 個），超過安全門檻，請確認後再執行"
+            val preview = plan.take(50).map { "[${byId[it.source]?.displayName ?: it.source} -> ${byId[it.target]?.displayName ?: it.target}] ${it.path}" }
+            val pending = PendingConfirmation(groupId, reason, preview, plan.size)
+            logs += SyncLogItem(clock(), "安全防護", reason, false)
+            return SyncExecutionReport(totalTracked, 0, 0, logs, pending)
+        }
 
         var transfers = 0
         var newConflicts = 0
@@ -195,7 +239,7 @@ class SyncEngine(
             }
         }
         store.persist()
-        return SyncExecutionReport(finalHash.size, transfers, newConflicts, logs)
+        return SyncExecutionReport(finalHash.size, transfers, newConflicts, logs, null)
     }
 
     // ---------------------------------------------------------------- file helpers

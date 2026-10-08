@@ -6,6 +6,11 @@ data class FileInfo(val hash: String, val size: Long, val mtime: Long)
 /** The state both sides agreed on the last time the file was aligned (hash, plus what each endpoint's file looked like). */
 data class Baseline(val hash: String, val eps: Map<String, Pair<Long, Long>> = emptyMap())
 
+enum class ConflictPolicy {
+    KEEP_BOTH,
+    NEWER_WINS
+}
+
 enum class PlanKind {
     /** Bring [PlanItem.target] up to the winning version (it was missing or older). */
     COPY,
@@ -25,6 +30,26 @@ data class PlanItem(
 
 data class IntegrityIssue(val endpoint: String, val path: String)
 
+data class PendingConfirmation(
+    val groupId: String,
+    val reason: String,
+    val preview: List<String>,
+    val totalCount: Int
+)
+
+data class DeletionGuard(
+    val maxAbsolute: Int = 25,
+    val maxFraction: Double = 0.25,
+    val minTrackedForFraction: Int = 20
+) {
+    fun requiresConfirmation(plannedChanges: Int, totalTracked: Int): Boolean {
+        if (plannedChanges <= 0) return false
+        if (plannedChanges > maxAbsolute) return true
+        if (totalTracked < minTrackedForFraction) return false
+        return (plannedChanges.toDouble() / totalTracked.toDouble()) > maxFraction
+    }
+}
+
 /**
  * Pure decision logic (no file access), so it can be unit-tested on the JVM.
  * Three-way comparison against the last agreed state: an edit on one side spreads, edits on several sides to
@@ -35,7 +60,8 @@ object SyncPlanner {
     fun plan(
         endpoints: List<String>,
         snapshots: Map<String, Map<String, FileInfo>>,
-        baseline: Map<String, Baseline>
+        baseline: Map<String, Baseline>,
+        conflictPolicy: ConflictPolicy = ConflictPolicy.KEEP_BOTH
     ): List<PlanItem> {
         val paths = snapshots.values.flatMap { it.keys }.toSortedSet()
         val out = mutableListOf<PlanItem>()
@@ -54,7 +80,18 @@ object SyncPlanner {
                 if (ep == winner.first) continue
                 val has = snapshots[ep]?.get(path)
                 if (has != null && has.hash == winnerHash) continue
-                val keepsOwnEdit = conflict && has != null && has.hash != baseHash
+
+                var keepsOwnEdit = false
+                if (conflict && has != null && has.hash != baseHash) {
+                    if (conflictPolicy == ConflictPolicy.NEWER_WINS) {
+                        val diff = winner.second.mtime - has.mtime
+                        // If winner is distinctly newer (> 2 seconds), adopt newer edit; otherwise keep both
+                        keepsOwnEdit = diff <= 2000L
+                    } else {
+                        keepsOwnEdit = true
+                    }
+                }
+
                 out += PlanItem(
                     kind = if (keepsOwnEdit) PlanKind.CONFLICT else PlanKind.COPY,
                     path = path, source = winner.first, target = ep,

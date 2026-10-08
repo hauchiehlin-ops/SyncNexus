@@ -1135,6 +1135,492 @@ public class LocalizationService
             [AppLanguage.Ja] = "競合コピーを保持",
             [AppLanguage.Ko] = "충돌 사본 유지",
             [AppLanguage.Th] = "เก็บสำเนาที่ขัดแย้ง",
+        },
+        ["nav_preview"] = new()
+        {
+            [AppLanguage.ZhHant] = "差異預覽",
+            [AppLanguage.ZhHans] = "差异预览",
+            [AppLanguage.En] = "Diff Preview",
+            [AppLanguage.Ja] = "差分プレビュー",
+            [AppLanguage.Ko] = "차이 미리보기",
+            [AppLanguage.Th] = "ดูตัวอย่างความต่าง",
+        },
+        ["nav_folders"] = new()
+        {
+            [AppLanguage.ZhHant] = "資料夾",
+            [AppLanguage.ZhHans] = "文件夹",
+            [AppLanguage.En] = "Folders",
+            [AppLanguage.Ja] = "フォルダ",
+            [AppLanguage.Ko] = "폴더",
+            [AppLanguage.Th] = "โฟลเดอร์",
+        },
+        ["nav_versions"] = new()
+        {
+            [AppLanguage.ZhHant] = "舊版本",
+            [AppLanguage.ZhHans] = "旧版本",
+            [AppLanguage.En] = "Versions",
+            [AppLanguage.Ja] = "以前のバージョン",
+            [AppLanguage.Ko] = "이전 버전",
+            [AppLanguage.Th] = "เวอร์ชันก่อนหน้า",
+        },
+        ["nav_verify"] = new()
+        {
+            [AppLanguage.ZhHant] = "驗證紀錄",
+            [AppLanguage.ZhHans] = "验证记录",
+            [AppLanguage.En] = "Verification",
+            [AppLanguage.Ja] = "検証ログ",
+            [AppLanguage.Ko] = "검증 기록",
+            [AppLanguage.Th] = "บันทึกการตรวจสอบ",
+        },
+        ["stat_tracked_files"] = new()
+        {
+            [AppLanguage.ZhHant] = "追蹤檔案",
+            [AppLanguage.ZhHans] = "追踪文件",
+            [AppLanguage.En] = "Tracked Files",
+            [AppLanguage.Ja] = "追跡対象ファイル",
+            [AppLanguage.Ko] = "추적 중인 파일",
+            [AppLanguage.Th] = "ไฟล์ที่ติดตาม",
+        },
+        ["stat_sub_sha256"] = new()
+        {
+            [AppLanguage.ZhHant] = "SHA-256 比對",
+            [AppLanguage.ZhHans] = "SHA-256 比对",
+            [AppLanguage.En] = "SHA-256 Checksum",
+            [AppLanguage.Ja] = "SHA-256 照合",
+            [AppLanguage.Ko] = "SHA-256 대조",
+            [AppLanguage.Th] = "การตรวจสอบ SHA-256",
+        },
+        ["stat_last_deep_verify"] = new()
+        {
+            [AppLanguage.ZhHant] = "最後深度驗證",
+            [AppLanguage.ZhHans] = "最后深度验证",
+            [AppLanguage.En] = "Last Deep Verify",
+            [AppLanguage.Ja] = "最終詳細検証",
+            [AppLanguage.Ko] = "최근 심층 검증",
+            [AppLanguage.Th] = "การตรวจสอบเชิงลึกล่าสุด",
+        },
+        ["stat_old_versions"] = new()
+        {
+            [AppLanguage.ZhHant] = "舊版本",
+            [AppLanguage.ZhHans] = "旧版本",
+            [AppLanguage.En] = "Old Versions",
+            [AppLanguage.Ja] = "以前のバージョン",
+            [AppLanguage.Ko] = "이전 버전",
+            [AppLanguage.Th] = "เวอร์ชันเดิม",
+        },
+        ["no_anomalies"] = new()
+        {
+            [AppLanguage.ZhHant] = "無異常",
+            [AppLanguage.ZhHans] = "无异常",
+            [AppLanguage.En] = "No anomalies",
+            [AppLanguage.Ja] = "異常なし",
+            [AppLanguage.Ko] = "이상 없음",
+            [AppLanguage.Th] = "ไม่มีความผิดปกติ",
+        },
+        ["suspected_corrupted_count"] = new()
+        {
+            [AppLanguage.ZhHant] = "疑似損毀 {0} 項",
+            [AppLanguage.ZhHans] = "疑似损坏 {0} 项",
+            [AppLanguage.En] = "Suspected corrupted: {0}",
+            [AppLanguage.Ja] = "破損の疑い {0} 件",
+            [AppLanguage.Ko] = "손상 의심 {0}건",
+            [AppLanguage.Th] = "สงสัยเสียหาย {0} รายการ",
+        },
+        ["never"] = new()
+        {
+            [AppLanguage.ZhHant] = "尚未驗證",
+            [AppLanguage.ZhHans] = "尚未验证",
+            [AppLanguage.En] = "Never verified",
+            [AppLanguage.Ja] = "未検証",
+            [AppLanguage.Ko] = "검증 안 됨",
+            [AppLanguage.Th] = "ยังไม่เคยตรวจสอบ",
+        },
+        ["retention_permanent_sub"] = new()
+        {
+            [AppLanguage.ZhHant] = "永久保留",
+            [AppLanguage.ZhHans] = "永久保留",
+            [AppLanguage.En] = "Keep permanently",
+            [AppLanguage.Ja] = "永久保持",
+            [AppLanguage.Ko] = "영구 보관",
+            [AppLanguage.Th] = "เก็บถาวร",
+        },
+        ["retention_days_sub"] = new()
+        {
+            [AppLanguage.ZhHant] = "保留 {0} 天",
+            [AppLanguage.ZhHans] = "保留 {0} 天",
+            [AppLanguage.En] = "Retained for {0} days",
+            [AppLanguage.Ja] = "{0} 日間保持",
+            [AppLanguage.Ko] = "{0}일간 보관",
+            [AppLanguage.Th] = "เก็บไว้ {0} วัน",
+        },
+        ["confirm_queue_title"] = new()
+        {
+            [AppLanguage.ZhHant] = "{0} 個群組需要確認",
+            [AppLanguage.ZhHans] = "{0} 个群组需要确认",
+            [AppLanguage.En] = "{0} group(s) require confirmation",
+            [AppLanguage.Ja] = "{0} 個のグループで確認が必要です",
+            [AppLanguage.Ko] = "{0}개 그룹에 확인이 필요합니다",
+            [AppLanguage.Th] = "{0} กลุ่มต้องการการยืนยัน",
+        },
+        ["confirm_queue_approve"] = new()
+        {
+            [AppLanguage.ZhHant] = "同意",
+            [AppLanguage.ZhHans] = "同意",
+            [AppLanguage.En] = "Approve",
+            [AppLanguage.Ja] = "承認",
+            [AppLanguage.Ko] = "승인",
+            [AppLanguage.Th] = "อนุมัติ",
+        },
+        ["confirm_queue_decline"] = new()
+        {
+            [AppLanguage.ZhHant] = "取消",
+            [AppLanguage.ZhHans] = "取消",
+            [AppLanguage.En] = "Decline",
+            [AppLanguage.Ja] = "拒否",
+            [AppLanguage.Ko] = "거절",
+            [AppLanguage.Th] = "ปฏิเสธ",
+        },
+        ["confirm_queue_approve_all"] = new()
+        {
+            [AppLanguage.ZhHant] = "全部同意",
+            [AppLanguage.ZhHans] = "全部同意",
+            [AppLanguage.En] = "Approve All",
+            [AppLanguage.Ja] = "すべて承認",
+            [AppLanguage.Ko] = "모두 승인",
+            [AppLanguage.Th] = "อนุมัติทั้งหมด",
+        },
+        ["confirm_queue_hint"] = new()
+        {
+            [AppLanguage.ZhHant] = "已達安全保護門檻，需手動確認後方可執行變更。",
+            [AppLanguage.ZhHans] = "已达安全保护门槛，需手动确认后方可执行变更。",
+            [AppLanguage.En] = "Safety threshold reached. Manual confirmation required before applying changes.",
+            [AppLanguage.Ja] = "安全保護のしきい値に達しました。変更を適用するには手動での確認が必要です。",
+            [AppLanguage.Ko] = "안전 임계치에 도달했습니다. 변경을 적용하려면 수동 확인이 필요합니다.",
+            [AppLanguage.Th] = "ถึงเกณฑ์ความปลอดภัยแล้ว ต้องยืนยันด้วยตนเองก่อนดำเนินการ",
+        },
+        ["status_paused"] = new()
+        {
+            [AppLanguage.ZhHant] = "已暫停",
+            [AppLanguage.ZhHans] = "已暂停",
+            [AppLanguage.En] = "Paused",
+            [AppLanguage.Ja] = "一時停止中",
+            [AppLanguage.Ko] = "일시정지됨",
+            [AppLanguage.Th] = "หยุดชั่วคราว",
+        },
+        ["status_ok"] = new()
+        {
+            [AppLanguage.ZhHant] = "正常",
+            [AppLanguage.ZhHans] = "正常",
+            [AppLanguage.En] = "Normal",
+            [AppLanguage.Ja] = "正常",
+            [AppLanguage.Ko] = "정상",
+            [AppLanguage.Th] = "ปกติ",
+        },
+        ["status_needs_confirm"] = new()
+        {
+            [AppLanguage.ZhHant] = "待確認",
+            [AppLanguage.ZhHans] = "待确认",
+            [AppLanguage.En] = "Needs confirmation",
+            [AppLanguage.Ja] = "確認待ち",
+            [AppLanguage.Ko] = "확인 대기",
+            [AppLanguage.Th] = "รอยืนยัน",
+        },
+        ["btn_pause_sync"] = new()
+        {
+            [AppLanguage.ZhHant] = "暫停",
+            [AppLanguage.ZhHans] = "暂停",
+            [AppLanguage.En] = "Pause",
+            [AppLanguage.Ja] = "一時停止",
+            [AppLanguage.Ko] = "일시정지",
+            [AppLanguage.Th] = "หยุดชั่วคราว",
+        },
+        ["btn_resume_sync"] = new()
+        {
+            [AppLanguage.ZhHant] = "恢復",
+            [AppLanguage.ZhHans] = "恢复",
+            [AppLanguage.En] = "Resume",
+            [AppLanguage.Ja] = "再開",
+            [AppLanguage.Ko] = "재개",
+            [AppLanguage.Th] = "ทำงานต่อ",
+        },
+        ["preview_desc"] = new()
+        {
+            [AppLanguage.ZhHant] = "查看下一次同步會做哪些變更。僅試跑預覽，不會更動任何檔案。",
+            [AppLanguage.ZhHans] = "查看下一次同步会做哪些变更。仅试跑预览，不会改动任何文件。",
+            [AppLanguage.En] = "Preview changes that will happen in the next sync. Dry run only, no files changed.",
+            [AppLanguage.Ja] = "次回の同期で行われる変更をプレビューします。ファイルは変更されません。",
+            [AppLanguage.Ko] = "다음 동기화에서 수행될 변경 사항을 미리 봅니다. 파일은 변경되지 않습니다.",
+            [AppLanguage.Th] = "ดูตัวอย่างการเปลี่ยนแปลงที่จะเกิดขึ้นในการซิงค์ครั้งถัดไป ไม่มีการแก้ไขไฟล์จริง",
+        },
+        ["preview_run"] = new()
+        {
+            [AppLanguage.ZhHant] = "立即試跑檢查",
+            [AppLanguage.ZhHans] = "立即试跑检查",
+            [AppLanguage.En] = "Run Preview",
+            [AppLanguage.Ja] = "プレビュー実行",
+            [AppLanguage.Ko] = "미리보기 실행",
+            [AppLanguage.Th] = "เรียกดูตัวอย่าง",
+        },
+        ["preview_running"] = new()
+        {
+            [AppLanguage.ZhHant] = "檢查中…",
+            [AppLanguage.ZhHans] = "检查中…",
+            [AppLanguage.En] = "Checking…",
+            [AppLanguage.Ja] = "確認中…",
+            [AppLanguage.Ko] = "확인 중…",
+            [AppLanguage.Th] = "กำลังตรวจสอบ…",
+        },
+        ["preview_sync_now"] = new()
+        {
+            [AppLanguage.ZhHant] = "立即執行同步",
+            [AppLanguage.ZhHans] = "立即执行同步",
+            [AppLanguage.En] = "Execute Sync Now",
+            [AppLanguage.Ja] = "今すぐ同期を実行",
+            [AppLanguage.Ko] = "지금 동기화 실행",
+            [AppLanguage.Th] = "ดำเนินการซิงค์ทันที",
+        },
+        ["preview_empty"] = new()
+        {
+            [AppLanguage.ZhHant] = "全部已同步，沒有需要處理的項目。",
+            [AppLanguage.ZhHans] = "全部已同步，没有需要处理的项目。",
+            [AppLanguage.En] = "Everything is synchronized. Nothing to do.",
+            [AppLanguage.Ja] = "すべて同期済みです。処理項目はありません。",
+            [AppLanguage.Ko] = "모두 동기화되었습니다. 처리할 항목이 없습니다.",
+            [AppLanguage.Th] = "ซิงค์ครบทั้งหมดแล้ว ไม่มีรายการที่ต้องจัดการ",
+        },
+        ["preview_more_items"] = new()
+        {
+            [AppLanguage.ZhHant] = "尚有 {0} 項未列出…",
+            [AppLanguage.ZhHans] = "尚有 {0} 项未列出…",
+            [AppLanguage.En] = "{0} more items not shown…",
+            [AppLanguage.Ja] = "他 {0} 件は非表示…",
+            [AppLanguage.Ko] = "외 {0}개 항목 생략됨…",
+            [AppLanguage.Th] = "ยังมีอีก {0} รายการที่ไม่ได้แสดง…",
+        },
+        ["versions_retention_label"] = new()
+        {
+            [AppLanguage.ZhHant] = "版本保留天數：{0} 天",
+            [AppLanguage.ZhHans] = "版本保留天数：{0} 天",
+            [AppLanguage.En] = "Version Retention: {0} days",
+            [AppLanguage.Ja] = "バージョン保持日数：{0} 日",
+            [AppLanguage.Ko] = "버전 보관 일수: {0}일",
+            [AppLanguage.Th] = "ระยะเวลาเก็บเวอร์ชัน: {0} วัน",
+        },
+        ["versions_btn_clean_expired"] = new()
+        {
+            [AppLanguage.ZhHant] = "清除已過期",
+            [AppLanguage.ZhHans] = "清除已过期",
+            [AppLanguage.En] = "Purge Expired",
+            [AppLanguage.Ja] = "期限切れを削除",
+            [AppLanguage.Ko] = "만료된 파일 삭제",
+            [AppLanguage.Th] = "ลบที่หมดอายุ",
+        },
+        ["versions_btn_clear_all"] = new()
+        {
+            [AppLanguage.ZhHant] = "清除全部",
+            [AppLanguage.ZhHans] = "清除全部",
+            [AppLanguage.En] = "Clear All",
+            [AppLanguage.Ja] = "すべて消去",
+            [AppLanguage.Ko] = "모두 지우기",
+            [AppLanguage.Th] = "ล้างทั้งหมด",
+        },
+        ["versions_restore"] = new()
+        {
+            [AppLanguage.ZhHant] = "還原",
+            [AppLanguage.ZhHans] = "还原",
+            [AppLanguage.En] = "Restore",
+            [AppLanguage.Ja] = "復元",
+            [AppLanguage.Ko] = "복원",
+            [AppLanguage.Th] = "กู้คืน",
+        },
+        ["versions_delete"] = new()
+        {
+            [AppLanguage.ZhHant] = "刪除",
+            [AppLanguage.ZhHans] = "删除",
+            [AppLanguage.En] = "Delete",
+            [AppLanguage.Ja] = "削除",
+            [AppLanguage.Ko] = "삭제",
+            [AppLanguage.Th] = "ลบ",
+        },
+        ["versions_empty"] = new()
+        {
+            [AppLanguage.ZhHant] = "目前沒有舊版本。",
+            [AppLanguage.ZhHans] = "目前没有旧版本。",
+            [AppLanguage.En] = "No previous versions available.",
+            [AppLanguage.Ja] = "以前のバージョンはありません。",
+            [AppLanguage.Ko] = "이전 버전이 없습니다.",
+            [AppLanguage.Th] = "ไม่มีเวอร์ชันก่อนหน้า",
+        },
+        ["verify_desc"] = new()
+        {
+            [AppLanguage.ZhHant] = "重新讀取每個檔案，確認內容仍與紀錄相符，可發現無聲損毀。",
+            [AppLanguage.ZhHans] = "重新读取每个文件，确认内容仍与记录相符，可发现无声损坏。",
+            [AppLanguage.En] = "Re-reads every file to verify against database hashes, detecting silent bit-rot.",
+            [AppLanguage.Ja] = "すべてのファイルを再読み込みしてハッシュ値と照合し、サイレント破損を検出します。",
+            [AppLanguage.Ko] = "모든 파일을 다시 읽어 해시값과 대조하고 무음 손상을 감지합니다.",
+            [AppLanguage.Th] = "อ่านไฟล์ทั้งหมดซ้ำเพื่อยืนยันกับแฮช และตรวจจับความเสียหายเงียบ",
+        },
+        ["verify_run"] = new()
+        {
+            [AppLanguage.ZhHant] = "立即驗證",
+            [AppLanguage.ZhHans] = "立即验证",
+            [AppLanguage.En] = "Verify Now",
+            [AppLanguage.Ja] = "今すぐ検証",
+            [AppLanguage.Ko] = "지금 검증",
+            [AppLanguage.Th] = "ตรวจสอบทันที",
+        },
+        ["verify_running"] = new()
+        {
+            [AppLanguage.ZhHant] = "驗證中…",
+            [AppLanguage.ZhHans] = "验证中…",
+            [AppLanguage.En] = "Verifying…",
+            [AppLanguage.Ja] = "検証中…",
+            [AppLanguage.Ko] = "검증 중…",
+            [AppLanguage.Th] = "กำลังตรวจสอบ…",
+        },
+        ["verify_issues_title"] = new()
+        {
+            [AppLanguage.ZhHant] = "疑似損毀清單",
+            [AppLanguage.ZhHans] = "疑似损坏清单",
+            [AppLanguage.En] = "Integrity Issues",
+            [AppLanguage.Ja] = "破損疑い一覧",
+            [AppLanguage.Ko] = "손상 의심 목록",
+            [AppLanguage.Th] = "รายการที่สงสัยเสียหาย",
+        },
+        ["settings_conflict_title"] = new()
+        {
+            [AppLanguage.ZhHant] = "衝突策略",
+            [AppLanguage.ZhHans] = "冲突策略",
+            [AppLanguage.En] = "Conflict Policy",
+            [AppLanguage.Ja] = "競合ポリシー",
+            [AppLanguage.Ko] = "충돌 정책",
+            [AppLanguage.Th] = "นโยบายความขัดแย้ง",
+        },
+        ["settings_conflict_keep_both"] = new()
+        {
+            [AppLanguage.ZhHant] = "保留兩份（預設）",
+            [AppLanguage.ZhHans] = "保留两份（默认）",
+            [AppLanguage.En] = "Keep Both (Default)",
+            [AppLanguage.Ja] = "両方を保持（既定）",
+            [AppLanguage.Ko] = "둘 다 유지(기본)",
+            [AppLanguage.Th] = "เก็บทั้งสองไฟล์ (ค่าเริ่มต้น)",
+        },
+        ["settings_conflict_keep_both_desc"] = new()
+        {
+            [AppLanguage.ZhHant] = "發生衝突時保留兩份，額外複本留在本地。",
+            [AppLanguage.ZhHans] = "发生冲突时保留两份，额外复本留在本地。",
+            [AppLanguage.En] = "Keep both copies upon conflict, saving conflict copies locally.",
+            [AppLanguage.Ja] = "競合時は両方を残し、ローカルにコピーを保存します。",
+            [AppLanguage.Ko] = "충돌 시 양쪽을 모두 보존하고 로컬에 사본을 남깁니다.",
+            [AppLanguage.Th] = "เมื่อเกิดความขัดแย้งจะเก็บทั้งสองไฟล์ไว้ โดยสร้างสำเนาในเครื่อง",
+        },
+        ["settings_conflict_newer_wins"] = new()
+        {
+            [AppLanguage.ZhHant] = "採用較新的",
+            [AppLanguage.ZhHans] = "采用较新的",
+            [AppLanguage.En] = "Newer Wins",
+            [AppLanguage.Ja] = "新しい方を優先",
+            [AppLanguage.Ko] = "최신 버전 우선",
+            [AppLanguage.Th] = "ใช้ไฟล์ที่ใหม่กว่า",
+        },
+        ["settings_conflict_newer_wins_desc"] = new()
+        {
+            [AppLanguage.ZhHant] = "修改時間較新者勝出，較舊版本封存至舊版本。",
+            [AppLanguage.ZhHans] = "修改时间较新者胜出，较旧版本归档至旧版本。",
+            [AppLanguage.En] = "Newer modification time wins; older version archived to history.",
+            [AppLanguage.Ja] = "更新日時が新しい方が優先され、古い方は履歴へアーカイブされます。",
+            [AppLanguage.Ko] = "더 최근에 수정된 쪽이 우선되며 이전 버전은 기록으로 보관됩니다.",
+            [AppLanguage.Th] = "ไฟล์ที่แก้ไขล่าสุดจะเป็นฝ่ายชนะ ไฟล์เดิมจะถูกเก็บในประวัติ",
+        },
+        ["settings_exclude_title"] = new()
+        {
+            [AppLanguage.ZhHant] = "排除規則",
+            [AppLanguage.ZhHans] = "排除规则",
+            [AppLanguage.En] = "Exclusion Rules",
+            [AppLanguage.Ja] = "除外ルール",
+            [AppLanguage.Ko] = "제외 규칙",
+            [AppLanguage.Th] = "กฎการยกเว้น",
+        },
+        ["settings_exclude_desc"] = new()
+        {
+            [AppLanguage.ZhHant] = "預設排除項目，避免同步暫存檔與編譯快取。",
+            [AppLanguage.ZhHans] = "预设排除项目，避免同步临时文件与编译缓存。",
+            [AppLanguage.En] = "Exclude temporary files and build caches from synchronization.",
+            [AppLanguage.Ja] = "一時ファイルやビルドキャッシュを同期から除外します。",
+            [AppLanguage.Ko] = "임시 파일 및 빌드 캐시를 동기화에서 제외합니다.",
+            [AppLanguage.Th] = "ยกเว้นไฟล์ชั่วคราวและแคชการสร้างจากการซิงค์",
+        },
+        ["settings_nested_groups_title"] = new()
+        {
+            [AppLanguage.ZhHant] = "巢狀群組自動排除",
+            [AppLanguage.ZhHans] = "嵌套群组自动排除",
+            [AppLanguage.En] = "Auto-Exclude Nested Groups",
+            [AppLanguage.Ja] = "入れ子グループの自動除外",
+            [AppLanguage.Ko] = "중첩 그룹 자동 제외",
+            [AppLanguage.Th] = "ยกเว้นกลุ่มที่ซ้อนกันโดยอัตโนมัติ",
+        },
+        ["settings_cloud_space_saving_title"] = new()
+        {
+            [AppLanguage.ZhHant] = "雲端省空間",
+            [AppLanguage.ZhHans] = "云端省空间",
+            [AppLanguage.En] = "Cloud Space Saving",
+            [AppLanguage.Ja] = "クラウドの容量節約",
+            [AppLanguage.Ko] = "클라우드 공간 절약",
+            [AppLanguage.Th] = "ประหยัดพื้นที่คลาวด์",
+        },
+        ["preset_node_modules"] = new()
+        {
+            [AppLanguage.ZhHant] = "node_modules（套件資料夾）",
+            [AppLanguage.ZhHans] = "node_modules（包文件夹）",
+            [AppLanguage.En] = "node_modules (Packages)",
+            [AppLanguage.Ja] = "node_modules (パッケージ)",
+            [AppLanguage.Ko] = "node_modules (패키지)",
+            [AppLanguage.Th] = "node_modules (แพ็กเกจ)",
+        },
+        ["preset_git"] = new()
+        {
+            [AppLanguage.ZhHant] = ".git（版本控制資料夾）",
+            [AppLanguage.ZhHans] = ".git（版本控制文件夹）",
+            [AppLanguage.En] = ".git (Git Repository)",
+            [AppLanguage.Ja] = ".git (バージョン管理)",
+            [AppLanguage.Ko] = ".git (버전 관리)",
+            [AppLanguage.Th] = ".git (การควบคุมเวอร์ชัน)",
+        },
+        ["preset_databases"] = new()
+        {
+            [AppLanguage.ZhHant] = "資料庫暫存檔（-wal、-shm、-journal）",
+            [AppLanguage.ZhHans] = "数据库临时文件（-wal、-shm、-journal）",
+            [AppLanguage.En] = "Database Temporary Files (-wal, -shm, -journal)",
+            [AppLanguage.Ja] = "データベース一時ファイル (-wal, -shm, -journal)",
+            [AppLanguage.Ko] = "데이터베이스 임시 파일 (-wal, -shm, -journal)",
+            [AppLanguage.Th] = "ไฟล์ชั่วคราวของฐานข้อมูล (-wal, -shm, -journal)",
+        },
+        ["preset_photos"] = new()
+        {
+            [AppLanguage.ZhHant] = "照片圖庫（.photoslibrary）",
+            [AppLanguage.ZhHans] = "照片图库（.photoslibrary）",
+            [AppLanguage.En] = "Photos Library (.photoslibrary)",
+            [AppLanguage.Ja] = "写真ライブラリ (.photoslibrary)",
+            [AppLanguage.Ko] = "사진 보관함 (.photoslibrary)",
+            [AppLanguage.Th] = "คลังรูปภาพ (.photoslibrary)",
+        },
+        ["preset_build_caches"] = new()
+        {
+            [AppLanguage.ZhHant] = "專案編譯快取（.build、build、target、bin、obj）",
+            [AppLanguage.ZhHans] = "项目编译缓存（.build、build、target、bin、obj）",
+            [AppLanguage.En] = "Build Caches (.build, build, target, bin, obj)",
+            [AppLanguage.Ja] = "ビルドキャッシュ (.build, build, target, bin, obj)",
+            [AppLanguage.Ko] = "빌드 캐시 (.build, build, target, bin, obj)",
+            [AppLanguage.Th] = "แคชการสร้าง (.build, build, target, bin, obj)",
+        },
+        ["preset_python"] = new()
+        {
+            [AppLanguage.ZhHant] = "Python 虛擬環境與快取（venv、.venv、__pycache__）",
+            [AppLanguage.ZhHans] = "Python 虚拟环境与缓存（venv、.venv、__pycache__）",
+            [AppLanguage.En] = "Python Environments & Cache (venv, .venv, __pycache__)",
+            [AppLanguage.Ja] = "Python 仮想環境・キャッシュ (venv, .venv, __pycache__)",
+            [AppLanguage.Ko] = "Python 가상 환경 및 캐시 (venv, .venv, __pycache__)",
+            [AppLanguage.Th] = "สภาพแวดล้อมและแคช Python (venv, .venv, __pycache__)",
         }
     };
 

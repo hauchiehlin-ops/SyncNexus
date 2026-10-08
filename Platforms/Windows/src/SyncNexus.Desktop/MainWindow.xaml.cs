@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
@@ -30,15 +31,26 @@ public partial class MainWindow : Window
         ChkFolderIcons.IsChecked = _folderIcons.Enabled;
         LoadSavedLanguage();
         ApplyGroupBarTexts();
-        // creating / deleting a group changes which folders must be watched (and which icons they carry)
+
         _groups.GroupsChanged += () => Dispatcher.Invoke(() =>
         {
             _syncService.ReconfigureFileWatchers();
             RefreshFolderIcons();
         });
 
+        _viewModel.PendingConfirmations.CollectionChanged += (_, _) => Dispatcher.Invoke(UpdateConfirmationsCardVisibility);
+        UpdateConfirmationsCardVisibility();
+
         ChkAutoStart.IsChecked = WindowsStartupHelper.IsRunAtStartup();
         Loaded += MainWindow_Loaded;
+    }
+
+    private void UpdateConfirmationsCardVisibility()
+    {
+        if (CardConfirmations != null)
+        {
+            CardConfirmations.Visibility = _viewModel.PendingConfirmations.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
     }
 
     private void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -57,9 +69,14 @@ public partial class MainWindow : Window
         {
             Dispatcher.Invoke(() =>
             {
-                UpdateTrayTooltip();   // the tray covers every group
-                RefreshFolderIcons();  // diff-based: does nothing unless a folder or a group icon changed
-                if (groupId != _viewModel.SelectedGroupItem?.Id) return;   // only the shown group updates the screen
+                UpdateTrayTooltip();
+                RefreshFolderIcons();
+                if (report.PendingConfirmation != null && !_viewModel.PendingConfirmations.Any(p => p.Id == report.PendingConfirmation.Id))
+                {
+                    _viewModel.PendingConfirmations.Add(report.PendingConfirmation);
+                    UpdateConfirmationsCardVisibility();
+                }
+                if (groupId != _viewModel.SelectedGroupItem?.Id) return;
                 _viewModel.LoadEndpoints();
                 foreach (var note in report.Notes)
                 {
@@ -71,13 +88,9 @@ public partial class MainWindow : Window
 
     private void BtnAddEndpoint_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new AddEndpointDialog
-        {
-            Owner = this
-        };
+        var dialog = new AddEndpointDialog { Owner = this };
         if (dialog.ShowDialog() == true && dialog.ResultConfig != null)
         {
-            // the same folder must not belong to two groups, or both would sync the same files
             var active = _viewModel.SelectedGroupItem;
             if (active != null && _groups.NestedInGroup(dialog.ResultConfig.Root, active.Id) != null)
             {
@@ -102,17 +115,91 @@ public partial class MainWindow : Window
         }
     }
 
-    private void BtnConflicts_Click(object sender, RoutedEventArgs e)
+    private void BtnChangeFolder_Click(object sender, RoutedEventArgs e)
     {
-        var window = new ConflictsWindow(_viewModel.ActiveStore)
+        if (sender is not Button btn || btn.Tag is not string endpointId) return;
+        var loc = LocalizationService.Instance;
+        var dialog = new Microsoft.Win32.OpenFolderDialog
         {
-            Owner = this
+            Title = loc.Get("choose_folder"),
+            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
         };
-        window.ShowDialog();
-        _viewModel.LoadEndpoints();
+        if (dialog.ShowDialog(this) != true || string.IsNullOrWhiteSpace(dialog.FolderName)) return;
+
+        var newPath = dialog.FolderName;
+        var active = _viewModel.SelectedGroupItem;
+        if (active != null && _groups.NestedInGroup(newPath, active.Id) != null)
+        {
+            MessageBox.Show(this, loc.Get("folder_nested_in_group"), "SyncNexus", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+        var otherId = active is null ? null : _groups.GroupUsingFolder(newPath, active.Id);
+        if (otherId != null)
+        {
+            var other = _viewModel.Groups.FirstOrDefault(g => g.Id == otherId)?.DisplayName ?? otherId;
+            MessageBox.Show(this, string.Format(loc.Get("group_folder_in_use"), other), "SyncNexus", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        _viewModel.ChangeEndpointFolder(endpointId, newPath);
+        _syncService.ReconfigureFileWatchers();
+        RefreshFolderIcons();
     }
 
-    /// <summary>Folder path -> symbol of its group, for every existing folder of every group whose icon is not the plain folder.</summary>
+    private void BtnRemoveEndpoint_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn || btn.Tag is not string endpointId) return;
+        var loc = LocalizationService.Instance;
+        var answer = MessageBox.Show(this, loc.Get("endpoint_remove_confirm_desc"),
+            string.Format(loc.Get("endpoint_remove_confirm_title"), endpointId),
+            MessageBoxButton.OKCancel, MessageBoxImage.Warning);
+
+        if (answer == MessageBoxResult.OK)
+        {
+            _viewModel.RemoveEndpoint(endpointId);
+            _syncService.ReconfigureFileWatchers();
+            RefreshFolderIcons();
+        }
+    }
+
+    private void BtnKeepMain_Click(object sender, RoutedEventArgs e)
+    {
+        if (ListConflictsView.SelectedItem is not ConflictRecord selected)
+        {
+            MessageBox.Show(this, LocalizationService.Instance.Get("cf_select_first"), LocalizationService.Instance.Get("dlg_hint_title"),
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        _viewModel.KeepMainConflict(selected);
+    }
+
+    private void BtnKeepConflict_Click(object sender, RoutedEventArgs e)
+    {
+        if (ListConflictsView.SelectedItem is not ConflictRecord selected)
+        {
+            MessageBox.Show(this, LocalizationService.Instance.Get("cf_select_first"), LocalizationService.Instance.Get("dlg_hint_title"),
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        _viewModel.KeepCopyConflict(selected);
+    }
+
+    private void BtnPurgeAll_Click(object sender, RoutedEventArgs e)
+    {
+        var loc = LocalizationService.Instance;
+        var answer = MessageBox.Show(this, loc.Get("versions_purge_confirm_desc"), loc.Get("versions_purge_confirm_title"),
+            MessageBoxButton.OKCancel, MessageBoxImage.Warning);
+        if (answer == MessageBoxResult.OK)
+        {
+            _viewModel.PurgeAllVersions();
+        }
+    }
+
+    private void SettingsChanged_Handler(object sender, RoutedEventArgs e)
+    {
+        _viewModel.SaveCurrentGroupSettings();
+    }
+
     private void RefreshFolderIcons()
     {
         var desired = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -122,7 +209,7 @@ public partial class MainWindow : Window
             var symbol = GroupItemViewModel.EmojiFor(rt.Group.Icon);
             foreach (var ep in rt.Store.GetEndpoints())
             {
-                if (System.IO.Directory.Exists(ep.Root)) desired[ep.Root] = symbol;
+                if (Directory.Exists(ep.Root)) desired[ep.Root] = symbol;
             }
         }
         _folderIcons.Sync(desired);
@@ -131,7 +218,7 @@ public partial class MainWindow : Window
     private void ChkFolderIcons_Click(object sender, RoutedEventArgs e)
     {
         _folderIcons.SetEnabled(ChkFolderIcons.IsChecked == true);
-        RefreshFolderIcons();   // off: restores the normal icons
+        RefreshFolderIcons();
     }
 
     private void ChkAutoStart_Click(object sender, RoutedEventArgs e)
@@ -145,18 +232,17 @@ public partial class MainWindow : Window
     private static readonly AppLanguage[] LanguageOrder =
         { AppLanguage.ZhHant, AppLanguage.ZhHans, AppLanguage.En, AppLanguage.Ja, AppLanguage.Ko, AppLanguage.Th };
 
-    /// <summary>The picker shows the language actually in use (saved choice, else the system language) instead of always "繁體中文".</summary>
     private void LoadSavedLanguage()
     {
         try
         {
-            if (System.IO.File.Exists(LanguageFile) &&
-                Enum.TryParse<AppLanguage>(System.IO.File.ReadAllText(LanguageFile).Trim(), out var saved))
+            if (File.Exists(LanguageFile) &&
+                Enum.TryParse<AppLanguage>(File.ReadAllText(LanguageFile).Trim(), out var saved))
             {
                 LocalizationService.Instance.CurrentLanguage = saved;
             }
         }
-        catch { /* an unreadable preference just means: follow the system language */ }
+        catch { }
         CmbLanguage.SelectedIndex = Array.IndexOf(LanguageOrder, LocalizationService.Instance.CurrentLanguage);
     }
 
@@ -167,62 +253,132 @@ public partial class MainWindow : Window
         LocalizationService.Instance.CurrentLanguage = LanguageOrder[CmbLanguage.SelectedIndex];
         try
         {
-            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(LanguageFile)!);
-            System.IO.File.WriteAllText(LanguageFile, LocalizationService.Instance.CurrentLanguage.ToString());
+            Directory.CreateDirectory(Path.GetDirectoryName(LanguageFile)!);
+            File.WriteAllText(LanguageFile, LocalizationService.Instance.CurrentLanguage.ToString());
         }
-        catch { /* not being able to remember the choice must not break switching */ }
+        catch { }
 
-        // this handler can fire while the XAML is still being loaded: nothing else exists yet
-        if (_viewModel is null || TxtGroupTitle is null) return;
+        if (_viewModel is null || TxtSubtitle is null) return;
 
         ApplyGroupBarTexts();
-        _viewModel.RefreshGroupNames();   // built-in / unnamed groups follow the language
+        _viewModel.RefreshGroupNames();
     }
 
     private void NavList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        // fires once while the XAML is loading, before the panels exist
-        if (EndpointsBox is null || ActivityBox is null || SettingsBar is null || StatusCard is null || GroupBar is null) return;
+        if (ViewOverview is null || ViewPreview is null || ViewFolders is null || ActivityBox is null ||
+            ViewConflicts is null || ViewVersions is null || ViewVerify is null || ViewSettings is null)
+            return;
 
-        var index = NavList.SelectedIndex;
-        var overview = index <= 0;
-        StatusCard.Visibility = GroupBar.Visibility = EndpointsBox.Visibility = overview ? Visibility.Visible : Visibility.Collapsed;
-        ActivityBox.Visibility = index == 1 ? Visibility.Visible : Visibility.Collapsed;
-        SettingsBar.Visibility = index == 2 ? Visibility.Visible : Visibility.Collapsed;
+        var idx = NavList.SelectedIndex;
+        ViewOverview.Visibility = idx == 0 ? Visibility.Visible : Visibility.Collapsed;
+        ViewPreview.Visibility = idx == 1 ? Visibility.Visible : Visibility.Collapsed;
+        ViewFolders.Visibility = idx == 2 ? Visibility.Visible : Visibility.Collapsed;
+        ActivityBox.Visibility = idx == 3 ? Visibility.Visible : Visibility.Collapsed;
+        ViewConflicts.Visibility = idx == 4 ? Visibility.Visible : Visibility.Collapsed;
+        ViewVersions.Visibility = idx == 5 ? Visibility.Visible : Visibility.Collapsed;
+        ViewVerify.Visibility = idx == 6 ? Visibility.Visible : Visibility.Collapsed;
+        ViewSettings.Visibility = idx == 7 ? Visibility.Visible : Visibility.Collapsed;
+
+        if (idx == 4) _viewModel.LoadConflicts();
+        if (idx == 5) _viewModel.LoadVersions();
+        if (idx == 6) _viewModel.LoadIntegrityState();
+        if (idx == 7) _viewModel.LoadGroupSettings();
     }
 
     private void ApplyGroupBarTexts()
     {
         var loc = LocalizationService.Instance;
         UpdateTrayTooltip();
+
+        // Nav
+        NavOverview.Content = "🏠 " + loc.Get("nav_overview");
+        NavPreview.Content = "📋 " + loc.Get("nav_preview");
+        NavFolders.Content = "📁 " + loc.Get("nav_folders");
+        NavActivity.Content = "📈 " + loc.Get("nav_activity");
+        NavConflicts.Content = "⚡ " + loc.Get("nav_conflicts");
+        NavVersions.Content = "🕒 " + loc.Get("nav_versions");
+        NavVerify.Content = "🛡️ " + loc.Get("nav_verify");
+        NavSettings.Content = "⚙️ " + loc.Get("nav_settings");
+        NavBtnManual.Content = "📖 " + loc.Get("nav_manual");
+        NavBtnPrivacy.Content = "🛡️ " + loc.Get("nav_privacy");
+
+        // Header
+        TxtSubtitle.Text = loc.Get("app_subtitle");
+        BtnAddEndpoint.Content = "+ " + loc.Get("add_endpoint");
+        BtnSyncNow.Content = loc.Get("sync_now");
+
+        // Overview
+        TxtLanLabel.Text = loc.Get("status_lan_label");
+        TxtLanValue.Text = loc.Get("status_lan_online");
+        TxtConfirmTitle.Text = "⚠️ " + loc.Get("confirm_card_title");
+        TxtConfirmDesc.Text = loc.Get("confirm_card_desc");
+        BtnApproveAll.Content = loc.Get("confirm_approve_all");
+        TileTrackedTitle.Text = "📁 " + loc.Get("status_tracked_files");
+        TileTrackedSub.Text = loc.Get("tile_tracked_sub");
+        TileVerifyTitle.Text = "🛡️ " + loc.Get("tile_verify_title");
+        TileVersionsTitle.Text = "🕒 " + loc.Get("tile_versions_title");
+        TxtPeerTitle.Text = loc.Get("peer_title");
+        TxtPeerDesc.Text = loc.Get("peer_desc");
+
+        // Preview
+        TxtPreviewHeader.Text = loc.Get("preview_header");
+        TxtPreviewDesc.Text = loc.Get("preview_desc");
+        BtnRunPreview.Content = loc.Get("preview_btn_scan");
+        BtnExecutePreviewSync.Content = loc.Get("preview_btn_sync");
+        TxtPreviewMore.Text = loc.Get("preview_more_items");
+
+        // Folders
         TxtGroupTitle.Text = loc.Get("group_selector_title");
         BtnGroupNew.Content = loc.Get("group_add_button");
-        ChkFolderIcons.Content = loc.Get("folder_icons_title");
-        ChkFolderIcons.ToolTip = loc.Get("folder_icons_desc");
         BtnGroupRestore.Content = loc.Get("backup_restore_menu");
         BtnGroupImport.Content = loc.Get("import_legacy_button");
         BtnGroupEdit.Content = loc.Get("group_edit_title");
         BtnGroupDelete.Content = loc.Get("group_delete_button");
-
-        // everything else on the main window follows the language too
-        TxtSubtitle.Text = loc.Get("app_subtitle");
-        BtnAddEndpoint.Content = "+ " + loc.Get("add_endpoint");
-        BtnSyncNow.Content = loc.Get("sync_now");
-        TxtTrackedLabel.Text = loc.Get("status_tracked_files");
-        TxtLanLabel.Text = loc.Get("status_lan_label");
-        TxtLanValue.Text = loc.Get("status_lan_online");
+        BtnTogglePause.Content = loc.Get("group_btn_pause_toggle");
         EndpointsBox.Header = loc.Get("endpoints_header");
+
+        // Activity
         ActivityBox.Header = loc.Get("nav_activity");
         TxtActivityEmpty.Text = loc.Get("activity_empty");
+
+        // Conflicts
+        TxtConflictHeader.Text = loc.Get("cf_header");
+        TxtConflictDesc.Text = loc.Get("cf_desc");
+        BtnKeepMain.Content = loc.Get("cf_keep_main_btn");
+        BtnKeepConflict.Content = loc.Get("cf_keep_copy_btn");
+
+        // Versions
+        TxtVersionsHeader.Text = loc.Get("versions_header");
+        BtnPurgeExpired.Content = loc.Get("versions_btn_clean_expired");
+        BtnPurgeAll.Content = loc.Get("versions_btn_clear_all");
+
+        // Verify
+        TxtVerifyHeader.Text = loc.Get("verify_header");
+        BtnRunVerify.Content = loc.Get("verify_btn_start");
+
+        // Settings
+        TxtSettingConflictHeader.Text = loc.Get("settings_conflict_policy");
+        RadioConflictKeepBoth.Content = loc.Get("settings_policy_keep_both");
+        RadioConflictNewerWins.Content = loc.Get("settings_policy_newer_wins");
+        TxtSettingPresetsHeader.Text = loc.Get("settings_presets_header");
+        TxtSettingPresetsDesc.Text = loc.Get("settings_presets_desc");
+        ChkPresetSystem.Content = loc.Get("settings_preset_system");
+        ChkPresetOfficeLock.Content = loc.Get("settings_preset_office_lock");
+        ChkPresetDev.Content = loc.Get("settings_preset_dev");
+        ChkPresetBuild.Content = loc.Get("settings_preset_build");
+        ChkPresetOfficeTemp.Content = loc.Get("settings_preset_office_temp");
+        ChkPresetCloud.Content = loc.Get("settings_preset_cloud");
+        TxtSettingAdvancedHeader.Text = loc.Get("settings_advanced_header");
+        ChkAutoExcludeNested.Content = loc.Get("settings_auto_exclude_nested");
+        ChkCloudSpaceSaving.Content = loc.Get("settings_cloud_space_saving");
+        TxtSettingSystemHeader.Text = loc.Get("settings_system_header");
         ChkAutoStart.Content = loc.Get("autostart_title");
-        TxtDaemon.Text = loc.Get("daemon_running");
+        ChkFolderIcons.Content = loc.Get("folder_icons_title");
+        ChkFolderIcons.ToolTip = loc.Get("folder_icons_desc");
+
+        // Footer
         TxtFooter.Text = loc.Get("footer_status");
-        NavOverview.Content = "🏠 " + loc.Get("nav_overview");
-        NavActivity.Content = "📈 " + loc.Get("nav_activity");
-        NavSettings.Content = "⚙️ " + loc.Get("nav_settings");
-        NavBtnConflicts.Content = "⚡ " + loc.Get("nav_conflicts");
-        NavBtnManual.Content = "📖 " + loc.Get("nav_manual");
-        NavBtnPrivacy.Content = "🛡️ " + loc.Get("nav_privacy");
     }
 
     private void BtnGroupNew_Click(object sender, RoutedEventArgs e)
@@ -238,18 +394,16 @@ public partial class MainWindow : Window
     {
         var item = _viewModel.SelectedGroupItem;
         if (item is null) return;
-        // a built-in group shown in the current language starts with an empty box, not with its marker text
         var isMarker = item.Group.Id == "default" && item.DisplayName != item.Group.Name;
         var dialog = new GroupDialog("group_edit_title", isMarker ? string.Empty : item.Group.Name, item.Group.Icon,
             allowEmptyName: item.Group.Name.Length == 0 || isMarker) { Owner = this };
         if (dialog.ShowDialog() == true)
         {
             _viewModel.UpdateGroup(item.Id, dialog.ResultName.Length == 0 && isMarker ? item.Group.Name : dialog.ResultName, dialog.ResultIcon);
-            RefreshFolderIcons();   // a new group icon applies to its folders right away
+            RefreshFolderIcons();
         }
     }
 
-    /// <summary>Shows the automatic backups; picking one replaces the current groups (after a confirmation).</summary>
     private void BtnGroupRestore_Click(object sender, RoutedEventArgs e)
     {
         var loc = LocalizationService.Instance;
@@ -289,7 +443,6 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>The user picks an old settings folder; groups are merged in, configured groups are never overwritten.</summary>
     private async void BtnGroupImport_Click(object sender, RoutedEventArgs e)
     {
         var loc = LocalizationService.Instance;
@@ -349,7 +502,6 @@ public partial class MainWindow : Window
 
     #region System Tray & Close-to-Tray
 
-    /// <summary>A sync group as the tray sees it: its folders with online state, open conflicts and overall health.</summary>
     private sealed record TrayGroup(
         GroupItemViewModel Item,
         List<(string Id, string Root, bool Online)> Folders,
@@ -387,7 +539,6 @@ public partial class MainWindow : Window
         };
     }
 
-    /// <summary>Tooltip = state of the whole app across all groups.</summary>
     private void UpdateTrayTooltip()
     {
         var loc = LocalizationService.Instance;
