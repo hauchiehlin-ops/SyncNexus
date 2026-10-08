@@ -401,6 +401,18 @@ public partial class MainViewModel : ObservableObject
     }
 
     // --- Versions Section ---
+    public event Action<int>? RetentionDaysLoaded;
+
+    public void UpdateRetentionDays(int days)
+    {
+        var rt = ActiveRuntime;
+        if (rt is null) return;
+        var s = SettingsService.Instance.GetGroup(rt.Group.Id);
+        s.RetentionDays = days;
+        SettingsService.Instance.Save();
+        VersionsRetentionText = string.Format(LocalizationService.Instance.Get("versions_retention_label"), s.RetentionDays);
+    }
+
     public void LoadVersions()
     {
         VersionsList.Clear();
@@ -412,6 +424,7 @@ public partial class MainViewModel : ObservableObject
         }
         var s = SettingsService.Instance.GetGroup(rt.Group.Id);
         VersionsRetentionText = string.Format(LocalizationService.Instance.Get("versions_retention_label"), s.RetentionDays);
+        RetentionDaysLoaded?.Invoke(s.RetentionDays);
         var versions = rt.Engine.GetVersions();
         foreach (var v in versions) VersionsList.Add(v);
         VersionsCountText = string.Format(LocalizationService.Instance.Get("versions_count_label"), versions.Count);

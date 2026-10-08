@@ -1451,6 +1451,33 @@ public class LocalizationService
             [AppLanguage.Ko] = "이전 버전이 없습니다.",
             [AppLanguage.Th] = "ไม่มีเวอร์ชันก่อนหน้า",
         },
+        ["versions_purged_toast"] = new()
+        {
+            [AppLanguage.ZhHant] = "已清理 {0} 個舊版本檔案",
+            [AppLanguage.ZhHans] = "已清理 {0} 个旧版本文件",
+            [AppLanguage.En] = "Purged {0} old version files",
+            [AppLanguage.Ja] = "{0} 件の古いバージョンファイルを消去しました",
+            [AppLanguage.Ko] = "{0}개의 이전 버전 파일을 삭제했습니다",
+            [AppLanguage.Th] = "ล้างไฟล์เวอร์ชันเก่าแล้ว {0} ไฟล์",
+        },
+        ["versions_retention_policy"] = new()
+        {
+            [AppLanguage.ZhHant] = "自動清理：",
+            [AppLanguage.ZhHans] = "自动清理：",
+            [AppLanguage.En] = "Retention:",
+            [AppLanguage.Ja] = "自動削除：",
+            [AppLanguage.Ko] = "자동 삭제:",
+            [AppLanguage.Th] = "ล้างอัตโนมัติ:",
+        },
+        ["versions_permanent"] = new()
+        {
+            [AppLanguage.ZhHant] = "永久保留",
+            [AppLanguage.ZhHans] = "永久保留",
+            [AppLanguage.En] = "Permanent",
+            [AppLanguage.Ja] = "永久保持",
+            [AppLanguage.Ko] = "영구 보관",
+            [AppLanguage.Th] = "เก็บถาวร",
+        },
         ["verify_desc"] = new()
         {
             [AppLanguage.ZhHant] = "重新讀取每個檔案，確認內容仍與紀錄相符，可發現無聲損毀。",

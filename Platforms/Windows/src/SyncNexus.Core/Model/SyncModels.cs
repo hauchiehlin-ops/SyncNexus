@@ -47,7 +47,12 @@ public record VersionItem(
     DateTime Date,
     long Size = 0,
     string Reason = "replaced"
-);
+)
+{
+    public string RelativePath => Path;
+    public string Timestamp => Date.ToLocalTime().ToString("yyyy/MM/dd HH:mm:ss");
+    public string EndpointId => Endpoint;
+}
 
 public record JournalEntry(
     long Id,

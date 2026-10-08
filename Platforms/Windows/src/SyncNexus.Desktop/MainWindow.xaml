@@ -441,9 +441,20 @@
 
                     <Border Grid.Row="0" Background="White" CornerRadius="8" Padding="14" Margin="0,0,0,10" BorderBrush="#E2E4E8" BorderThickness="1">
                         <DockPanel>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock x:Name="TxtVersionsHeader" Text="舊版本時光機" FontSize="16" FontWeight="Bold"/>
-                                <TextBlock Text="{Binding VersionsRetentionText}" FontSize="12" Foreground="#666666"/>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <StackPanel VerticalAlignment="Center" Margin="0,0,20,0">
+                                    <TextBlock x:Name="TxtVersionsHeader" Text="舊版本時光機" FontSize="16" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding VersionsRetentionText}" FontSize="12" Foreground="#666666"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock x:Name="LblRetentionPolicy" Text="自動清理：" VerticalAlignment="Center" Foreground="#666666" Margin="0,0,6,0"/>
+                                    <ComboBox x:Name="CmbRetention" Width="100" Height="28" VerticalContentAlignment="Center" SelectionChanged="CmbRetention_SelectionChanged">
+                                        <ComboBoxItem Content="7 天" Tag="7"/>
+                                        <ComboBoxItem Content="30 天" Tag="30"/>
+                                        <ComboBoxItem Content="90 天" Tag="90"/>
+                                        <ComboBoxItem Content="永久保留" Tag="0"/>
+                                    </ComboBox>
+                                </StackPanel>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                                 <Button x:Name="BtnPurgeExpired" Content="清除已過期" Padding="10,5" Margin="0,0,8,0" Background="#FFFFFF" BorderBrush="#CCCCCC"

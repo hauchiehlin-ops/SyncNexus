@@ -97,6 +97,7 @@ final class AppModel: ObservableObject {
     @Published var pendingReviewGroup: String?
     private let notificationDelegate = NotificationClickDelegate()
     @Published var versionItems: [VersionItem] = []
+    @Published var isLoadingVersions = false
     @Published var syncLogs: [SyncLogItem] = []
     @Published var trialRunReport: SyncReport?
     @Published var isRunningTrialRun = false
@@ -176,6 +177,7 @@ final class AppModel: ObservableObject {
         }
         recalculateEffectiveExcludes()
         loadHistoricalSyncLogs()
+        loadVersions()
 
         if let i = CommandLine.arguments.firstIndex(of: "--section"), i + 1 < CommandLine.arguments.count,
            let sec = MainSection(rawValue: CommandLine.arguments[i + 1]) { section = sec }     // debugging aid
@@ -1013,19 +1015,44 @@ final class AppModel: ObservableObject {
         service.purgeVersions(mode) { [weak self] files, bytes in
             Task { @MainActor in
                 self?.settingsMessage = loc("msg_versions_purged", files, ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))
+                self?.loadVersions()
+                self?.refreshVersions()
             }
         }
     }
 
     func setRetention(days: Int) {
+        snap.versionsRetentionDays = days
+        if snapshots[activeGroupId] != nil {
+            snapshots[activeGroupId]?.versionsRetentionDays = days
+        }
+        if registry.updateGroup(id: activeGroupId, retentionDays: days) {
+            groups = registry.allGroups()
+        }
         service.setVersionsRetention(days: days) { [weak self] err in
-            Task { @MainActor in self?.settingsMessage = err.map { loc("msg_add_failed", CoreMessages.localize($0)) } ?? loc("msg_retention_updated") }
+            Task { @MainActor in
+                if let err {
+                    self?.settingsMessage = loc("msg_add_failed", CoreMessages.localize(err))
+                } else {
+                    self?.settingsMessage = loc("msg_retention_updated")
+                }
+            }
         }
     }
 
     func setArchiveRetention(days: Int) {
+        snap.archiveRetentionDays = days
+        if snapshots[activeGroupId] != nil {
+            snapshots[activeGroupId]?.archiveRetentionDays = days
+        }
         service.setArchiveRetention(days: days) { [weak self] err in
-            Task { @MainActor in self?.settingsMessage = err.map { loc("msg_add_failed", CoreMessages.localize($0)) } ?? loc("msg_archive_retention_updated") }
+            Task { @MainActor in
+                if let err {
+                    self?.settingsMessage = loc("msg_add_failed", CoreMessages.localize(err))
+                } else {
+                    self?.settingsMessage = loc("msg_archive_retention_updated")
+                }
+            }
         }
     }
 
@@ -1207,7 +1234,13 @@ final class AppModel: ObservableObject {
     // MARK: versions
 
     func loadVersions() {
-        service.listVersions { [weak self] items in Task { @MainActor in self?.versionItems = items } }
+        isLoadingVersions = true
+        service.listVersions { [weak self] items in
+            Task { @MainActor in
+                self?.versionItems = items
+                self?.isLoadingVersions = false
+            }
+        }
     }
 
     func restore(_ item: VersionItem) {

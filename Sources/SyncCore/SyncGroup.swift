@@ -72,12 +72,13 @@ public final class SyncGroupRegistry: @unchecked Sendable {
         return group
     }
 
-    public func updateGroup(id: String, name: String, icon: String, customExcludes: [String]? = nil) -> Bool {
+    public func updateGroup(id: String, name: String? = nil, icon: String? = nil, retentionDays: Int? = nil, customExcludes: [String]? = nil) -> Bool {
         lock.lock()
         defer { lock.unlock() }
         guard let idx = groups.firstIndex(where: { $0.id == id }) else { return false }
-        groups[idx].name = name
-        groups[idx].icon = icon
+        if let name { groups[idx].name = name }
+        if let icon { groups[idx].icon = icon }
+        if let retentionDays { groups[idx].retentionDays = retentionDays }
         if let customExcludes {
             groups[idx].customExcludes = customExcludes
         }

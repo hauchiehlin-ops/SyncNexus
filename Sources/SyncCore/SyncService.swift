@@ -683,6 +683,8 @@ public final class SyncService: @unchecked Sendable {
     private func archiveDays(_ engine: Engine) -> Int { Int((try? engine.store.meta("archiveRetentionDays")) ?? nil ?? "") ?? 365 }
 
     public func setArchiveRetention(days: Int, completion: @escaping @Sendable (Error?) -> Void) {
+        self.snapshot.archiveRetentionDays = days
+        self.publish()
         queue.async {
             guard let engine = self.engine else { completion(DBError(description: "服務尚未啟動")); return }
             do { try engine.store.setMeta("archiveRetentionDays", String(days)); completion(nil) } catch { completion(error) }
@@ -717,15 +719,20 @@ public final class SyncService: @unchecked Sendable {
     public enum PurgeMode: Sendable { case expired, all }
 
     public func purgeVersions(_ mode: PurgeMode, completion: @escaping @Sendable (Int, Int64) -> Void) {
-        queue.async {
-            guard let engine = self.engine else { completion(0, 0); return }
-            let r = self.retention(engine)
-            let freed = mode == .all ? Versions.purgeAll(self.versionsDir)
-                                     : Versions.purge(self.versionsDir, olderThanDays: r.days, maxBytes: r.maxBytes)
+        let dir = self.versionsDir
+        let days = self.snapshot.versionsRetentionDays
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self else { completion(0, 0); return }
+            let maxBytes: Int64 = 20 * 1_073_741_824
+            let freed = mode == .all ? Versions.purgeAll(dir)
+                                     : Versions.purge(dir, olderThanDays: days, maxBytes: maxBytes)
             let freedText = ByteCountFormatter.string(fromByteCount: freed.bytes, countStyle: .file)
             self.writeLog(mode == .all ? "手動清理舊版本（全部）：移除 \(freed.files) 個檔案，釋出 \(freedText)" : "手動清理舊版本（過期）：移除 \(freed.files) 個檔案，釋出 \(freedText)")
-            self.refreshVersionsSnapshot(engine)
-            self.publish()
+            let usage = Versions.usage(dir)
+            self.queue.async {
+                self.snapshot.versions = usage
+                self.publish()
+            }
             completion(freed.files, freed.bytes)
         }
     }
@@ -744,8 +751,12 @@ public final class SyncService: @unchecked Sendable {
         }
     }
 
-    public func listVersions(limit: Int = 300, completion: @escaping @Sendable ([VersionItem]) -> Void) {
-        queue.async { completion(Versions.list(self.versionsDir, limit: limit)) }
+    public func listVersions(limit: Int = 500, completion: @escaping @Sendable ([VersionItem]) -> Void) {
+        let dir = self.versionsDir
+        DispatchQueue.global(qos: .userInitiated).async {
+            let items = Versions.list(dir, limit: limit)
+            completion(items)
+        }
     }
 
     public func restoreVersion(_ item: VersionItem, completion: @escaping @Sendable (Error?) -> Void) {
@@ -757,6 +768,8 @@ public final class SyncService: @unchecked Sendable {
     }
 
     public func setVersionsRetention(days: Int, completion: @escaping @Sendable (Error?) -> Void) {
+        self.snapshot.versionsRetentionDays = days
+        self.publish()
         queue.async {
             guard let engine = self.engine else { completion(DBError(description: "服務尚未啟動")); return }
             do { try engine.store.setMeta("versionsRetentionDays", String(days)); completion(nil) } catch { completion(error) }
@@ -766,7 +779,15 @@ public final class SyncService: @unchecked Sendable {
     }
 
     public func refreshVersionsUsage() {
-        queue.async { if let e = self.engine { self.refreshVersionsSnapshot(e); self.publish() } }
+        let dir = self.versionsDir
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self else { return }
+            let usage = Versions.usage(dir)
+            self.queue.async {
+                self.snapshot.versions = usage
+                self.publish()
+            }
+        }
     }
 
     private func currentConflicts(_ engine: Engine, _ cfgs: [EndpointConfig]) throws -> [ConflictItem] {

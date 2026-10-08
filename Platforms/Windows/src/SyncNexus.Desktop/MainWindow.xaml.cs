@@ -40,6 +40,7 @@ public partial class MainWindow : Window
 
         _viewModel.PendingConfirmations.CollectionChanged += (_, _) => Dispatcher.Invoke(UpdateConfirmationsCardVisibility);
         UpdateConfirmationsCardVisibility();
+        _viewModel.RetentionDaysLoaded += days => Dispatcher.Invoke(() => UpdateRetentionDropdown(days));
 
         ChkAutoStart.IsChecked = WindowsStartupHelper.IsRunAtStartup();
         Loaded += MainWindow_Loaded;
@@ -192,6 +193,37 @@ public partial class MainWindow : Window
         if (answer == MessageBoxResult.OK)
         {
             _viewModel.PurgeAllVersions();
+        }
+    }
+
+    private bool _suppressRetentionChanged;
+    public void UpdateRetentionDropdown(int retentionDays)
+    {
+        if (CmbRetention is null) return;
+        _suppressRetentionChanged = true;
+        try
+        {
+            CmbRetention.SelectedIndex = retentionDays switch
+            {
+                7 => 0,
+                30 => 1,
+                90 => 2,
+                0 => 3,
+                _ => 1
+            };
+        }
+        finally
+        {
+            _suppressRetentionChanged = false;
+        }
+    }
+
+    private void CmbRetention_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressRetentionChanged || CmbRetention.SelectedItem is not ComboBoxItem item) return;
+        if (int.TryParse(item.Tag?.ToString(), out var days))
+        {
+            _viewModel.UpdateRetentionDays(days);
         }
     }
 
@@ -350,6 +382,7 @@ public partial class MainWindow : Window
 
         // Versions
         TxtVersionsHeader.Text = loc.Get("versions_header");
+        if (LblRetentionPolicy != null) LblRetentionPolicy.Text = loc.Get("versions_retention_policy");
         BtnPurgeExpired.Content = loc.Get("versions_btn_clean_expired");
         BtnPurgeAll.Content = loc.Get("versions_btn_clear_all");
 

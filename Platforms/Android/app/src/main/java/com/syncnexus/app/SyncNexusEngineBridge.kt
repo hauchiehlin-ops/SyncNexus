@@ -167,21 +167,16 @@ object SyncNexusEngineBridge {
         val engine = syncEngine ?: return
         val gid = _activeGroupId.value
         engine.state(gid).setRetentionDays(days)
+        _snapshot.value = _snapshot.value.copy(versionsRetentionDays = days)
         refreshExtras()
     }
 
-    fun purgeExpiredVersions() {
-        val engine = syncEngine ?: return
-        val gid = _activeGroupId.value
-        engine.state(gid).purgeExpiredVersions()
-        refreshExtras()
+    fun purgeExpiredVersions() = withActiveGroup { e, gid, _ ->
+        e.state(gid).purgeExpiredVersions()
     }
 
-    fun purgeAllVersions() {
-        val engine = syncEngine ?: return
-        val gid = _activeGroupId.value
-        engine.state(gid).purgeAllVersions()
-        refreshExtras()
+    fun purgeAllVersions() = withActiveGroup { e, gid, _ ->
+        e.state(gid).purgeAllVersions()
     }
 
     fun runVerification() {

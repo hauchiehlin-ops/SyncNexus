@@ -144,6 +144,8 @@ fun VersionsSection() {
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SectionIntro(stringResource(R.string.versions_desc, snapshot.versionsRetentionDays.takeIf { it > 0 } ?: SyncEngine.VERSION_DAYS))
         
+        var showRetentionMenu by remember { mutableStateOf(false) }
+
         // Retention and Purge Bar
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -155,12 +157,39 @@ fun VersionsSection() {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    stringResource(R.string.versions_retention_label, snapshot.versionsRetentionDays),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f)
-                )
+                Box(modifier = Modifier.weight(1f)) {
+                    TextButton(
+                        onClick = { showRetentionMenu = true },
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
+                    ) {
+                        val retentionLabel = if (snapshot.versionsRetentionDays == 0) {
+                            stringResource(R.string.retention_permanent_sub)
+                        } else {
+                            stringResource(R.string.versions_retention_label, snapshot.versionsRetentionDays)
+                        }
+                        Text(
+                            "$retentionLabel ▾",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = showRetentionMenu,
+                        onDismissRequest = { showRetentionMenu = false }
+                    ) {
+                        listOf(7, 30, 90, 0).forEach { days ->
+                            val label = if (days == 0) stringResource(R.string.retention_permanent_sub)
+                                        else stringResource(R.string.retention_days_sub, days)
+                            DropdownMenuItem(
+                                text = { Text(label, fontSize = 13.sp) },
+                                onClick = {
+                                    SyncNexusEngineBridge.setVersionsRetention(days)
+                                    showRetentionMenu = false
+                                }
+                            )
+                        }
+                    }
+                }
                 OutlinedButton(
                     onClick = { SyncNexusEngineBridge.purgeExpiredVersions() },
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)

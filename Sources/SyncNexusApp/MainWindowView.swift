@@ -248,6 +248,10 @@ struct MainWindowView: View {
             ForEach(MainSection.allCases) { s in
                 Button {
                     model.section = s
+                    if s == .versions {
+                        model.loadVersions()
+                        model.refreshVersions()
+                    }
                     if s == .conflicts && model.snap.conflicts.isEmpty {
                         if let g = model.groups.first(where: { !(model.snapshots[$0.id]?.conflicts.isEmpty ?? true) }) {
                             model.selectGroup(id: g.id)
@@ -1273,79 +1277,93 @@ struct VersionsSection: View {
     }
 
     var body: some View {
-        sectionHeader(loc("section_versions"), loc("versions_header_desc"))
-        let u = model.snap.versions
-        HStack(spacing: 14) {
-            StatTile(label: loc("versions_stat_retained"), value: "\(u.files)", sub: loc("versions_stat_files_sub"))
-            StatTile(label: loc("versions_stat_storage"), value: bytes(u.bytes), sub: u.oldest.map { loc("versions_stat_oldest_from", $0.formatted(date: .abbreviated, time: .omitted)) } ?? loc("versions_stat_none"))
-        }
-        Card {
+        VStack(alignment: .leading, spacing: 20) {
+            sectionHeader(loc("section_versions"), loc("versions_header_desc"))
+            let u = model.snap.versions
             HStack(spacing: 14) {
-                Text(loc("versions_auto_clean_label")).font(.system(size: 14))
-                Picker("", selection: Binding(get: { model.snap.versionsRetentionDays }, set: { model.setRetention(days: $0) })) {
-                    Text(loc("days_count", 7)).tag(7)
-                    Text(loc("days_count", 30)).tag(30)
-                    Text(loc("days_count", 90)).tag(90)
-                    Text(loc("permanent")).tag(0)
-                }
-                .labelsHidden().frame(width: 100)
-                Text(loc("versions_auto_clean_desc")).font(.system(size: 12)).foregroundStyle(.secondary)
-                Spacer()
-                Button(loc("versions_btn_clean_expired")) { model.purgeVersions(.expired); model.loadVersions() }.buttonStyle(QuietButton(kind: .secondary, compact: true))
-                Button(loc("versions_btn_clear_all")) { confirmClear = true }.buttonStyle(QuietButton(kind: .secondary, compact: true)).disabled(u.files == 0)
+                StatTile(label: loc("versions_stat_retained"), value: "\(u.files)", sub: loc("versions_stat_files_sub"))
+                StatTile(label: loc("versions_stat_storage"), value: bytes(u.bytes), sub: u.oldest.map { loc("versions_stat_oldest_from", $0.formatted(date: .abbreviated, time: .omitted)) } ?? loc("versions_stat_none"))
             }
-        }
-        if model.snap.endpoints.contains(where: { $0.role == .archive }) {
             Card {
                 HStack(spacing: 14) {
-                    Text(loc("archive_retention_label")).font(.system(size: 14))
-                    Picker("", selection: Binding(get: { model.snap.archiveRetentionDays }, set: { model.setArchiveRetention(days: $0) })) {
+                    Text(loc("versions_auto_clean_label")).font(.system(size: 14))
+                    Picker("", selection: Binding(get: { model.snap.versionsRetentionDays }, set: { model.setRetention(days: $0) })) {
+                        Text(loc("days_count", 7)).tag(7)
+                        Text(loc("days_count", 30)).tag(30)
                         Text(loc("days_count", 90)).tag(90)
-                        Text(loc("years_count", 1)).tag(365)
-                        Text(loc("years_count", 3)).tag(1095)
                         Text(loc("permanent")).tag(0)
                     }
                     .labelsHidden().frame(width: 100)
-                    Text(loc("archive_retention_desc")).font(.system(size: 12)).foregroundStyle(.secondary)
+                    Text(loc("versions_auto_clean_desc")).font(.system(size: 12)).foregroundStyle(.secondary)
                     Spacer()
+                    Button(loc("versions_btn_clean_expired")) { model.purgeVersions(.expired) }
+                        .buttonStyle(QuietButton(kind: .secondary, compact: true))
+                        .disabled(u.files == 0)
+                    Button(loc("versions_btn_clear_all")) { confirmClear = true }
+                        .buttonStyle(QuietButton(kind: .secondary, compact: true))
+                        .disabled(u.files == 0)
                 }
             }
-        }
-        HStack {
-            Text(loc("versions_restorable_title")).font(.system(size: 16, weight: .bold))
-            Spacer()
-            TextField(loc("versions_search_placeholder"), text: $query).textFieldStyle(.roundedBorder).frame(width: 220)
-            Button(loc("btn_reveal_in_finder")) { model.revealVersionsFolder() }.buttonStyle(QuietButton(kind: .plain))
-        }
-        if filtered.isEmpty {
-            Card(padding: 24) { Text(model.versionItems.isEmpty ? loc("versions_empty") : loc("versions_no_matches")).font(.system(size: 13)).foregroundStyle(.secondary).frame(maxWidth: .infinity) }
-        } else {
-            Card(padding: 0) {
-                VStack(spacing: 0) {
-                    ForEach(Array(filtered.prefix(100).enumerated()), id: \.element.id) { i, item in
-                        if i > 0 { Divider() }
-                        HStack(spacing: 12) {
-                            Image(systemName: "doc").frame(width: 24).foregroundStyle(.secondary)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text((item.path as NSString).lastPathComponent).font(.system(size: 14, weight: .semibold)).lineLimit(1)
-                                Text("\(DisplayNames.endpoint(item.endpoint))　· \(item.path)").font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
-                            }
-                            Spacer()
-                            Text("\(bytes(item.size))　\(item.stamp.formatted(date: .abbreviated, time: .shortened))").font(.system(size: 12)).foregroundStyle(.secondary).monospacedDigit()
-                            Button(loc("versions_btn_restore")) { model.restore(item) }.buttonStyle(QuietButton(kind: .secondary, compact: true))
+            if model.snap.endpoints.contains(where: { $0.role == .archive }) {
+                Card {
+                    HStack(spacing: 14) {
+                        Text(loc("archive_retention_label")).font(.system(size: 14))
+                        Picker("", selection: Binding(get: { model.snap.archiveRetentionDays }, set: { model.setArchiveRetention(days: $0) })) {
+                            Text(loc("days_count", 90)).tag(90)
+                            Text(loc("years_count", 1)).tag(365)
+                            Text(loc("years_count", 3)).tag(1095)
+                            Text(loc("permanent")).tag(0)
                         }
-                        .padding(.horizontal, 16).padding(.vertical, 10)
+                        .labelsHidden().frame(width: 100)
+                        Text(loc("archive_retention_desc")).font(.system(size: 12)).foregroundStyle(.secondary)
+                        Spacer()
                     }
                 }
             }
-            if filtered.count > 100 { Text(loc("versions_showing_100_hint")).font(.system(size: 12)).foregroundStyle(.secondary) }
+            HStack {
+                Text(loc("versions_restorable_title")).font(.system(size: 16, weight: .bold))
+                Spacer()
+                TextField(loc("versions_search_placeholder"), text: $query).textFieldStyle(.roundedBorder).frame(width: 220)
+                Button(loc("btn_reveal_in_finder")) { model.revealVersionsFolder() }.buttonStyle(QuietButton(kind: .plain))
+            }
+            if model.isLoadingVersions && model.versionItems.isEmpty {
+                Card(padding: 24) {
+                    HStack(spacing: 8) {
+                        ProgressView().controlSize(.small)
+                        Text(loc("loading")).font(.system(size: 13)).foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            } else if filtered.isEmpty {
+                Card(padding: 24) { Text(model.versionItems.isEmpty ? loc("versions_empty") : loc("versions_no_matches")).font(.system(size: 13)).foregroundStyle(.secondary).frame(maxWidth: .infinity) }
+            } else {
+                Card(padding: 0) {
+                    VStack(spacing: 0) {
+                        ForEach(Array(filtered.prefix(100).enumerated()), id: \.element.id) { i, item in
+                            if i > 0 { Divider() }
+                            HStack(spacing: 12) {
+                                Image(systemName: "doc").frame(width: 24).foregroundStyle(.secondary)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text((item.path as NSString).lastPathComponent).font(.system(size: 14, weight: .semibold)).lineLimit(1)
+                                    Text("\(DisplayNames.endpoint(item.endpoint))　· \(item.path)").font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                                }
+                                Spacer()
+                                Text("\(bytes(item.size))　\(item.stamp.formatted(date: .abbreviated, time: .shortened))").font(.system(size: 12)).foregroundStyle(.secondary).monospacedDigit()
+                                Button(loc("versions_btn_restore")) { model.restore(item) }.buttonStyle(QuietButton(kind: .secondary, compact: true))
+                            }
+                            .padding(.horizontal, 16).padding(.vertical, 10)
+                        }
+                    }
+                }
+                if filtered.count > 100 { Text(loc("versions_showing_100_hint")).font(.system(size: 12)).foregroundStyle(.secondary) }
+            }
         }
-        Color.clear.frame(height: 0)
-            .onAppear { model.loadVersions(); model.refreshVersions() }
-            .alert(loc("versions_alert_clear_title"), isPresented: $confirmClear) {
-                Button(loc("versions_alert_clear_confirm"), role: .destructive) { model.purgeVersions(.all); model.loadVersions() }
-                Button(loc("cancel"), role: .cancel) {}
-            } message: { Text(loc("versions_alert_clear_message")) }
+        .onAppear { model.loadVersions(); model.refreshVersions() }
+        .task(id: model.activeGroupId) { model.loadVersions(); model.refreshVersions() }
+        .alert(loc("versions_alert_clear_title"), isPresented: $confirmClear) {
+            Button(loc("versions_alert_clear_confirm"), role: .destructive) { model.purgeVersions(.all) }
+            Button(loc("cancel"), role: .cancel) {}
+        } message: { Text(loc("versions_alert_clear_message")) }
     }
 }
 
