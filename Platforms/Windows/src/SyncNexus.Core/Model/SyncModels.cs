@@ -72,7 +72,13 @@ public enum ExcludePreset
     Databases,
     PhotosLibraries,
     BuildCaches,
-    PythonEnvironments
+    PythonEnvironments,
+    SystemJunk = 100,
+    OfficeLock = 101,
+    DevArtifacts = 102,
+    BuildOutputs = 103,
+    OfficeTemp = 104,
+    CloudPlaceholder = 105
 }
 
 public record PendingConfirmation(
@@ -82,7 +88,10 @@ public record PendingConfirmation(
     int TotalChanges,
     int ThresholdLimit,
     string Message
-);
+)
+{
+    public string Id => GroupId;
+}
 
 public enum PlanKind
 {
@@ -102,6 +111,7 @@ public record PlanItem(
 public class PreviewReport
 {
     public List<PlanItem> Items { get; set; } = new();
+    public int TotalChanges => Items.Count;
 }
 
 public record IntegrityIssue(
@@ -111,16 +121,35 @@ public record IntegrityIssue(
     string ActualHash
 );
 
-public record VerifyRun(
-    DateTime Time,
-    int Checked,
-    int Issues
-);
+public class VerifyRun
+{
+    public string Id { get; set; } = string.Empty;
+    public string GroupId { get; set; } = string.Empty;
+    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+    public int FilesChecked { get; set; }
+    public int IssuesFound { get; set; }
+    public bool Success { get; set; }
+    public string Summary { get; set; } = string.Empty;
+
+    public VerifyRun() { }
+
+    public VerifyRun(DateTime time, int checkedCount, int issues)
+    {
+        Timestamp = time;
+        FilesChecked = checkedCount;
+        IssuesFound = issues;
+        Success = issues == 0;
+        Summary = $"{checkedCount} checked, {issues} issues";
+    }
+}
 
 public class VerifyReport
 {
+    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
     public int Checked { get; set; }
+    public int FilesChecked => Checked;
     public List<IntegrityIssue> Issues { get; set; } = new();
+    public bool IsHealthy => Issues.Count == 0;
 }
 
 public class SyncReport

@@ -11,6 +11,7 @@ public interface IStore : IDisposable
     List<EndpointConfig> GetEndpoints();
     void SaveEndpoint(EndpointConfig config);
     void RemoveEndpoint(string id);
+    void DeleteEndpoint(string id);
     bool EndpointHasHistory(string id);
     ConsensusEntry? GetConsensus(string path);
     Dictionary<string, ConsensusEntry> GetAllConsensus();
@@ -137,6 +138,8 @@ public class SqliteStore : IStore
         cmd.ExecuteNonQuery();
         tx.Commit();
     }
+
+    public void DeleteEndpoint(string id) => RemoveEndpoint(id);
 
     public bool EndpointHasHistory(string id)
     {

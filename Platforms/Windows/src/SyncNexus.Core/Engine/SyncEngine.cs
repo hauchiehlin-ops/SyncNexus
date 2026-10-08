@@ -21,14 +21,14 @@ public class SyncEngine
     public const string MarkerName = ".syncnexus-endpoint";
 
     private readonly IStore _store;
-    private readonly IgnoreRules _ignoreRules;
+    public IgnoreRules IgnoreRules { get; set; }
     private readonly DeletionGuard _deletionGuard;
     public ConflictPolicy ConflictPolicy { get; set; } = ConflictPolicy.KeepBoth;
 
     public SyncEngine(IStore store, IgnoreRules? ignoreRules = null, DeletionGuard? deletionGuard = null)
     {
         _store = store;
-        _ignoreRules = ignoreRules ?? IgnoreRules.Default;
+        IgnoreRules = ignoreRules ?? IgnoreRules.Default;
         _deletionGuard = deletionGuard ?? new DeletionGuard();
     }
 
@@ -127,7 +127,7 @@ public class SyncEngine
 
         foreach (var ep in onlineEndpoints)
         {
-            var scanned = FileOps.ScanDirectory(ep.Root, _ignoreRules);
+            var scanned = FileOps.ScanDirectory(ep.Root, IgnoreRules);
             scans[ep.Id] = scanned;
             foreach (var path in scanned.Keys)
             {
@@ -376,7 +376,7 @@ public class SyncEngine
 
         foreach (var ep in onlineEndpoints)
         {
-            var scanned = FileOps.ScanDirectory(ep.Root, _ignoreRules);
+            var scanned = FileOps.ScanDirectory(ep.Root, IgnoreRules);
             scans[ep.Id] = scanned;
             foreach (var path in scanned.Keys) allPaths.Add(path);
         }
@@ -432,7 +432,7 @@ public class SyncEngine
 
         foreach (var ep in onlineEndpoints)
         {
-            var scanned = FileOps.ScanDirectory(ep.Root, _ignoreRules);
+            var scanned = FileOps.ScanDirectory(ep.Root, IgnoreRules);
             var rows = _store.GetEndpointRows(ep.Id);
 
             foreach (var (relPath, sf) in scanned)

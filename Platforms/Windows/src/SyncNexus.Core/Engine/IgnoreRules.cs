@@ -107,6 +107,39 @@ public class IgnoreRules
              component.Equals(".pytest_cache", StringComparison.OrdinalIgnoreCase)))
             return true;
 
+        if (EnabledPresets.Contains(ExcludePreset.DevArtifacts) &&
+            (component.Equals("node_modules", StringComparison.OrdinalIgnoreCase) ||
+             component.Equals(".git", StringComparison.OrdinalIgnoreCase) ||
+             component.Equals("venv", StringComparison.OrdinalIgnoreCase) ||
+             component.Equals(".venv", StringComparison.OrdinalIgnoreCase)))
+            return true;
+
+        if (EnabledPresets.Contains(ExcludePreset.BuildOutputs) &&
+            (component.Equals("bin", StringComparison.OrdinalIgnoreCase) ||
+             component.Equals("obj", StringComparison.OrdinalIgnoreCase) ||
+             component.Equals("build", StringComparison.OrdinalIgnoreCase) ||
+             component.Equals("target", StringComparison.OrdinalIgnoreCase)))
+            return true;
+
+        if (EnabledPresets.Contains(ExcludePreset.OfficeLock) &&
+            (component.StartsWith("~$", StringComparison.OrdinalIgnoreCase) ||
+             component.StartsWith(".~lock.", StringComparison.OrdinalIgnoreCase)))
+            return true;
+
+        if (EnabledPresets.Contains(ExcludePreset.OfficeTemp) &&
+            component.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (EnabledPresets.Contains(ExcludePreset.CloudPlaceholder) &&
+            component.EndsWith(".icloud", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (EnabledPresets.Contains(ExcludePreset.SystemJunk) &&
+            (component.Equals("Thumbs.db", StringComparison.OrdinalIgnoreCase) ||
+             component.Equals("desktop.ini", StringComparison.OrdinalIgnoreCase) ||
+             component.Equals(".DS_Store", StringComparison.OrdinalIgnoreCase)))
+            return true;
+
         return false;
     }
 
