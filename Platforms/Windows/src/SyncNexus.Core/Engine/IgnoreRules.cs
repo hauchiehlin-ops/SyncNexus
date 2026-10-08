@@ -1,3 +1,5 @@
+using SyncNexus.Core.Model;
+
 namespace SyncNexus.Core.Engine;
 
 public class IgnoreRules
