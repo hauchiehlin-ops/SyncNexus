@@ -1,6 +1,54 @@
 import Foundation
 
 public let StringsTable: [String: [AppLanguage: String]] = [
+    "confirm_queue_title": [
+        .en: "%ld groups need your confirmation",
+        .zhHant: "有 %ld 個同步群組需要你確認",
+        .zhHans: "有 %ld 个同步群组需要你确认",
+        .ja: "%ld 件の同期グループで確認が必要です",
+        .th: "มี %ld กลุ่มซิงค์ที่ต้องการให้คุณยืนยัน",
+        .ko: "%ld개의 동기화 그룹에 확인이 필요합니다"
+    ],
+    "confirm_queue_approve_all": [
+        .en: "Approve all",
+        .zhHant: "全部同意",
+        .zhHans: "全部同意",
+        .ja: "すべて承認",
+        .th: "อนุมัติทั้งหมด",
+        .ko: "모두 승인"
+    ],
+    "confirm_queue_details": [
+        .en: "View details…",
+        .zhHant: "檢視明細…",
+        .zhHans: "查看明细…",
+        .ja: "詳細を表示…",
+        .th: "ดูรายละเอียด…",
+        .ko: "상세 보기…"
+    ],
+    "confirm_queue_decline": [
+        .en: "Decline (pause group)",
+        .zhHant: "取消（暫停此群組）",
+        .zhHans: "取消（暂停此群组）",
+        .ja: "キャンセル（グループを一時停止）",
+        .th: "ยกเลิก (หยุดกลุ่มชั่วคราว)",
+        .ko: "취소(그룹 일시 중지)"
+    ],
+    "confirm_queue_approve": [
+        .en: "Approve and run",
+        .zhHant: "同意並執行",
+        .zhHans: "同意并执行",
+        .ja: "承認して実行",
+        .th: "อนุมัติและดำเนินการ",
+        .ko: "승인 후 실행"
+    ],
+    "confirm_queue_hint": [
+        .en: "Approving applies the deletions to the other endpoints (old versions and Trash are kept first). Declining applies nothing and pauses the group until you resume it.",
+        .zhHant: "同意後才會把刪除傳到其他端點（先存入舊版本與垃圾桶）。取消則不會套用任何變更，並暫停該群組，直到你手動恢復。",
+        .zhHans: "同意后才会把删除传到其他端点（先存入旧版本与垃圾桶）。取消则不会套用任何变更，并暂停该群组，直到你手动恢复。",
+        .ja: "承認すると削除が他のエンドポイントに反映されます（旧バージョンとゴミ箱に先に保存）。キャンセルすると何も適用せず、再開するまでグループを一時停止します。",
+        .th: "เมื่ออนุมัติ การลบจะถูกส่งไปยังปลายทางอื่น (เก็บเวอร์ชันเก่าและถังขยะไว้ก่อน) หากยกเลิกจะไม่มีการเปลี่ยนแปลงใด ๆ และกลุ่มจะหยุดชั่วคราวจนกว่าคุณจะกลับมาทำงานต่อ",
+        .ko: "승인하면 삭제가 다른 엔드포인트에 적용됩니다(이전 버전과 휴지통에 먼저 보관). 취소하면 아무것도 적용하지 않고 다시 시작할 때까지 그룹을 일시 중지합니다."
+    ],
     "app_name": [
         .en: "Sync-Nexus",
         .zhHant: "Sync-Nexus",

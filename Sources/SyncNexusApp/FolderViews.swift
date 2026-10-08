@@ -64,16 +64,7 @@ struct FoldersSection: View {
         // Multi-folder Sync Groups Selector Bar
         SyncGroupTabBar(model: model, showingAddGroup: $showingAddGroup, editingGroup: $editingGroup)
 
-        if model.snap.confirmation != nil {
-            Card {
-                HStack(spacing: 12) {
-                    Image(systemName: "hand.raised").foregroundStyle(Theme.warn)
-                    Text(model.snap.confirmation?.reason ?? "").font(.system(size: 13)).fixedSize(horizontal: false, vertical: true)
-                    Spacer()
-                    Button(loc("btn_review_confirm")) { model.reviewConfirmation() }.buttonStyle(QuietButton(kind: .dark))
-                }
-            }
-        }
+        ConfirmationQueueCard(model: model)
 
         // Active Group Info Banner
         if let g = model.activeGroup {

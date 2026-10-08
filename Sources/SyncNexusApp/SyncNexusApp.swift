@@ -96,6 +96,12 @@ struct MenuBarIcon: View {
 
     var body: some View {
         Image(nsImage: statusImage)
+            .onReceive(model.$pendingReviewGroup.compactMap { $0 }) { gid in
+                model.pendingReviewGroup = nil
+                model.section = .folders
+                AppWindowPresenter.presentSettings(using: openWindow)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { model.reviewConfirmation(group: gid) }
+            }
             .onAppear {
                 if CommandLine.arguments.contains("--open-settings") {
                     openWindow(id: "settings"); NSApp.activate(ignoringOtherApps: true)

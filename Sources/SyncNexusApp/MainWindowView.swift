@@ -393,16 +393,7 @@ struct OverviewSection: View {
             .padding(.bottom, 4)
         }
 
-        if model.snap.confirmation != nil {
-            Card {
-                HStack(spacing: 12) {
-                    Image(systemName: "hand.raised").foregroundStyle(Theme.warn)
-                    Text(model.snap.confirmation?.reason ?? "").font(.system(size: 13)).fixedSize(horizontal: false, vertical: true)
-                    Spacer()
-                    Button(loc("btn_review_confirm")) { model.reviewConfirmation() }.buttonStyle(QuietButton(kind: .dark))
-                }
-            }
-        }
+        ConfirmationQueueCard(model: model)
         HStack(spacing: 14) {
             StatTile(label: loc("stat_tracked_files"), value: model.snap.trackedFiles.formatted(), sub: loc("stat_sub_sha256"))
             StatTile(label: loc("stat_last_deep_verify"), value: model.snap.lastDeepVerify?.formatted(date: .omitted, time: .shortened) ?? loc("never"), sub: model.snap.integrityIssues.isEmpty ? loc("no_anomalies") : loc("suspected_corrupted_count", model.snap.integrityIssues.count))

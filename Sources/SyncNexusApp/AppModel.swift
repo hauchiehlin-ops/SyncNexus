@@ -93,6 +93,9 @@ final class AppModel: ObservableObject {
     @Published var launchAtLogin = false
     @Published var loginNote: String?
     @Published var section: MainSection = .overview
+    /// Set when the user clicks a "needs confirmation" notification; the menu bar scene opens the window and clears it.
+    @Published var pendingReviewGroup: String?
+    private let notificationDelegate = NotificationClickDelegate()
     @Published var versionItems: [VersionItem] = []
     @Published var syncLogs: [SyncLogItem] = []
     @Published var trialRunReport: SyncReport?
@@ -178,6 +181,10 @@ final class AppModel: ObservableObject {
            let sec = MainSection(rawValue: CommandLine.arguments[i + 1]) { section = sec }     // debugging aid
 
         refreshLoginState()
+        notificationDelegate.onReviewConfirmation = { [weak self] gid in
+            Task { @MainActor in self?.pendingReviewGroup = gid }
+        }
+        UNUserNotificationCenter.current().delegate = notificationDelegate
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert]) { _, _ in }
         // After sleep the event stream can have gaps: re-check everything on wake.
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
@@ -411,7 +418,7 @@ final class AppModel: ObservableObject {
             snap = localizedSnapshot
             if let c = s.confirmation, c.reason != lastNotifiedConfirmation {
                 lastNotifiedConfirmation = c.reason
-                notify(loc("status_need_confirm"), CoreMessages.localize(c.reason))
+                notify(loc("status_need_confirm") + "：" + (groups.first { $0.id == groupId }.map(groupName) ?? groupId), CoreMessages.localize(c.reason), reviewGroup: groupId)
             } else if s.confirmation == nil { lastNotifiedConfirmation = nil }
             if s.conflicts.count > lastNotifiedConflicts {
                 let n = s.conflicts.count
@@ -649,13 +656,36 @@ final class AppModel: ObservableObject {
         alert.addButton(withTitle: loc("model_btn_confirm_exec"))
         alert.addButton(withTitle: loc("cancel"))
         NSApp.activate(ignoringOtherApps: true)
-        if alert.runModal() == .alertFirstButtonReturn {
-            snap.confirmation = nil
-            snapshots[targetGroup]?.confirmation = nil
-            lastNotifiedConfirmation = nil
-            objectWillChange.send()
-            services[targetGroup]?.syncNow(confirmed: true)
+        if alert.runModal() == .alertFirstButtonReturn { approveConfirmation(group: targetGroup) }
+    }
+
+    /// Groups (not paused) that are waiting for the user to confirm an abnormal change, in tab order.
+    var groupsNeedingConfirmation: [(group: SyncGroup, reason: String, count: Int)] {
+        groups.compactMap { g in
+            guard !isGroupPaused(id: g.id), let c = (localizedSnapshots[g.id] ?? snapshots[g.id].map(Self.localized))?.confirmation else { return nil }
+            return (g, c.reason, max(c.totalCount, c.preview.count))
         }
+    }
+
+    /// One-click approval: runs the held changes (deletions go to old versions / trash first).
+    func approveConfirmation(group id: String) {
+        guard snapshots[id]?.confirmation != nil else { return }
+        snapshots[id]?.confirmation = nil
+        localizedSnapshots[id]?.confirmation = nil
+        if id == activeGroupId { snap.confirmation = nil; lastNotifiedConfirmation = nil }
+        objectWillChange.send()
+        services[id]?.syncNow(confirmed: true)
+    }
+
+    /// Decline: nothing is applied and the group is paused so it neither asks again nor syncs until resumed.
+    func declineConfirmation(group id: String) {
+        pauseGroup(id: id)
+        if id == activeGroupId { lastNotifiedConfirmation = nil }
+        objectWillChange.send()
+    }
+
+    func approveAllConfirmations() {
+        for item in groupsNeedingConfirmation { approveConfirmation(group: item.group.id) }
     }
 
     // MARK: sync groups management
@@ -1213,9 +1243,29 @@ final class AppModel: ObservableObject {
         if SMAppService.mainApp.status == .requiresApproval { SMAppService.openSystemSettingsLoginItems() }
     }
 
-    private func notify(_ title: String, _ body: String) {
+    private func notify(_ title: String, _ body: String, reviewGroup: String? = nil) {
         let c = UNMutableNotificationContent()
         c.title = title; c.body = body
+        if let g = reviewGroup { c.userInfo = ["reviewConfirmationGroup": g] }
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: UUID().uuidString, content: c, trigger: nil))
+    }
+}
+
+
+/// Receives clicks on notifications. Confirmation notifications carry the group id so the app can open its review dialog.
+final class NotificationClickDelegate: NSObject, UNUserNotificationCenterDelegate {
+    var onReviewConfirmation: ((String) -> Void)?
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
+        if let gid = response.notification.request.content.userInfo["reviewConfirmationGroup"] as? String {
+            onReviewConfirmation?(gid)
+        }
+        completionHandler()
+    }
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner])
     }
 }
