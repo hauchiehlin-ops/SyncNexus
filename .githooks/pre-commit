@@ -13,7 +13,7 @@ case "$(ps -o args= -p $PPID 2>/dev/null)" in *--amend*) exit 0 ;; esac
 for ref in MERGE_HEAD CHERRY_PICK_HEAD REVERT_HEAD; do git rev-parse -q --verify "$ref" >/dev/null 2>&1 && exit 0; done
 [ -d "$(git rev-parse --git-path rebase-merge)" ] || [ -d "$(git rev-parse --git-path rebase-apply)" ] && exit 0
 
-FILES="VERSION BUILD_NUMBER Scripts/Info.plist packaging/homebrew/syncnexus.rb"
+FILES="VERSION BUILD_NUMBER Scripts/Info.plist packaging/homebrew/syncnexus.rb Platforms/Android/app/build.gradle.kts"
 kind=${BUMP:-patch}
 [ "$kind" = none ] && exit 0
 

@@ -4,7 +4,7 @@
 #   Scripts/bump-version.sh minor      0.1.7 -> 0.2.0
 #   Scripts/bump-version.sh major      0.4.2 -> 1.0.0
 #   Scripts/bump-version.sh --show     print the current version
-#   Scripts/bump-version.sh --sync     only copy VERSION/BUILD_NUMBER into Info.plist and the Homebrew cask
+#   Scripts/bump-version.sh --sync     only copy VERSION/BUILD_NUMBER into Info.plist, the Homebrew cask and Android build.gradle.kts
 # VERSION (x.y.z) is the marketing version; BUILD_NUMBER is an integer that goes up by one on EVERY bump
 # (CFBundleVersion, the "bundle number"). Both files are the single source of truth.
 set -euo pipefail
@@ -30,5 +30,9 @@ print -r -- "$NEWBUILD" > BUILD_NUMBER
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $NEW" -c "Set :CFBundleVersion $NEWBUILD" Scripts/Info.plist
 if [[ -f packaging/homebrew/syncnexus.rb ]]; then
   sed -i '' -E "s/^( *version )\".*\"/\1\"$NEW\"/" packaging/homebrew/syncnexus.rb
+fi
+ANDROID=Platforms/Android/app/build.gradle.kts
+if [[ -f $ANDROID ]]; then
+  sed -i '' -E "s/^( *versionCode = ).*/\1$NEWBUILD/; s/^( *versionName = ).*/\1\"$NEW\"/" $ANDROID
 fi
 [[ $KIND == --sync ]] && echo "已同步 $NEW (build $NEWBUILD)" || echo "$CUR (build $BUILD) → $NEW (build $NEWBUILD)"
