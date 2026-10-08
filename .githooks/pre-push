@@ -1,3 +1,5 @@
 #!/bin/sh
 # 依使用者規則：由使用者決定是否更新與打包版本，不再強制要求 push 時版本號遞增
+# 只清理 exFAT 產生的 ._* 檔（見 clean-appledouble.sh），不擋 push
+"$(dirname "$0")/clean-appledouble.sh"
 exit 0

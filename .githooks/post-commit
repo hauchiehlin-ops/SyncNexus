@@ -1,0 +1,3 @@
+#!/bin/sh
+# Clean macOS AppleDouble files out of .git (see clean-appledouble.sh)
+exec "$(dirname "$0")/clean-appledouble.sh"
