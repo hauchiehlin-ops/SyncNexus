@@ -652,7 +652,22 @@ final class AppModel: ObservableObject {
         let localizedPreview = c.preview.prefix(25).map(CoreMessages.localize)
         let lines = localizedPreview.joined(separator: "\n")
         let total = max(c.totalCount, c.preview.count)
-        alert.informativeText = lines + (total > 25 ? loc("model_and_more_items", total - 25) : "")
+        let detail = lines + (total > 25 ? "\n" + loc("model_and_more_items", total - 25) : "")
+        // Long previews used to make the alert taller than the screen, pushing its buttons off-screen.
+        // Keep the detail in a fixed-height scroll view so the buttons always stay reachable.
+        let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 520, height: 260))
+        scroll.hasVerticalScroller = true
+        scroll.borderType = .bezelBorder
+        let textView = NSTextView(frame: scroll.bounds)
+        textView.isEditable = false
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.autoresizingMask = [.width]
+        textView.textContainer?.widthTracksTextView = true
+        textView.font = .systemFont(ofSize: 12)
+        textView.string = detail
+        scroll.documentView = textView
+        alert.accessoryView = scroll
         alert.addButton(withTitle: loc("model_btn_confirm_exec"))
         alert.addButton(withTitle: loc("cancel"))
         NSApp.activate(ignoringOtherApps: true)
