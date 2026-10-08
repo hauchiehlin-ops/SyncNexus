@@ -187,7 +187,7 @@ class SyncEngine(
         if (guard.requiresConfirmation(overwritesCount, totalTracked) && !confirmed) {
             val reason = "預計變更/覆蓋 $overwritesCount 個檔案（共追蹤 $totalTracked 個），超過安全門檻，請確認後再執行"
             val preview = plan.take(50).map { "[${byId[it.source]?.displayName ?: it.source} -> ${byId[it.target]?.displayName ?: it.target}] ${it.path}" }
-            val pending = PendingConfirmation(groupId, reason, preview, plan.size)
+            val pending = PendingConfirmation(groupId, reason, preview, plan.size, thresholdLimit = guard.maxAbsolute)
             logs += SyncLogItem(clock(), "安全防護", reason, false)
             return SyncExecutionReport(totalTracked, 0, 0, logs, pending)
         }

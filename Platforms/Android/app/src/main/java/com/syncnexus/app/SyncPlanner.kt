@@ -34,8 +34,11 @@ data class PendingConfirmation(
     val groupId: String,
     val reason: String,
     val preview: List<String>,
-    val totalCount: Int
-)
+    val totalCount: Int,
+    val thresholdLimit: Int = 25
+) {
+    val message: String get() = reason
+}
 
 data class DeletionGuard(
     val maxAbsolute: Int = 25,

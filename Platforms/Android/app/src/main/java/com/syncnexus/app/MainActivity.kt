@@ -350,8 +350,9 @@ private fun OverviewStatTiles(snapshot: SyncSnapshotState) {
             Column(modifier = Modifier.padding(10.dp)) {
                 Text(stringResource(R.string.stat_last_deep_verify), fontSize = 11.sp, color = Color.Gray, maxLines = 1)
                 Spacer(modifier = Modifier.height(4.dp))
-                val verifyTimeText = if (snapshot.lastDeepVerifyTime > 0) {
-                    java.text.SimpleDateFormat("MM/dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(snapshot.lastDeepVerifyTime))
+                val verifyTime = snapshot.lastDeepVerifyTime
+                val verifyTimeText = if (verifyTime != null && verifyTime > 0) {
+                    java.text.SimpleDateFormat("MM/dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(verifyTime))
                 } else {
                     stringResource(R.string.never)
                 }
