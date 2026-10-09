@@ -12,8 +12,8 @@ android {
         applicationId = "com.syncnexus.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 50
-        versionName = "3.0.3"
+        versionCode = 52
+        versionName = "3.0.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
