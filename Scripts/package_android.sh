@@ -29,6 +29,33 @@ if [[ -z "${JAVA_HOME:-}" && -d /opt/homebrew/opt/openjdk@17 ]]; then export JAV
 export ANDROID_HOME
 
 if which gradle &>/dev/null && [[ -n "$ANDROID_HOME" ]]; then
+  # Release secrets live outside Git. The key itself is backed up separately;
+  # its password is read from macOS Keychain unless explicitly supplied by CI.
+  DEFAULT_KEYSTORE="$HOME/.syncnexus-signing/android/release-key.jks"
+  LEGACY_KEYSTORE="$PWD/Platforms/Android/release-key.jks"
+  : "${SYNCNEXUS_ANDROID_KEY_ALIAS:=syncnexus}"
+  : "${SYNCNEXUS_ANDROID_KEYSTORE_PATH:=$DEFAULT_KEYSTORE}"
+  if [[ ! -f "$SYNCNEXUS_ANDROID_KEYSTORE_PATH" && -f "$LEGACY_KEYSTORE" ]]; then
+    SYNCNEXUS_ANDROID_KEYSTORE_PATH="$LEGACY_KEYSTORE"
+  fi
+  if [[ ! -f "$SYNCNEXUS_ANDROID_KEYSTORE_PATH" ]]; then
+    print -u2 "錯誤：找不到 Android release keystore：$SYNCNEXUS_ANDROID_KEYSTORE_PATH"
+    print -u2 "請還原金鑰，或用明確授權的新金鑰初始化流程建立。"
+    exit 1
+  fi
+  if [[ -z "${SYNCNEXUS_ANDROID_STORE_PASSWORD:-}" ]]; then
+    SYNCNEXUS_ANDROID_STORE_PASSWORD=$(security find-generic-password \
+      -a "$SYNCNEXUS_ANDROID_KEY_ALIAS" -s "com.syncnexus.app.android-release" -w 2>/dev/null || true)
+  fi
+  if [[ -z "$SYNCNEXUS_ANDROID_STORE_PASSWORD" ]]; then
+    print -u2 "錯誤：macOS Keychain 中找不到 Android release keystore 密碼。"
+    print -u2 "服務名稱應為 com.syncnexus.app.android-release。"
+    exit 1
+  fi
+  : "${SYNCNEXUS_ANDROID_KEY_PASSWORD:=$SYNCNEXUS_ANDROID_STORE_PASSWORD}"
+  export SYNCNEXUS_ANDROID_KEYSTORE_PATH SYNCNEXUS_ANDROID_STORE_PASSWORD
+  export SYNCNEXUS_ANDROID_KEY_ALIAS SYNCNEXUS_ANDROID_KEY_PASSWORD
+
   # 外接 exFAT/FAT 磁碟會在 Gradle 的中介產物旁產生 ._* AppleDouble 檔，造成
   # "…/._mipmap-hdpi-v4 is not a directory"。因此在本機磁碟的暫存複本中建置，再把成品複製回來。
   STAGE=$(mktemp -d "${TMPDIR:-/tmp}/syncnexus-android.XXXXXX")

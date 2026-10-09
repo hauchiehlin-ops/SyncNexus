@@ -12,8 +12,8 @@ android {
         applicationId = "com.syncnexus.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 48
-        versionName = "3.0.1"
+        versionCode = 50
+        versionName = "3.0.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -23,12 +23,14 @@ android {
 
     signingConfigs {
         create("release") {
-            val keystoreFile = file("../release-key.jks")
+            val keystoreFile = System.getenv("SYNCNEXUS_ANDROID_KEYSTORE_PATH")?.let(::file)
+                ?: file("../release-key.jks")
             if (keystoreFile.exists()) {
                 storeFile = keystoreFile
-                storePassword = "syncnexus123"
-                keyAlias = "syncnexus"
-                keyPassword = "syncnexus123"
+                storePassword = System.getenv("SYNCNEXUS_ANDROID_STORE_PASSWORD")
+                    ?: throw GradleException("SYNCNEXUS_ANDROID_STORE_PASSWORD is required for release signing")
+                keyAlias = System.getenv("SYNCNEXUS_ANDROID_KEY_ALIAS") ?: "syncnexus"
+                keyPassword = System.getenv("SYNCNEXUS_ANDROID_KEY_PASSWORD") ?: storePassword
             }
         }
     }
