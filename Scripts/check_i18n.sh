@@ -58,7 +58,7 @@ done
 echo "✅ 索引連結皆指向各自語系！"
 
 echo "==> [i18n Check] 檢查 Apple 手冊截圖 (每個語系各一套 UI 截圖)..."
-SHOTS=(01_overview 02_diff_preview 02_diff_preview_toast 03_folders_endpoints 03_folders_offline_marker 04_conflicts 05_versions 06_verification 07_settings)
+SHOTS=(01_overview 02_diff_preview 02_diff_preview_toast 03_folders_endpoints 03_folders_offline_marker 04_activity 04_conflicts 05_versions 06_verification 07_settings)
 for l in "${DOC_LANGS[@]}"; do
   for s in "${SHOTS[@]}"; do
     [[ -f "docs/manual/assets/$l/$s.png" ]] || { echo "❌ 缺少截圖 docs/manual/assets/$l/$s.png" >&2; exit 1; }

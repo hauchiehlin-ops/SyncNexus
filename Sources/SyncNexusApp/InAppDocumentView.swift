@@ -212,7 +212,7 @@ struct InAppDocumentView: View {
                 title: loc("manual_topic_activity_title"),
                 desc: loc("manual_topic_activity_desc"),
                 badge: section.title,
-                imageName: "01_overview",
+                imageName: "04_activity",
                 opsTitle: loc("manual_topic_activity_ops_title"),
                 opsDesc: loc("manual_topic_activity_ops_desc"),
                 safeTitle: loc("manual_topic_activity_safe_title"),
