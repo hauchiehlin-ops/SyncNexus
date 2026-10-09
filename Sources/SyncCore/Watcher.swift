@@ -102,15 +102,27 @@ public final class Watcher {
         let mustFull = UInt32(kFSEventStreamEventFlagMustScanSubDirs | kFSEventStreamEventFlagUserDropped | kFSEventStreamEventFlagKernelDropped |
                               kFSEventStreamEventFlagRootChanged | kFSEventStreamEventFlagMount | kFSEventStreamEventFlagUnmount)
         for (i, path) in paths.enumerated() {
+            let eventFlags = flags[i]
             if let id = ids.indices.contains(i) ? ids[i] : nil, UInt64(id) > lastEventId { lastEventId = UInt64(id) }
-            if flags[i] & UInt32(kFSEventStreamEventFlagHistoryDone) != 0 { batch.replayDone = true; touched = true; immediate = true; continue }
+            if eventFlags & UInt32(kFSEventStreamEventFlagHistoryDone) != 0 { batch.replayDone = true; touched = true; immediate = true; continue }
             let comps = path.split(separator: "/")
             guard let matchedRoot = roots.first(where: { path == $0 || path.hasPrefix($0 + "/") }) else { continue }
             // Dropped/root/mount events are only relevant after the event has
             // been proven to belong to one of this group's endpoints.
-            if flags[i] & mustFull != 0 { batch.full = true; touched = true; continue }
+            if eventFlags & mustFull != 0 { batch.full = true; touched = true; continue }
             if let last = comps.last, ignore.isIgnored(component: String(last)) { continue }
             let rel = String(path.dropFirst(matchedRoot.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            // With file-level events, providers and builds frequently touch only a
+            // watched directory's mtime/xattrs as descendants change. The actual
+            // child paths arrive separately. Treating these metadata-only directory
+            // notifications as content changes collapses the batch to a whole-project
+            // (or whole-root) scan and needlessly visits unrelated projects.
+            if rel.isEmpty { continue }
+            let isDirectory = eventFlags & UInt32(kFSEventStreamEventFlagItemIsDir) != 0
+            let structuralDirectoryChange = eventFlags & UInt32(kFSEventStreamEventFlagItemCreated |
+                                                                  kFSEventStreamEventFlagItemRemoved |
+                                                                  kFSEventStreamEventFlagItemRenamed) != 0
+            if isDirectory && !structuralDirectoryChange { continue }
             if !rel.isEmpty && ignore.isIgnored(relativePath: rel) { continue }
             batch.paths.insert(path); touched = true
         }

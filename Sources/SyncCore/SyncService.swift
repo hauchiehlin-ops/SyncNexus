@@ -96,6 +96,10 @@ public final class SyncService: @unchecked Sendable {
     private var rootMap: [(root: String, resolved: String)] = []
     private var eventIdTimer: DispatchSourceTimer?
     private var contentReadyTimer: DispatchSourceTimer?
+    /// Each unchanged path gets one quick automatic retry. If it fails again,
+    /// wait for a real filesystem/content-ready event or an explicit user run.
+    /// This prevents a permanent five-second retry loop on unavailable cloud files.
+    private var automaticallyRetried = Set<String>()
     private let stopLock = NSLock()
     private var stopRequested = false
     private var cancelRequested = false
@@ -325,7 +329,10 @@ public final class SyncService: @unchecked Sendable {
             if running { setCancelRequested(true) }
         }
         setCancelHold(false)       // an explicit request ends the quiet period that follows a cancel
-        queue.async { self.runIfNeeded(confirmed: confirmed, manual: true) }
+        queue.async {
+            self.automaticallyRetried.removeAll()
+            self.runIfNeeded(confirmed: confirmed, manual: true)
+        }
     }
 
     /// User-requested cancellation. It is lock-only, so it is not trapped behind the long-running work on the
@@ -514,7 +521,14 @@ public final class SyncService: @unchecked Sendable {
         for r in rootMap {
             for root in [r.root, r.resolved] where path == root || path.hasPrefix(root + "/") {
                 let rel = PortableName.canonical(String(path.dropFirst(root.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/")))
-                if rel.isEmpty { needFull = true } else { dirty.insert(rel) }
+                if rel.isEmpty {
+                    needFull = true
+                    automaticallyRetried.removeAll()
+                } else {
+                    dirty.insert(rel)
+                    // A genuine change makes this a new retry opportunity.
+                    automaticallyRetried.remove(rel)
+                }
                 return
             }
         }
@@ -593,8 +607,14 @@ public final class SyncService: @unchecked Sendable {
                 pendingConfirmedRun = false
             }
             if !report.retry.isEmpty {
-                let again = report.retry
-                queue.asyncAfter(deadline: .now() + 5) { [weak self] in self?.dirty.formUnion(again); self?.runIfNeeded(confirmed: false, incremental: true) }
+                let again = report.retry.subtracting(automaticallyRetried)
+                automaticallyRetried.formUnion(again)
+                if !again.isEmpty {
+                    queue.asyncAfter(deadline: .now() + 5) { [weak self] in
+                        self?.dirty.formUnion(again)
+                        self?.runIfNeeded(confirmed: false, incremental: true)
+                    }
+                }
             }
             if deep && cfgs.count >= 2 && report.needsConfirmation == nil {
                 forceDeepVerify = false

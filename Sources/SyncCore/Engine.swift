@@ -463,11 +463,14 @@ public final class Engine {
         cfgByID = Dictionary(uniqueKeysWithValues: cfgs.map { ($0.id, $0) })
         let firstRun = try store.consensusCount() == 0
         let newcomersExist = try cfgs.contains { try !store.endpointHasHistory($0.id) }
-        // Incremental only when the group is established, no deep verify is wanted, and the change set is small.
+        // Incremental whenever the group is established, no deep verify is wanted, and the changed paths are known.
         var effective = scope
         if case .paths(let raw) = scope {
             let collapsed = Engine.collapse(raw)
-            effective = (firstRun || newcomersExist || options.deepVerify || collapsed.isEmpty || collapsed.count > 200) ? .full : .paths(Set(collapsed))
+            // A large event/retry batch is still a set of known paths. Promoting it to a
+            // full scan makes thousands of unrelated, unchanged files get walked again
+            // and can turn a transient cloud error into a permanent scan loop.
+            effective = (firstRun || newcomersExist || options.deepVerify || collapsed.isEmpty) ? .full : .paths(Set(collapsed))
         }
         if case .paths(let ps) = effective { prefixes = ps.sorted(); report.coveredFullScan = false } else { prefixes = nil }
         defer { prefixes = nil }

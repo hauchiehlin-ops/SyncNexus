@@ -21,7 +21,9 @@ public final class Materializer: @unchecked Sendable {
     private var inflight = Set<Key>()
     private var results: [Key: String] = [:]
 
-    /// Called after a read has finished (successfully or not), so the caller can look at the file again.
+    /// Called after content was read successfully, so the caller can look at the file again.
+    /// A failed read must stay quiet: reporting it as ready immediately requests the same
+    /// unavailable placeholder again and creates an endless scan/retry loop.
     public var onFinish: ((URL) -> Void)?
 
     public init() {}
@@ -57,7 +59,7 @@ public final class Materializer: @unchecked Sendable {
             self.inflight.remove(key)
             if let hash { self.results[key] = hash }
             self.lock.unlock()
-            self.onFinish?(url)
+            if hash != nil { self.onFinish?(url) }
         }
     }
 

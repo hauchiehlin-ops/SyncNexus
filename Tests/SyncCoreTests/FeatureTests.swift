@@ -509,11 +509,11 @@ struct IncrementalTests {
         #expect(e.read("b", "other.txt") == "2")
     }
 
-    @Test func manyPathsFallBackToAFullScan() throws {
+    @Test func manyKnownPathsStayIncremental() throws {
         let e = try Env2(["a", "b"])
         try e.write("a", "x.txt", "1"); try e.sync()
         let r = try e.syncPaths(Set((0..<250).map { "p\($0).txt" }))
-        #expect(r.coveredFullScan == true)
+        #expect(r.coveredFullScan == false)
     }
 
     @Test func transientSkipsAreReportedForAQuickRetry() {

@@ -136,12 +136,18 @@ codesign -dr - "$APP" 2>&1 | grep designated || true
 mkdir -p build
 rm -rf "$OUT_APP"
 ditto --norsrc --noextattr --noqtn "$APP" "$OUT_APP"
+# exFAT/FAT can materialize resource forks as AppleDouble files even when the
+# source bundle was clean. They are not part of the signature and become
+# ordinary extra files after copying back to APFS, invalidating the bundle.
+find "$OUT_APP" -name '._*' -type f -delete
 codesign --verify --deep --strict "$OUT_APP"
 echo "built $OUT_APP"
 if [[ "${1:-}" == "--install" || "${2:-}" == "--install" ]]; then
   mkdir -p ~/Applications
   pkill -x SyncNexus 2>/dev/null || true; sleep 1
   rm -rf ~/Applications/SyncNexus.app; cp -R "$APP" ~/Applications/
+  find ~/Applications/SyncNexus.app -name '._*' -type f -delete
+  codesign --verify --deep --strict ~/Applications/SyncNexus.app
   open ~/Applications/SyncNexus.app
   echo "installed ~/Applications/SyncNexus.app"
 fi
