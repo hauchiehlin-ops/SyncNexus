@@ -193,11 +193,15 @@ public final class SyncService: @unchecked Sendable {
             }
             let t = DispatchSource.makeTimerSource(queue: self.queue)
             t.schedule(deadline: .now() + self.periodic, repeating: self.periodic)
-            t.setEventHandler { [weak self] in self?.runIfNeeded(confirmed: false) }
+            // The timer is a fallback drain for paths already reported by the
+            // watcher, plus the weekly integrity verification. An empty dirty
+            // set otherwise remains idle; it is not a reason to walk every
+            // endpoint again.
+            t.setEventHandler { [weak self] in self?.periodicCheck() }
             t.resume()
             self.timer = t
-            // Persist the newest FSEvents id regularly: after a restart, the changes made while the app was off are replayed
-            // and synced within seconds (a full scan follows later as the safety net).
+            // Persist the newest FSEvents id regularly: after a restart, changes made while the app was off are replayed
+            // and synced within seconds. A dropped history explicitly requests a full scan.
             let it = DispatchSource.makeTimerSource(queue: self.queue)
             it.schedule(deadline: .now() + 60, repeating: 60)
             it.setEventHandler { [weak self] in self?.saveEventId() }
@@ -218,14 +222,12 @@ public final class SyncService: @unchecked Sendable {
                 }
                 if cfgs.count >= 2,
                    let saved = (try? engine.store.meta("fsEventId")).flatMap({ $0 }).flatMap(UInt64.init) {
-                    // Publish the stored endpoints before starting the delayed scan. Otherwise a
-                    // fresh UI shows "0 folders" throughout a long replay/full scan even though
-                    // the endpoint configuration is intact in the database.
+                    // Publish the stored endpoints before replaying events. Otherwise a fresh UI
+                    // shows "0 folders" until replay finishes even though configuration is intact.
                     try? self.fillStatus(engine, cfgs)
                     self.publish()
                     self.needFull = false
                     self.startWatcher(cfgs.map(\.root), since: saved)
-                    self.queue.asyncAfter(deadline: .now() + 90) { [weak self] in self?.runIfNeeded(confirmed: false) }
                 } else {
                     try? self.fillStatus(engine, cfgs)
                     self.publish()
@@ -501,6 +503,12 @@ public final class SyncService: @unchecked Sendable {
 
     // MARK: running
 
+    private func periodicCheck() {
+        guard let engine else { return }
+        if deepVerifyDue(engine) { forceDeepVerify = true }
+        runIfNeeded(confirmed: false, incremental: true)
+    }
+
     /// Maps an absolute path from FSEvents to the path relative to its endpoint, shared by all endpoints. A change of the root itself means "everything".
     private func markDirty(absolute path: String) {
         for r in rootMap {
@@ -514,7 +522,7 @@ public final class SyncService: @unchecked Sendable {
 
     private func ingest(_ batch: WatchBatch) {
         if batch.replayDone, snapshot.lastRun == nil, let engine, let cfgs = try? engine.store.endpoints() {
-            // Started from stored history: show the real state now instead of "starting…" until the delayed full scan.
+            // Started from stored history: show the real state as soon as replay finishes.
             try? fillStatus(engine, cfgs); snapshot.lastRun = Date(); publish()
         }
         if batch.full { needFull = true }
@@ -540,8 +548,9 @@ public final class SyncService: @unchecked Sendable {
             }
             return
         }
-        // Incremental only when asked for by the watcher and nothing doubtful is pending; every other trigger (start, wake,
-        // timer, "sync now", confirmation) looks at everything.
+        // Incremental only when asked for by the watcher/fallback drain and
+        // nothing doubtful is pending. First runs, explicit actions and events
+        // that indicate lost information still look at everything.
         let wantFull = !incremental || needFull || effectiveConfirmed || forceDeepVerify || rerunFull
         if wantFull && !manual && !effectiveConfirmed && !forceDeepVerify {
             let wait = Self.fullScanCooldown - Date().timeIntervalSince(lastFullScanEnd)

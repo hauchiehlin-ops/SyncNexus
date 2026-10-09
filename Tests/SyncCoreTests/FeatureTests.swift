@@ -15,6 +15,8 @@ private final class ServiceSnapshots: @unchecked Sendable {
     private var values: [SyncService.Snapshot] = []
     func append(_ value: SyncService.Snapshot) { lock.lock(); values.append(value); lock.unlock() }
     var first: SyncService.Snapshot? { lock.lock(); defer { lock.unlock() }; return values.first }
+    var last: SyncService.Snapshot? { lock.lock(); defer { lock.unlock() }; return values.last }
+    var syncingCount: Int { lock.lock(); defer { lock.unlock() }; return values.count { $0.phase == .syncing } }
 }
 
 private final class Env2 {
@@ -735,6 +737,35 @@ struct ExcludeTests {
             try await Task.sleep(nanoseconds: 10_000_000)
         }
         #expect(snapshots.first?.endpoints.count == 2)
+        await svc.stopAndWait()
+    }
+
+    @Test func idlePeriodicTicksDoNotStartFullScans() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("svc-idle-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let db = dir.appendingPathComponent("state.db").path
+        do {
+            let store = try Store(path: db)
+            for name in ["a", "b"] {
+                let root = dir.appendingPathComponent(name)
+                try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+                try store.addEndpoint(EndpointConfig(id: name, root: root.path))
+            }
+        }
+
+        let snapshots = ServiceSnapshots()
+        let svc = SyncService(dbPath: db, versionsDir: dir.appendingPathComponent("versions"), logURL: nil,
+                              periodicSeconds: 0.05) { snapshots.append($0) }
+        svc.start()
+        for _ in 0..<200 {
+            if snapshots.last?.lastRun != nil && snapshots.last?.phase == .idle { break }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        #expect(snapshots.last?.lastRun != nil)
+        let afterInitialRun = snapshots.syncingCount
+        try await Task.sleep(nanoseconds: 250_000_000)
+        #expect(snapshots.syncingCount == afterInitialRun)
         await svc.stopAndWait()
     }
 }
